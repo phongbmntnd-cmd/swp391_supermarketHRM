@@ -205,7 +205,7 @@
     <% } %>
 
     <!-- Form Đăng nhập -->
-    <form action="login" method="post">
+   <form action="${pageContext.request.contextPath}/login" method="post">
         <div class="form-group">
             <label class="form-label" for="username">Tên đăng nhập</label>
             <div class="input-group">
