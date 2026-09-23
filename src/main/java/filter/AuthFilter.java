@@ -17,46 +17,52 @@ import jakarta.servlet.http.HttpSession;
 public class AuthFilter implements Filter {
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-        
-        HttpServletRequest req = (HttpServletRequest) request;
-        HttpServletResponse res = (HttpServletResponse) response;
-        HttpSession session = req.getSession(false);
+public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+        throws IOException, ServletException {
 
-        User user = (session != null) ? (User) session.getAttribute("account") : null;
+    HttpServletRequest req = (HttpServletRequest) request;
+    HttpServletResponse res = (HttpServletResponse) response;
+    HttpSession session = req.getSession(false);
 
-        if (user == null) {
-            res.sendRedirect(req.getContextPath() + "/login.jsp");
-            return;
-        }
+    String path = req.getRequestURI().substring(req.getContextPath().length());
 
-        String uri = req.getRequestURI();
-        int roleId = user.getRoleId();
-
-        if (uri.contains("/admin/") && roleId != 1) {
-            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang Admin!");
-            return;
-        } 
-        else if (uri.contains("/director/") && roleId != 2) {
-            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang Giám Đốc!");
-            return;
-        } 
-        else if (uri.contains("/hr/") && roleId != 3) {
-            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang HR!");
-            return;
-        } 
-        else if (uri.contains("/store-manager/") && roleId != 4) {
-            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang Quản Lý Cửa Hàng!");
-            return;
-        } 
-        else if (uri.contains("/employee/") && roleId != 5) {
-            res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang Nhân Viên!");
-            return;
-        }
-
+    // 1. CHO PHÉP TRUY CẬP FREELY VÀO TRANG LOGIN VÀ TÀI NGUYÊN TĨNH (CSS/JS)
+    if (path.equals("/login") || path.equals("/login.jsp") || path.startsWith("/css/") || path.startsWith("/js/")) {
         chain.doFilter(request, response);
+        return;
     }
+
+    // 2. NẾU CHƯA ĐĂNG NHẬP MÀ CỐ TÌM CÁCH VÀO TRANG KHÁC -> MỚI CHUYỂN VỀ LOGIN
+    User user = (session != null) ? (User) session.getAttribute("account") : null;
+
+    if (user == null) {
+        res.sendRedirect(req.getContextPath() + "/login.jsp");
+        return;
+    }
+
+    // 3. KIỂM TRA QUYỀN TRUY CẬP THEO ROLE ID (Code cũ của bạn giữ nguyên bên dưới)
+    int roleId = user.getRoleId();
+
+    if (path.contains("/admin/") && roleId != 1) {
+        res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang Admin!");
+        return;
+    } else if (path.contains("/director/") && roleId != 2) {
+        res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang Giám Đốc!");
+        return;
+    } else if (path.contains("/hr/") && roleId != 3) {
+        res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang HR!");
+        return;
+    } else if (path.contains("/store-manager/") && roleId != 4) {
+        res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang Quản Lý Cửa Hàng!");
+        return;
+    } else if (path.contains("/employee/") && roleId != 5) {
+        res.sendError(HttpServletResponse.SC_FORBIDDEN, "Bạn không có quyền truy cập trang Nhân Viên!");
+        return;
+    }
+
+    // Cho phép đi tiếp nếu thỏa mãn mọi điều kiện
+    chain.doFilter(request, response);
+}
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {}

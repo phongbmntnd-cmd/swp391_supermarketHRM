@@ -7,17 +7,20 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <title>HR Manager Dashboard</title>
-</head>
-<body>
-    <h2>Trang Quản Lý Nhân Sự (HR Manager)</h2>
-    <p>Xin chào, <strong>${sessionScope.account.username}</strong>!</p>
-    <ul>
-        <li>Quản lý hồ sơ nhân viên & hợp đồng</li>
-        <li>Duyệt đề xuất tuyển dụng & điều chuyển</li>
-        <li>Cấu hình công thức lương & chốt Payroll</li>
-    </ul>
-</body>
+    <head>
+        <meta charset="UTF-8">
+        <title>HR Manager Dashboard</title>
+    </head>
+    <body>
+        <h2>Trang Quản Lý Nhân Sự (HR Manager)</h2>
+        <p>Xin chào, <strong>${sessionScope.account.username}</strong>!</p>
+        <ul>
+            <li>Quản lý hồ sơ nhân viên & hợp đồng</li>
+            <li>Duyệt đề xuất tuyển dụng & điều chuyển</li>
+            <li>Cấu hình công thức lương & chốt Payroll</li>
+        </ul>
+        <a href="${pageContext.request.contextPath}/hr/create-user" class="btn btn-primary">
+            + Tạo Tài Khoản Nhân Viên Mới
+        </a>
+    </body>
 </html>
