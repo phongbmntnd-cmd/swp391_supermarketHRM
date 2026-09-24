@@ -22,7 +22,11 @@ public class CommonDAO {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Branch(rs.getInt("id"), rs.getString("code"), rs.getString("name")));
+                Branch b = new Branch();
+                b.setId(rs.getInt("id"));
+                b.setCode(rs.getString("code"));
+                b.setName(rs.getString("name"));
+                list.add(b);
             }
         } catch (Exception e) { e.printStackTrace(); }
         return list;
