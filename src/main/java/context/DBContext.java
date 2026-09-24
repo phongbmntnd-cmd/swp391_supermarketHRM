@@ -20,7 +20,7 @@ public class DBContext {
     private static final String PORT_NUMBER = "3306";
     private static final String DB_NAME = "swp391_supermarket";
     private static final String USER_NAME = "root";
-    private static final String PASSWORD = "Phong22042004@";
+    private static final String PASSWORD = "Taahuyydatt";
 
     public static Connection getConnection() throws Exception {
         // 1. Nạp Driver kết nối MySQL
