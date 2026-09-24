@@ -1,3 +1,4 @@
+
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
@@ -112,4 +113,18 @@ public class BranchDAO {
         }
         return list;
     }
+
+    // Xóa (hoặc chuyển trạng thái cơ sở thành INACTIVE)
+    public boolean deleteBranch(int branchId) {
+        String sql = "UPDATE branches SET status = 'INACTIVE' WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, branchId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }
+
+

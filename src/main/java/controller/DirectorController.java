@@ -1,3 +1,4 @@
+
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
@@ -8,7 +9,6 @@ package controller;
  *
  * @author nguyn
  */
-
 import dao.BranchDAO;
 import model.Branch;
 import model.User;
@@ -26,7 +26,7 @@ public class DirectorController extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         String action = request.getParameter("action");
         BranchDAO branchDAO = new BranchDAO();
 
@@ -35,7 +35,7 @@ public class DirectorController extends HttpServlet {
             List<Branch> branches = branchDAO.getAllBranches();
             request.setAttribute("branchList", branches);
             request.getRequestDispatcher("/WEB-INF/views/director/branch-management.jsp").forward(request, response);
-            
+
         } else if (action.equals("viewEmployees")) {
             // Xem danh sách nhân viên của cơ sở
             int branchId = Integer.parseInt(request.getParameter("id"));
@@ -43,13 +43,19 @@ public class DirectorController extends HttpServlet {
             request.setAttribute("employeeList", employees);
             request.setAttribute("branchId", branchId);
             request.getRequestDispatcher("/WEB-INF/views/director/branch-employees.jsp").forward(request, response);
+        } else if ("delete".equals(action)) {
+            // Tính năng: Xóa / Hủy kích hoạt cơ sở
+            int branchId = Integer.parseInt(request.getParameter("branchId"));
+            branchDAO.deleteBranch(branchId);
+            response.sendRedirect(request.getContextPath() + "/director/branch-management");
         }
+
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         String action = request.getParameter("action");
         BranchDAO branchDAO = new BranchDAO();
 
@@ -58,17 +64,18 @@ public class DirectorController extends HttpServlet {
             String code = request.getParameter("code");
             String name = request.getParameter("name");
             String address = request.getParameter("address");
-            
+
             branchDAO.insertBranch(code, name, address);
             response.sendRedirect(request.getContextPath() + "/director/branch-management?action=list");
-            
+
         } else if (action.equals("assign")) {
             // Gán quản lý cho cơ sở
             int branchId = Integer.parseInt(request.getParameter("branchId"));
             int managerId = Integer.parseInt(request.getParameter("managerId"));
-            
+
             branchDAO.assignStoreManager(branchId, managerId);
             response.sendRedirect(request.getContextPath() + "/director/branch-management?action=list");
         }
     }
 }
+
