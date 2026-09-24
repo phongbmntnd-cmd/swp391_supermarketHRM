@@ -47,7 +47,7 @@ public class DirectorController extends HttpServlet {
             int branchId = Integer.parseInt(request.getParameter("branchId"));
             branchDAO.deleteBranch(branchId);
             response.sendRedirect(request.getContextPath() + "/director/branch-management");
-        }
+        } 
 
     }
 
@@ -74,6 +74,21 @@ public class DirectorController extends HttpServlet {
 
             branchDAO.assignStoreManager(branchId, managerId);
             response.sendRedirect(request.getContextPath() + "/director/branch-management?action=list");
+        } else if ("toggleStatus".equals(action)) {
+            int branchId = Integer.parseInt(request.getParameter("branchId"));
+            String currentStatus = request.getParameter("currentStatus");
+
+            branchDAO.toggleBranchStatus(branchId, currentStatus);
+            response.sendRedirect(request.getContextPath() + "/director/branch-management");
+        } else if ("toggleStatus".equals(action)) {
+            int branchId = Integer.parseInt(request.getParameter("branchId"));
+            String currentStatus = request.getParameter("currentStatus");
+
+            // Gọi DAO để đảo ngược trạng thái (ACTIVE <-> INACTIVE)
+            branchDAO.toggleBranchStatus(branchId, currentStatus);
+
+            // Chuyển hướng lại trang danh sách để load lại dữ liệu mới
+            response.sendRedirect(request.getContextPath() + "/director/branch-management");
         }
     }
 }
