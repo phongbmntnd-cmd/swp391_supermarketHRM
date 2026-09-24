@@ -14,6 +14,7 @@ public class User {
     private int homeBranchId;
     private String fullName;
     private boolean isFirstLogin;
+    private String positionName;
 
     public User() {
     }
@@ -111,4 +112,14 @@ public class User {
     public boolean getIsFirstLogin() {
         return isFirstLogin;
     }
+
+    public String getPositionName() {
+        return positionName;
+    }
+
+    public void setPositionName(String positionName) {
+        this.positionName = positionName;
+    }
+    
+    
 }
