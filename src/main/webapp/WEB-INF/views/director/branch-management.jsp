@@ -179,14 +179,7 @@
                 color: #2980b9;
             }
 
-            .badge-active {
-                background-color: #e8f8f5;
-                color: #27ae60;
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-weight: 500;
-                font-size: 12px;
-            }
+
             /*nut xoa*/
             .btn-delete {
                 padding: 5px 10px;
@@ -205,18 +198,22 @@
             .badge-active {
                 background-color: #e8f8f5;
                 color: #27ae60;
-                padding: 4px 8px;
+                padding: 5px 10px;
                 border-radius: 4px;
                 font-weight: 500;
                 font-size: 12px;
+                cursor: pointer;
+                border: none;
             }
             .badge-inactive {
-                background-color: #ffadad55;
+                background-color: #fde8e8;
                 color: #c0392b;
-                padding: 4px 8px;
+                padding: 5px 10px;
                 border-radius: 4px;
                 font-weight: 500;
                 font-size: 12px;
+                cursor: pointer;
+                border: none;
             }
         </style>
     </head>
@@ -278,9 +275,16 @@
                                 <td>${b.name}</td>
                                 <td>${b.address}</td>
                                 <td>
-                                    <span class="${b.status == 'ACTIVE' ? 'badge-active' : 'badge-inactive'}">
-                                        ${b.status}
-                                    </span>
+                                    <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" style="margin: 0;" 
+                                          onsubmit="return confirm('${b.status == 'ACTIVE' ? 'Bạn có chắc chắn muốn dừng hoạt động cơ sở này không?' : 'Bạn có muốn kích hoạt lại cơ sở này không?'}');">
+                                        <input type="hidden" name="action" value="toggleStatus">
+                                        <input type="hidden" name="branchId" value="${b.id}">
+                                        <input type="hidden" name="currentStatus" value="${b.status}">
+
+                                        <button type="submit" class="${b.status == 'ACTIVE' ? 'badge-active' : 'badge-inactive'}" style="cursor: pointer; border: none;" title="Nhấn để đổi trạng thái">
+                                            ${b.status} 🔄
+                                        </button>
+                                    </form>
                                 </td>
                                 <td>
                                     <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" class="input-group" style="margin: 0;">

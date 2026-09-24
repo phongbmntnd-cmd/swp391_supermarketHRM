@@ -125,6 +125,20 @@ public class BranchDAO {
         }
         return false;
     }
+
+    // Đổi trạng thái cơ sở (ACTIVE <-> INACTIVE)
+    public boolean toggleBranchStatus(int branchId, String currentStatus) {
+        String newStatus = "ACTIVE".equals(currentStatus) ? "INACTIVE" : "ACTIVE";
+        String sql = "UPDATE branches SET status = ? WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newStatus);
+            ps.setInt(2, branchId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }
 
 
