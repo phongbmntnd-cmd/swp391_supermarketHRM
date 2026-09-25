@@ -139,6 +139,19 @@ public class BranchDAO {
         }
         return false;
     }
+
+    // Cập nhật thông tin Cơ sở
+    public boolean updateBranch(int id, String code, String name, String address) {
+        String sql = "UPDATE branches SET code = ?, name = ?, address = ? WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, code);
+            ps.setString(2, name);
+            ps.setString(3, address);
+            ps.setInt(4, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 }
-
-
