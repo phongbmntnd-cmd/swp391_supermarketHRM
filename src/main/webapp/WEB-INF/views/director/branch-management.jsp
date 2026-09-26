@@ -227,28 +227,52 @@
 
         <div class="container">
 
-            <!-- Form Thêm mới cơ sở dạng Card -->
-            <div class="card-section">
-                <h3>+ Thêm Cơ Sở Mới</h3>
+            <!-- Form Thêm mới / Cập nhật Cơ sở dạng Card đồng bộ -->
+            <div class="card-section" style="border-left-color: ${not empty editingBranch ? '#f39c12' : '#3498db'};">
+                <h3>
+                    <c:choose>
+                        <c:when test="${not empty editingBranch}">
+                            ✏️ Cập Nhật Thông Tin Cơ Sở (ID: ${editingBranch.id})
+                        </c:when>
+                        <c:otherwise>
+                            + Thêm Cơ Sở Mới
+                        </c:otherwise>
+                    </c:choose>
+                </h3>
                 <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" class="form-inline">
-                    <input type="hidden" name="action" value="add">
+
+                    <!-- Phân biệt hành động là add hay update -->
+                    <input type="hidden" name="action" value="${not empty editingBranch ? 'update' : 'add'}">
+
+                    <!-- Nếu là sửa thì truyền thêm ID ngầm -->
+                    <c:if test="${not empty editingBranch}">
+                        <input type="hidden" name="id" value="${editingBranch.id}">
+                    </c:if>
 
                     <div class="form-group">
                         <label>Mã cơ sở:</label>
-                        <input type="text" name="code" required placeholder="VD: BR004">
+                        <input type="text" name="code" required value="${editingBranch.code}" placeholder="VD: BR004">
                     </div>
 
                     <div class="form-group">
                         <label>Tên cơ sở:</label>
-                        <input type="text" name="name" required placeholder="Siêu thị Cơ sở 4">
+                        <input type="text" name="name" required value="${editingBranch.name}" placeholder="Siêu thị Cơ sở 4">
                     </div>
 
                     <div class="form-group" style="flex-grow: 1;">
                         <label>Địa chỉ:</label>
-                        <input type="text" name="address" required placeholder="Nhập địa chỉ chi nhánh..." style="width: 100%;">
+                        <input type="text" name="address" required value="${editingBranch.address}" placeholder="Nhập địa chỉ chi nhánh..." style="width: 100%;">
                     </div>
 
-                    <button type="submit" class="btn-submit">Lưu Cơ Sở</button>
+                    <!-- Nút submit thay đổi màu sắc và tên tùy theo trạng thái Thêm hay Sửa -->
+                    <button type="submit" class="btn-submit" style="background-color: ${not empty editingBranch ? '#f39c12' : '#2ecc71'};">
+                        ${not empty editingBranch ? 'Cập Nhật' : 'Lưu Cơ Sở'}
+                    </button>
+
+                    <!-- Nút Hủy nếu đang trong chế độ Sửa -->
+                    <c:if test="${not empty editingBranch}">
+                        <a href="${pageContext.request.contextPath}/director/branch-management" style="padding: 9px 15px; background-color: #95a5a6; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500;">Hủy</a>
+                    </c:if>
                 </form>
             </div>
 
@@ -298,12 +322,17 @@
                                     <a href="${pageContext.request.contextPath}/director/branch-management?action=viewEmployees&id=${b.id}" class="link-detail">Xem Nhân Sự</a>
                                 </td>
                                 <td>
-                                    <!-- Nút Xóa cơ sở -->
-                                    <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" style="margin: 0;" onsubmit="return confirm('Bạn có chắc chắn muốn xóa/ngừng hoạt động cơ sở này không?');">
-                                        <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="branchId" value="${b.id}">
-                                        <button type="submit" class="btn-delete">Xóa</button>
-                                    </form>
+                                    <div style="display: flex; gap: 5px;">
+                                        <!-- Nút Sửa -->
+                                        <a href="${pageContext.request.contextPath}/director/branch-management?action=edit&id=${b.id}" class="btn-edit" style="padding: 5px 10px; background-color: #f39c12; color: white; border-radius: 3px; text-decoration: none; font-size: 13px; font-weight: 500;">Sửa</a>
+
+                                        <!-- Nút Xóa -->
+                                        <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" style="margin: 0;" onsubmit="return confirm('Bạn có chắc chắn muốn dừng hoạt động cơ sở này không?');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="branchId" value="${b.id}">
+                                            <button type="submit" class="btn-delete">Xóa</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         </c:forEach>
