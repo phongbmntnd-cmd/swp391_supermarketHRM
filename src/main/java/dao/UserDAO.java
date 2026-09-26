@@ -6,6 +6,8 @@ import model.User;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UserDAO {
 
@@ -17,53 +19,52 @@ public class UserDAO {
      * @return Đối tượng User nếu đúng tài khoản/mật khẩu, ngược lại trả về null
      */
     public User checkLogin(String username, String password) {
-    String sql = "SELECT u.id, u.username, u.email, u.status, u.expiration_date, u.is_first_login, "
-               + "r.id AS role_id, r.name AS role_name, r.description AS role_desc, "
-               + "ep.full_name, ep.phone, ep.home_branch_id "
-               + "FROM users u "
-               + "JOIN roles r ON u.role_id = r.id "
-               + "LEFT JOIN employee_profiles ep ON u.id = ep.user_id "
-               + "WHERE u.username = ? AND u.password_hash = ? AND u.status = 'ACTIVE'";
+        String sql = "SELECT u.id, u.username, u.email, u.status, u.expiration_date, u.is_first_login, "
+                + "r.id AS role_id, r.name AS role_name, r.description AS role_desc, "
+                + "ep.full_name, ep.phone, ep.home_branch_id "
+                + "FROM users u "
+                + "JOIN roles r ON u.role_id = r.id "
+                + "LEFT JOIN employee_profiles ep ON u.id = ep.user_id "
+                + "WHERE u.username = ? AND u.password_hash = ? AND u.status = 'ACTIVE'";
 
-    try (Connection conn = new DBContext().getConnection();
-         PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
-        ps.setString(1, username);
-        ps.setString(2, password);
+            ps.setString(1, username);
+            ps.setString(2, password);
 
-        try (ResultSet rs = ps.executeQuery()) {
-            if (rs.next()) {
-                // 1. Khởi tạo đối tượng Role
-                Role role = new Role();
-                role.setId(rs.getInt("role_id"));
-                role.setName(rs.getString("role_name"));
-                role.setDescription(rs.getString("role_desc"));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    // 1. Khởi tạo đối tượng Role
+                    Role role = new Role();
+                    role.setId(rs.getInt("role_id"));
+                    role.setName(rs.getString("role_name"));
+                    role.setDescription(rs.getString("role_desc"));
 
-                // 2. Khởi tạo đối tượng User
-                User user = new User();
-                user.setId(rs.getInt("id"));
-                user.setUsername(rs.getString("username"));
-                user.setEmail(rs.getString("email"));
-                user.setStatus(rs.getString("status"));
-                user.setExpirationDate(rs.getTimestamp("expiration_date"));
-                user.setFirstLogin(rs.getBoolean("is_first_login"));
+                    // 2. Khởi tạo đối tượng User
+                    User user = new User();
+                    user.setId(rs.getInt("id"));
+                    user.setUsername(rs.getString("username"));
+                    user.setEmail(rs.getString("email"));
+                    user.setStatus(rs.getString("status"));
+                    user.setExpirationDate(rs.getTimestamp("expiration_date"));
+                    user.setFirstLogin(rs.getBoolean("is_first_login"));
 
-                // Gán Role vào User
-                user.setRole(role);
+                    // Gán Role vào User
+                    user.setRole(role);
 
-                // Lấy thông tin từ employee_profiles
-                user.setFullName(rs.getString("full_name"));
-                user.setPhone(rs.getString("phone"));
-                user.setHomeBranchId(rs.getInt("home_branch_id"));
+                    // Lấy thông tin từ employee_profiles
+                    user.setFullName(rs.getString("full_name"));
+                    user.setPhone(rs.getString("phone"));
+                    user.setHomeBranchId(rs.getInt("home_branch_id"));
 
-                return user;
+                    return user;
+                }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    } catch (Exception e) {
-        e.printStackTrace();
+        return null;
     }
-    return null;
-}
 
     /**
      * Hàm tạo tài khoản và hồ sơ nhân viên trong 1 Transaction
@@ -207,6 +208,65 @@ public class UserDAO {
             ps.setString(1, newPassword); // Nếu có dùng Mã hóa (BCrypt/MD5) thì mã hóa ở đây
             ps.setInt(2, userId);
 
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public String generateNextCode(String rolePrefix) {
+        String sql = "SELECT username FROM users WHERE username LIKE ? ORDER BY id DESC LIMIT 1";
+        int nextNumber = 1;
+
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, rolePrefix + "%");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String maxCode = rs.getString("username");
+                    // Lấy phần số phía sau tiền tố (VD: "NV005" lấy ra "005" -> chuyển thành số 5)
+                    String numberPart = maxCode.replace(rolePrefix, "");
+                    nextNumber = Integer.parseInt(numberPart) + 1;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Định dạng lại thành 3 chữ số (VD: 1 thành "001", kết hợp với tiền tố thành "NV001")
+        return String.format("%s%03d", rolePrefix, nextNumber);
+    }
+
+    // Lấy danh sách nhân viên theo mã chi nhánh
+    public List<User> getUsersByBranch(int branchId) {
+        List<User> list = new ArrayList<>();
+        String sql = "SELECT * FROM users WHERE home_branch_id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, branchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    User u = new User();
+                    u.setId(rs.getInt("id"));
+                    u.setUsername(rs.getString("username"));
+                    u.setFullName(rs.getString("full_name"));
+                    u.setEmail(rs.getString("email"));
+                    u.setPhone(rs.getString("phone"));
+                    u.setStatus(rs.getString("status")); // ACTIVE, LOCKED, ...
+                    list.add(u);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+// Khóa khẩn cấp tài khoản nhân viên
+    public boolean updateStatus(int userId, String status) {
+        String sql = "UPDATE users SET status = ? WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status); // Truyền vào "LOCKED"
+            ps.setInt(2, userId);
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
             e.printStackTrace();
