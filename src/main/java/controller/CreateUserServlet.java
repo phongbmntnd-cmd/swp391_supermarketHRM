@@ -1,0 +1,83 @@
+package controller;
+
+import dao.CommonDAO;
+import dao.UserDAO;
+import java.io.IOException;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+@WebServlet("/hr/create-user")
+public class CreateUserServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        CommonDAO commonDAO = new CommonDAO();
+        request.setAttribute("branches", commonDAO.getAllBranches());
+        request.setAttribute("departments", commonDAO.getAllDepartments());
+        request.setAttribute("positions", commonDAO.getAllPositions());
+        request.setAttribute("roles", commonDAO.getHRManageableRoles());
+
+        request.getRequestDispatcher("/WEB-INF/views/hr/create-user.jsp").forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        request.setCharacterEncoding("UTF-8");
+
+        String username = request.getParameter("username");
+        String email = request.getParameter("email");
+        int roleId = Integer.parseInt(request.getParameter("roleId"));
+        String fullName = request.getParameter("fullName");
+        String phone = request.getParameter("phone");
+        String identityCard = request.getParameter("identityCard");
+        int homeBranchId = Integer.parseInt(request.getParameter("homeBranchId"));
+        int departmentId = Integer.parseInt(request.getParameter("departmentId"));
+        int positionId = Integer.parseInt(request.getParameter("positionId"));
+        String employeeType = request.getParameter("employeeType");
+        String expirationDate = request.getParameter("expirationDate");
+
+        UserDAO userDAO = new UserDAO();
+
+        // 1. Kiểm tra trùng Username (Mã nhân viên)
+        if (userDAO.isUsernameExists(username)) {
+            request.setAttribute("error", "Mã nhân viên (Username) '" + username + "' đã tồn tại!");
+            doGet(request, response);
+            return;
+        }
+
+        // 2. Kiểm tra trùng Email (Nếu có nhập email)
+        if (email != null && !email.trim().isEmpty() && userDAO.isEmailExists(email)) {
+            request.setAttribute("error", "Email '" + email + "' đã được sử dụng!");
+            doGet(request, response);
+            return;
+        }
+
+        // 3. Kiểm tra trùng Số CCCD/CMND
+        if (userDAO.isIdentityCardExists(identityCard)) {
+            request.setAttribute("error", "Số CCCD/CMND '" + identityCard + "' đã tồn tại!");
+            doGet(request, response);
+            return;
+        }
+
+        // Nếu tất cả hợp lệ -> Tiến hành tạo tài khoản
+        boolean success = userDAO.createUserWithProfile(
+                username, email, roleId, expirationDate,
+                fullName, phone, identityCard, homeBranchId,
+                positionId, departmentId, employeeType);
+
+        if (success) {
+            request.setAttribute("message", "Tạo tài khoản thành công! Mật khẩu mặc định: 123456");
+        } else {
+            request.setAttribute("error", "Tạo tài khoản thất bại! Vui lòng kiểm tra lại kết nối cơ sở dữ liệu.");
+        }
+
+        // Load lại danh sách dữ liệu cho dropdown
+        doGet(request, response);
+    }
+}
