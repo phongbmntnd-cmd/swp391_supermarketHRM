@@ -1,4 +1,3 @@
-
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
@@ -140,6 +139,21 @@ public class BranchDAO {
         return false;
     }
 
+    // Cập nhật thông tin Cơ sở
+    public boolean updateBranch(int id, String code, String name, String address) {
+        String sql = "UPDATE branches SET code = ?, name = ?, address = ? WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, code);
+            ps.setString(2, name);
+            ps.setString(3, address);
+            ps.setInt(4, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     // =====================================================
     // CÁC METHOD MỚI CHO ĐẠT 2 - STORE MANAGER
     // =====================================================
@@ -154,7 +168,7 @@ public class BranchDAO {
                    + "FROM branches WHERE id = ?";
         try (Connection conn = new DBContext().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            
+
             ps.setInt(1, branchId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -185,7 +199,7 @@ public class BranchDAO {
                    + "FROM branches WHERE store_manager_id = ? AND status = 'ACTIVE'";
         try (Connection conn = new DBContext().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            
+
             ps.setInt(1, storeManagerId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -206,5 +220,3 @@ public class BranchDAO {
         return null;
     }
 }
-
-
