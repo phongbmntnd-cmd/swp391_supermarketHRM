@@ -1,3 +1,9 @@
+<%--
+    Document   : dashboard
+    Created on : 23 thg 9, 2026, 00:06:33
+    Author     : phong
+--%>
+
 <%@page contentType="text/html;charset=UTF-8" language="java" %>
 <%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 <!DOCTYPE html>
@@ -9,7 +15,7 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Roboto', sans-serif; background-color: #f4f7f6; color: #333; }
-        
+
         /* Top Navigation Bar đồng bộ */
         .top-navbar { background-color: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .top-navbar h1 { font-size: 20px; font-weight: 500; }
@@ -29,7 +35,7 @@
         .card:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         .card h3 { font-size: 18px; color: #2c3e50; margin-bottom: 10px; }
         .card p { font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.4; }
-        
+
         /* Links & Buttons */
         .card-link { display: inline-block; color: #3498db; text-decoration: none; font-weight: 500; font-size: 14px; transition: color 0.2s; }
         .card-link:hover { color: #2980b9; text-decoration: underline; }
@@ -56,14 +62,14 @@
 
         <!-- Khối danh sách các chức năng chính -->
         <div class="menu-grid">
-            
+
             <!-- Tính năng 1: Xem danh sách nhân sự & Khóa khẩn cấp -->
             <div class="card" style="border-left-color: #3498db;">
                 <div>
                     <h3>Quản Lý Nhân Sự Cơ Sở</h3>
                     <p>Xem danh sách toàn bộ nhân viên đang làm việc tại cơ sở của bạn, theo dõi thông tin liên lạc và thực hiện khóa tài khoản khẩn cấp khi cần thiết.</p>
                 </div>
-                <a href="${pageContext.request.contextPath}/store-manager/branch-employees" class="card-link">Xem danh sách nhân sự →</a>
+                <a href="${pageContext.request.contextPath}/store-manager/employees" class="card-link">Xem danh sách nhân sự →</a>
             </div>
 
             <!-- Tính năng 2: Đề xuất nhân sự gửi lên HR -->

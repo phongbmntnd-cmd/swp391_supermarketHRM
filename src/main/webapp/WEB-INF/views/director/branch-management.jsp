@@ -1,4 +1,4 @@
-<%-- 
+<%--
     Document   : branch-management
     Created on : 24 Sept 2026, 09:18:44
     Author     : nguyn
@@ -299,7 +299,7 @@
                                 <td>${b.name}</td>
                                 <td>${b.address}</td>
                                 <td>
-                                    <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" style="margin: 0;" 
+                                    <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" style="margin: 0;"
                                           onsubmit="return confirm('${b.status == 'ACTIVE' ? 'Bạn có chắc chắn muốn dừng hoạt động cơ sở này không?' : 'Bạn có muốn kích hoạt lại cơ sở này không?'}');">
                                         <input type="hidden" name="action" value="toggleStatus">
                                         <input type="hidden" name="branchId" value="${b.id}">

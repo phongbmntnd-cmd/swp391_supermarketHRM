@@ -5,7 +5,7 @@
     <artifactId>swp391_supermarket_project</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>war</packaging>
-    <name>swp391_supermarket_project-1.0-SNAPSHOT</name>
+    <name>swp391_supermarket_project-1.0-SNAPSHOT backup</name>
     
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
