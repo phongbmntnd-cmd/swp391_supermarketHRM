@@ -152,8 +152,8 @@ public class UserDAO {
             }
         }
     }
-    // Kiểm tra trùng Username
 
+    // Kiểm tra trùng Username
     public boolean isUsernameExists(String username) {
         String sql = "SELECT 1 FROM users WHERE username = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -167,7 +167,7 @@ public class UserDAO {
         return false;
     }
 
-// Kiểm tra trùng Email (Chỉ check khi email không rỗng)
+    // Kiểm tra trùng Email (Chỉ check khi email không rỗng)
     public boolean isEmailExists(String email) {
         if (email == null || email.trim().isEmpty()) {
             return false;
@@ -184,7 +184,7 @@ public class UserDAO {
         return false;
     }
 
-// Kiểm tra trùng Số CCCD/CMND
+    // Kiểm tra trùng Số CCCD/CMND
     public boolean isIdentityCardExists(String identityCard) {
         String sql = "SELECT 1 FROM employee_profiles WHERE identity_card = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -215,6 +215,11 @@ public class UserDAO {
         return false;
     }
 
+    /**
+     * Sinh mã nhân viên tiếp theo theo tiền tố (NV, QL, HR)
+     * @param rolePrefix Tiền tố mã (NV, QL, HR)
+     * @return Mã tiếp theo dạng NV001, QL001, HR001
+     */
     public String generateNextCode(String rolePrefix) {
         String sql = "SELECT username FROM users WHERE username LIKE ? ORDER BY id DESC LIMIT 1";
         int nextNumber = 1;
@@ -237,7 +242,161 @@ public class UserDAO {
         return String.format("%s%03d", rolePrefix, nextNumber);
     }
 
-    // Lấy danh sách nhân viên theo mã chi nhánh
+    // =====================================================
+    // CÁC METHOD MỚI CHO ĐẠT 2 - STORE MANAGER
+    // =====================================================
+
+    /**
+     * Tìm User theo ID
+     * @param userId User ID
+     * @return User object hoặc null nếu không tìm thấy
+     */
+    public model.User getUserById(int userId) {
+        String sql = "SELECT u.id, u.username, u.email, u.status, u.role_id, "
+                   + "ep.home_branch_id, ep.full_name, ep.employee_type, "
+                   + "r.name AS role_name "
+                   + "FROM users u "
+                   + "JOIN roles r ON u.role_id = r.id "
+                   + "LEFT JOIN employee_profiles ep ON u.id = ep.user_id "
+                   + "WHERE u.id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    model.User user = new model.User();
+                    user.setId(rs.getInt("id"));
+                    user.setUsername(rs.getString("username"));
+                    user.setEmail(rs.getString("email"));
+                    user.setStatus(rs.getString("status"));
+                    user.setHomeBranchId(rs.getInt("home_branch_id"));
+                    user.setFullName(rs.getString("full_name"));
+
+                    model.Role role = new model.Role();
+                    role.setId(rs.getInt("role_id"));
+                    role.setName(rs.getString("role_name"));
+                    user.setRole(role);
+
+                    return user;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * Lấy Role ID của User
+     * @param userId User ID
+     * @return Role ID hoặc -1 nếu không tìm thấy
+     */
+    public int getUserRoleId(int userId) {
+        String sql = "SELECT role_id FROM users WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("role_id");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    /**
+     * Lấy Status của User
+     * @param userId User ID
+     * @return Status string hoặc null nếu không tìm thấy
+     */
+    public String getUserStatus(int userId) {
+        String sql = "SELECT status FROM users WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("status");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * Cập nhật Status của User (dùng cho Lock/Unlock)
+     * @param userId User ID
+     * @param newStatus Status mới (ACTIVE, EMERGENCY_LOCKED)
+     * @return true nếu thành công
+     */
+    public boolean updateUserStatus(int userId, String newStatus) {
+        String sql = "UPDATE users SET status = ? WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, newStatus);
+            ps.setInt(2, userId);
+
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * Khóa khẩn cấp tài khoản nhân viên (giữ để tương thích ngược)
+     * @param userId User ID
+     * @param status Trạng thái (LOCKED, ACTIVE, ...)
+     * @return true nếu thành công
+     */
+    public boolean updateStatus(int userId, String status) {
+        String sql = "UPDATE users SET status = ? WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status); // Truyền vào "LOCKED"
+            ps.setInt(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    /**
+     * Lấy Branch ID của User từ employee_profiles
+     * @param userId User ID
+     * @return Branch ID hoặc -1 nếu không tìm thấy
+     */
+    public int getUserBranchId(int userId) {
+        String sql = "SELECT home_branch_id FROM employee_profiles WHERE user_id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("home_branch_id");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
+    /**
+     * Lấy danh sách nhân viên theo mã chi nhánh
+     * @param branchId Branch ID
+     * @return Danh sách User
+     */
     public List<User> getUsersByBranch(int branchId) {
         List<User> list = new ArrayList<>();
         String sql = "SELECT * FROM users WHERE home_branch_id = ?";
@@ -261,16 +420,70 @@ public class UserDAO {
         return list;
     }
 
-// Khóa khẩn cấp tài khoản nhân viên
-    public boolean updateStatus(int userId, String status) {
-        String sql = "UPDATE users SET status = ? WHERE id = ?";
-        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, status); // Truyền vào "LOCKED"
-            ps.setInt(2, userId);
-            return ps.executeUpdate() > 0;
+    /**
+     * Cập nhật trạng thái user với Transaction
+     * Dùng cho Emergency Lock/Unlock với Audit Log
+     *
+     * @param userId User ID cần cập nhật
+     * @param newStatus Status mới (ACTIVE, EMERGENCY_LOCKED)
+     * @param auditAction Action audit (EMERGENCY_LOCK, EMERGENCY_UNLOCK)
+     * @param actorId ID người thực hiện
+     * @param description Mô tả cho audit log
+     * @return true nếu thành công
+     */
+    public boolean updateUserStatusWithAudit(
+            int userId, String newStatus,
+            String auditAction, int actorId, String description) {
+
+        String sqlUpdateStatus = "UPDATE users SET status = ? WHERE id = ?";
+        String sqlInsertAudit = "INSERT INTO audit_logs (action, actor_id, target_user_id, description) VALUES (?, ?, ?, ?)";
+
+        Connection conn = null;
+        try {
+            conn = new DBContext().getConnection();
+            conn.setAutoCommit(false);
+
+            // 1. Update user status
+            PreparedStatement psUpdate = conn.prepareStatement(sqlUpdateStatus);
+            psUpdate.setString(1, newStatus);
+            psUpdate.setInt(2, userId);
+            int rowsUpdated = psUpdate.executeUpdate();
+
+            if (rowsUpdated == 0) {
+                conn.rollback();
+                return false;
+            }
+
+            // 2. Insert audit log
+            PreparedStatement psAudit = conn.prepareStatement(sqlInsertAudit);
+            psAudit.setString(1, auditAction);
+            psAudit.setInt(2, actorId);
+            psAudit.setInt(3, userId);
+            psAudit.setString(4, description);
+            psAudit.executeUpdate();
+
+            conn.commit();
+            return true;
+
         } catch (Exception e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
             e.printStackTrace();
+            return false;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
-        return false;
     }
 }

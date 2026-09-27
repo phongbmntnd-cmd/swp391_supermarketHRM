@@ -1,4 +1,3 @@
-
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
@@ -153,5 +152,71 @@ public class BranchDAO {
             e.printStackTrace();
         }
         return false;
+    }
+
+    // =====================================================
+    // CÁC METHOD MỚI CHO ĐẠT 2 - STORE MANAGER
+    // =====================================================
+
+    /**
+     * Lấy Branch theo ID
+     * @param branchId Branch ID
+     * @return Branch object hoặc null nếu không tìm thấy
+     */
+    public Branch getBranchById(int branchId) {
+        String sql = "SELECT id, code, name, address, status, store_manager_id, created_at "
+                   + "FROM branches WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, branchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Branch b = new Branch();
+                    b.setId(rs.getInt("id"));
+                    b.setCode(rs.getString("code"));
+                    b.setName(rs.getString("name"));
+                    b.setAddress(rs.getString("address"));
+                    b.setStatus(rs.getString("status"));
+                    b.setStoreManagerId(rs.getInt("store_manager_id"));
+                    b.setCreatedAt(rs.getTimestamp("created_at"));
+                    return b;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    /**
+     * Lấy Branch mà Store Manager đang quản lý dựa trên user ID
+     * @param storeManagerId Store Manager user ID
+     * @return Branch object hoặc null nếu không tìm thấy
+     */
+    public Branch getBranchOfStoreManager(int storeManagerId) {
+        String sql = "SELECT id, code, name, address, status, store_manager_id, created_at "
+                   + "FROM branches WHERE store_manager_id = ? AND status = 'ACTIVE'";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, storeManagerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Branch b = new Branch();
+                    b.setId(rs.getInt("id"));
+                    b.setCode(rs.getString("code"));
+                    b.setName(rs.getString("name"));
+                    b.setAddress(rs.getString("address"));
+                    b.setStatus(rs.getString("status"));
+                    b.setStoreManagerId(rs.getInt("store_manager_id"));
+                    b.setCreatedAt(rs.getTimestamp("created_at"));
+                    return b;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

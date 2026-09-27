@@ -822,3 +822,5 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-09-26 14:30:53
+
+SELECT * FROM swp391_supermarket.users;

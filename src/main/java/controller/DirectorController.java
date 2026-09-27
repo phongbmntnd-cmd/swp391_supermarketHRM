@@ -1,4 +1,3 @@
-
 /*
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
@@ -83,12 +82,6 @@ public class DirectorController extends HttpServlet {
 
             branchDAO.assignStoreManager(branchId, managerId);
             response.sendRedirect(request.getContextPath() + "/director/branch-management?action=list");
-        } else if ("toggleStatus".equals(action)) {
-            int branchId = Integer.parseInt(request.getParameter("branchId"));
-            String currentStatus = request.getParameter("currentStatus");
-
-            branchDAO.toggleBranchStatus(branchId, currentStatus);
-            response.sendRedirect(request.getContextPath() + "/director/branch-management");
         } else if ("toggleStatus".equals(action)) {
             int branchId = Integer.parseInt(request.getParameter("branchId"));
             String currentStatus = request.getParameter("currentStatus");
