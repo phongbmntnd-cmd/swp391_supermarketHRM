@@ -69,7 +69,7 @@
                     <h3>Quản Lý Nhân Sự Cơ Sở</h3>
                     <p>Xem danh sách toàn bộ nhân viên đang làm việc tại cơ sở của bạn, theo dõi thông tin liên lạc và thực hiện khóa tài khoản khẩn cấp khi cần thiết.</p>
                 </div>
-                <a href="${pageContext.request.contextPath}/store-manager/branch-employees" class="card-link">Xem danh sách nhân sự →</a>
+                <a href="${pageContext.request.contextPath}/store-manager/employees" class="card-link">Xem danh sách nhân sự →</a>
             </div>
 
             <!-- Tính năng 2: Đề xuất nhân sự gửi lên HR -->
