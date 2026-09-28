@@ -88,4 +88,12 @@ public class RecruitmentProposal {
     public boolean isPending() { return "PENDING".equals(status); }
     public boolean isApproved() { return "APPROVED".equals(status); }
     public boolean isRejected() { return "REJECTED".equals(status); }
+
+    public void setUserId(int aInt) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    public void setPositionNeeded(String string) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
 }
