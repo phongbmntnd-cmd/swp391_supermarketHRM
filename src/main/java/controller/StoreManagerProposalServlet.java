@@ -1,46 +1,44 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
- */
-
 package controller;
 
 import dao.ProposalDAO;
+import model.User;
 import java.io.IOException;
-import java.io.PrintWriter;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import model.User;
 
-/**
- *
- * @author nguyn
- */
-@WebServlet(name = "StoreManagerProposalServlet", urlPatterns = {"/store-manager/recruitment-proposal"})
+@WebServlet(name = "StoreManagerProposalServlet", urlPatterns = {"/store-manager/proposal"})
 public class StoreManagerProposalServlet extends HttpServlet {
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        // Hiển thị form tạo đề xuất và danh sách các đề xuất đã gửi
-        request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment-proposal.jsp").forward(request, response);
+        ProposalDAO dao = new ProposalDAO();
+        request.setAttribute("proposalList", dao.getAllProposals());
+        request.getRequestDispatcher("/WEB-INF/views/store-manager/proposal.jsp").forward(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         HttpSession session = request.getSession();
-        User currentUser = (User) session.getAttribute("user");
+        User user = (User) session.getAttribute("account");
         
-        String title = request.getParameter("title");
-        String content = request.getParameter("content");
-        
-        ProposalDAO proposalDAO = new ProposalDAO();
-        proposalDAO.insertProposal(currentUser.getHomeBranchId(), currentUser.getId(), title, content);
-        
-        response.sendRedirect(request.getContextPath() + "/store-manager/recruitment-proposal");
+        if (user == null) {
+            response.sendRedirect(request.getContextPath() + "/login.jsp");
+            return;
+        }
+
+        String position = request.getParameter("position");
+        int quantity = Integer.parseInt(request.getParameter("quantity"));
+        String reason = request.getParameter("reason");
+        int branchId = user.getHomeBranchId();
+
+        ProposalDAO dao = new ProposalDAO();
+        dao.createProposal(branchId, user.getId(), position, quantity, reason);
+        response.sendRedirect("proposal");
     }
 }
