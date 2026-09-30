@@ -1,4 +1,4 @@
-package servlet.base;
+package controller.base;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;

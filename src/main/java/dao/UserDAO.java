@@ -184,6 +184,23 @@ public class UserDAO {
         return false;
     }
 
+    // Kiểm tra trùng Số điện thoại
+    public boolean isPhoneExists(String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            return false;
+        }
+        String sql = "SELECT 1 FROM employee_profiles WHERE phone = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, phone.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     // Kiểm tra trùng Số CCCD/CMND
     public boolean isIdentityCardExists(String identityCard) {
         String sql = "SELECT 1 FROM employee_profiles WHERE identity_card = ?";
@@ -217,6 +234,7 @@ public class UserDAO {
 
     /**
      * Sinh mã nhân viên tiếp theo theo tiền tố (NV, QL, HR)
+     *
      * @param rolePrefix Tiền tố mã (NV, QL, HR)
      * @return Mã tiếp theo dạng NV001, QL001, HR001
      */
@@ -245,22 +263,21 @@ public class UserDAO {
     // =====================================================
     // CÁC METHOD MỚI CHO ĐẠT 2 - STORE MANAGER
     // =====================================================
-
     /**
      * Tìm User theo ID
+     *
      * @param userId User ID
      * @return User object hoặc null nếu không tìm thấy
      */
     public model.User getUserById(int userId) {
         String sql = "SELECT u.id, u.username, u.email, u.status, u.role_id, "
-                   + "ep.home_branch_id, ep.full_name, ep.employee_type, "
-                   + "r.name AS role_name "
-                   + "FROM users u "
-                   + "JOIN roles r ON u.role_id = r.id "
-                   + "LEFT JOIN employee_profiles ep ON u.id = ep.user_id "
-                   + "WHERE u.id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                + "ep.home_branch_id, ep.full_name, ep.employee_type, "
+                + "r.name AS role_name "
+                + "FROM users u "
+                + "JOIN roles r ON u.role_id = r.id "
+                + "LEFT JOIN employee_profiles ep ON u.id = ep.user_id "
+                + "WHERE u.id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -289,13 +306,13 @@ public class UserDAO {
 
     /**
      * Lấy Role ID của User
+     *
      * @param userId User ID
      * @return Role ID hoặc -1 nếu không tìm thấy
      */
     public int getUserRoleId(int userId) {
         String sql = "SELECT role_id FROM users WHERE id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -311,13 +328,13 @@ public class UserDAO {
 
     /**
      * Lấy Status của User
+     *
      * @param userId User ID
      * @return Status string hoặc null nếu không tìm thấy
      */
     public String getUserStatus(int userId) {
         String sql = "SELECT status FROM users WHERE id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -333,14 +350,14 @@ public class UserDAO {
 
     /**
      * Cập nhật Status của User (dùng cho Lock/Unlock)
+     *
      * @param userId User ID
      * @param newStatus Status mới (ACTIVE, EMERGENCY_LOCKED)
      * @return true nếu thành công
      */
     public boolean updateUserStatus(int userId, String newStatus) {
         String sql = "UPDATE users SET status = ? WHERE id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, newStatus);
             ps.setInt(2, userId);
@@ -354,6 +371,7 @@ public class UserDAO {
 
     /**
      * Khóa khẩn cấp tài khoản nhân viên (giữ để tương thích ngược)
+     *
      * @param userId User ID
      * @param status Trạng thái (LOCKED, ACTIVE, ...)
      * @return true nếu thành công
@@ -372,13 +390,13 @@ public class UserDAO {
 
     /**
      * Lấy Branch ID của User từ employee_profiles
+     *
      * @param userId User ID
      * @return Branch ID hoặc -1 nếu không tìm thấy
      */
     public int getUserBranchId(int userId) {
         String sql = "SELECT home_branch_id FROM employee_profiles WHERE user_id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -394,6 +412,7 @@ public class UserDAO {
 
     /**
      * Lấy danh sách nhân viên theo mã chi nhánh
+     *
      * @param branchId Branch ID
      * @return Danh sách User
      */
@@ -421,8 +440,8 @@ public class UserDAO {
     }
 
     /**
-     * Cập nhật trạng thái user với Transaction
-     * Dùng cho Emergency Lock/Unlock với Audit Log
+     * Cập nhật trạng thái user với Transaction Dùng cho Emergency Lock/Unlock
+     * với Audit Log
      *
      * @param userId User ID cần cập nhật
      * @param newStatus Status mới (ACTIVE, EMERGENCY_LOCKED)
