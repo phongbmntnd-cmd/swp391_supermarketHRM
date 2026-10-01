@@ -1,9 +1,3 @@
-<%--
-    Document   : create-user
-    Created on : 23 thg 9, 2026, 09:24:43
-    Author     : phong
---%>
-
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <!DOCTYPE html>
@@ -57,7 +51,7 @@
 
                 <form action="${pageContext.request.contextPath}/hr/create-user" method="post">
 
-                    <!-- THÔNG TIN TÀI KHOẢN -->
+                    <!-- 1. THÔNG TIN TÀI KHOẢN -->
                     <div class="section-title">1. Thông tin tài khoản & Đăng nhập</div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
@@ -78,7 +72,7 @@
                         </div>
                     </div>
 
-                    <!-- THÔNG TIN CÁ NHÂN -->
+                    <!-- 2. THÔNG TIN CÁ NHÂN -->
                     <div class="section-title">2. Thông tin cá nhân</div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-5">
@@ -95,7 +89,7 @@
                         </div>
                     </div>
 
-                    <!-- THÔNG TIN TỔ CHỨC -->
+                    <!-- 3. PHÂN CÔNG TỔ CHỨC -->
                     <div class="section-title">3. Phân công tổ chức</div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
@@ -126,17 +120,28 @@
                         </div>
                     </div>
 
-                    <!-- LOẠI NHÂN SỰ -->
+                    <!-- 4. LOẠI NHÂN SỰ -->
                     <div class="row g-3 mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Loại nhân sự <span class="text-danger">*</span></label>
-                            <select id="employeeTypeSelect" name="employeeType" class="form-select" onchange="toggleExpirationDate()" required>
+                            <select id="employeeTypeSelect" name="employeeType" class="form-select" onchange="handleEmployeeTypeChange()" required>
                                 <option value="FULL_TIME">FULL_TIME (Chính thức)</option>
-                                <option value="PART_TIME">PART_TIME (Thời vụ)</option>
+                                <option value="PART_TIME">PART_TIME (Bán thời gian)</option>
+                                <option value="CASUAL">CASUAL (Thời vụ)</option>
                             </select>
                         </div>
-                        <div class="col-md-6" id="expirationDateContainer" style="display: none;">
-                            <label class="form-label">Ngày hết hạn tài khoản <span class="text-danger">*</span></label>
+
+                        <div class="col-md-4" id="shiftContainer" style="display: none;">
+                            <label class="form-label">Ca đăng ký cố định <span class="text-danger">*</span></label>
+                            <select id="shiftSelect" name="shiftType" class="form-select">
+                                <option value="SANG">Ca Sáng (06:00 - 12:00)</option>
+                                <option value="CHIEU">Ca Chiều (12:00 - 18:00)</option>
+                                <option value="TOI">Ca Tối (18:00 - 22:00)</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-4" id="expirationDateContainer" style="display: none;">
+                            <label class="form-label">Ngày kết thúc hợp đồng <span class="text-danger">*</span></label>
                             <input type="date" id="expirationDateInput" name="expirationDate" class="form-control">
                         </div>
                     </div>
@@ -149,7 +154,7 @@
         </div>
 
         <script>
-            // Tự động lọc Vị trí theo Phòng ban được chọn
+            // UI Logic: Ẩn/Hiện Vị trí theo ID Phòng ban dựa vào data-dept có sẵn
             function filterPositions() {
                 const deptId = document.getElementById('departmentSelect').value;
                 const positionSelect = document.getElementById('positionSelect');
@@ -164,68 +169,66 @@
                         opt.style.display = "none";
                     }
                 });
-                positionSelect.value = "";
             }
 
-            // Dynamic Ẩn/Hiện chọn Hạn ngày khi chọn PART_TIME
-            function toggleExpirationDate() {
+            // UI Logic: Dynamic Ẩn/Hiện ô chọn Ca hoặc Hạn ngày theo loại nhân sự
+            function handleEmployeeTypeChange() {
                 const type = document.getElementById('employeeTypeSelect').value;
-                const container = document.getElementById('expirationDateContainer');
-                const input = document.getElementById('expirationDateInput');
+                const shiftContainer = document.getElementById('shiftContainer');
+                const shiftSelect = document.getElementById('shiftSelect');
+                const expContainer = document.getElementById('expirationDateContainer');
+                const expInput = document.getElementById('expirationDateInput');
 
                 if (type === 'PART_TIME') {
-                    container.style.display = 'block';
-                    input.required = true;
+                    shiftContainer.style.display = 'block';
+                    shiftSelect.required = true;
+                    expContainer.style.display = 'none';
+                    expInput.required = false;
+                    expInput.value = '';
+                } else if (type === 'CASUAL') {
+                    shiftContainer.style.display = 'none';
+                    shiftSelect.required = false;
+                    expContainer.style.display = 'block';
+                    expInput.required = true;
                 } else {
-                    container.style.display = 'none';
-                    input.required = false;
-                    input.value = '';
+                    shiftContainer.style.display = 'none';
+                    shiftSelect.required = false;
+                    expContainer.style.display = 'none';
+                    expInput.required = false;
+                    expInput.value = '';
                 }
             }
-        </script>
-        <script>
+
+            // UI Event: Nhận cấu hình JSON từ Controller và gán giá trị hiển thị
             document.getElementById('roleSelect').addEventListener('change', function () {
-                let roleText = this.options[this.selectedIndex].text.toLowerCase();
-                let prefix = "NV"; // Mặc định tiền tố mã
+                let roleId = this.value;
 
-                let deptSelect = document.getElementById('departmentSelect'); // Đảm bảo ID của select phòng ban là departmentSelect
-                let posSelect = document.getElementById('positionSelect');   // Đảm bảo ID của select vị trí là positionSelect
+                fetch('${pageContext.request.contextPath}/hr/create-user?action=getRoleConfig&roleId=' + roleId)
+                        .then(response => response.json())
+                        .then(data => {
+                            // View chỉ thực hiện hành động nhận dữ liệu ID và gán vào thẻ <select>
+                            document.getElementById('usernameInput').value = data.code;
 
-                if (roleText.includes('quản lý') || roleText.includes('manager')) {
-                    prefix = "QL";
+                            const deptSelect = document.getElementById('departmentSelect');
+                            const posSelect = document.getElementById('positionSelect');
 
-                    // Tự động chọn Phòng ban: Bộ Phận Vận Hành Cửa Hàng
-                    for (let option of deptSelect.options) {
-                        if (option.text.toLowerCase().includes('vận hành')) {
-                            deptSelect.value = option.value;
-                            break;
-                        }
-                    }
+                            if (data.deptId > 0) {
+                                deptSelect.value = data.deptId;
+                                filterPositions(); // Lọc danh sách UI
+                            } else {
+                                deptSelect.value = "";
+                                filterPositions();
+                            }
 
-                    // Tự động chọn Vị trí: Quản Lý Chi Nhánh
-                    for (let option of posSelect.options) {
-                        if (option.text.toLowerCase().includes('quản lý chi nhánh')) {
-                            posSelect.value = option.value;
-                            break;
-                        }
-                    }
-
-                } else if (roleText.includes('hr') || roleText.includes('nhân sự')) {
-                    prefix = "HR";
-                } else {
-                    prefix = "NV";
-                }
-
-                // Gọi AJAX ngầm để lấy mã nhân viên mới tương ứng với prefix (NV, QL, HR)
-                fetch('${pageContext.request.contextPath}/hr/create-user?prefix=' + prefix)
-                        .then(response => response.text())
-                        .then(code => {
-                            document.getElementById('usernameInput').value = code.trim();
+                            if (data.posId > 0) {
+                                posSelect.value = data.posId;
+                            } else {
+                                posSelect.value = "";
+                            }
                         })
-                        .catch(error => console.error('Lỗi khi sinh mã:', error));
+                        .catch(error => console.error('Lỗi nhận dữ liệu cấu hình:', error));
             });
         </script>
-
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     </body>
 </html>

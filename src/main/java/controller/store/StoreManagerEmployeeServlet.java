@@ -1,6 +1,6 @@
-package servlet.store;
+package controller.store;
 
-import servlet.base.BaseServlet;
+import controller.base.BaseServlet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;

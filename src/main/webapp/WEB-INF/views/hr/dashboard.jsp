@@ -139,7 +139,10 @@
             <h1>Quản Trị Hệ Thống - Nhân Sự (HR)</h1>
             <div class="user-info">
                 <span>Xin chào, <b>${sessionScope.account.username}</b></span>
-                <a href="${pageContext.request.contextPath}/login.jsp" class="btn-logout">Đăng xuất</a>
+                <a href="${pageContext.request.contextPath}/logout" 
+                   style="background-color: #dc3545; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+                    Đăng xuất
+                </a>
             </div>
         </div>
 
