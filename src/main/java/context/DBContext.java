@@ -22,6 +22,8 @@ public class DBContext {
     private static final String USER_NAME = "root";
     private static final String PASSWORD = "Phong22042004@";
 
+
+
     public static Connection getConnection() throws Exception {
         // 1. Nạp Driver kết nối MySQL
         Class.forName("com.mysql.cj.jdbc.Driver");
