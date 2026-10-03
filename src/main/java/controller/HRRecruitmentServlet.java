@@ -25,8 +25,32 @@ public class HRRecruitmentServlet extends HttpServlet {
             throws ServletException, IOException {
 
         RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
+        String idParam = request.getParameter("id");
 
-        // ?filter=all -> xem toàn bộ lịch sử; mặc định chỉ xem các đề xuất đang chờ duyệt
+        // Có ?id=... -> hiển thị trang chi tiết 1 đề xuất (xem đầy đủ + duyệt/từ chối tại đây)
+        if (idParam != null && !idParam.trim().isEmpty()) {
+            try {
+                int id = Integer.parseInt(idParam);
+                RecruitmentProposal proposal = proposalDAO.getProposalById(id);
+
+                if (proposal == null) {
+                    response.sendRedirect(request.getContextPath() + "/hr/recruitment");
+                    return;
+                }
+
+                request.setAttribute("proposal", proposal);
+                request.getRequestDispatcher("/WEB-INF/views/hr/recruitment-detail.jsp")
+                        .forward(request, response);
+                return;
+
+            } catch (NumberFormatException e) {
+                response.sendRedirect(request.getContextPath() + "/hr/recruitment");
+                return;
+            }
+        }
+
+        // Không có id -> hiển thị danh sách. ?filter=all -> toàn bộ lịch sử;
+        // mặc định chỉ xem các đề xuất đang chờ duyệt
         String filter = request.getParameter("filter");
         List<RecruitmentProposal> proposals = "all".equals(filter)
                 ? proposalDAO.getAllProposals()
@@ -50,36 +74,39 @@ public class HRRecruitmentServlet extends HttpServlet {
             return;
         }
 
+        String ctx = request.getContextPath();
+        int proposalId;
+
         try {
-            int proposalId = Integer.parseInt(request.getParameter("proposalId"));
-            String action = request.getParameter("action"); // "approve" hoặc "reject"
-            String hrNote = request.getParameter("hrNote");
-
-            RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
-            boolean success;
-
-            if ("approve".equals(action)) {
-                success = proposalDAO.approveProposal(proposalId, user.getId(), hrNote);
-            } else if ("reject".equals(action)) {
-                success = proposalDAO.rejectProposal(proposalId, user.getId(), hrNote);
-            } else {
-                request.setAttribute("error", "Hành động không hợp lệ!");
-                doGet(request, response);
-                return;
-            }
-
-            if (success) {
-                request.setAttribute("message",
-                        "approve".equals(action) ? "Đã phê duyệt đề xuất tuyển dụng!" : "Đã từ chối đề xuất tuyển dụng!");
-            } else {
-                request.setAttribute("error", "Xử lý thất bại! Đề xuất có thể đã được xử lý trước đó.");
-            }
-
+            proposalId = Integer.parseInt(request.getParameter("proposalId"));
         } catch (NumberFormatException e) {
-            request.setAttribute("error", "Dữ liệu không hợp lệ!");
+            response.sendRedirect(ctx + "/hr/recruitment");
+            return;
         }
 
-        doGet(request, response);
+        String action = request.getParameter("action"); // "approve" hoặc "reject"
+        String hrNote = request.getParameter("hrNote");
+
+        RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
+        boolean success;
+
+        if ("approve".equals(action)) {
+            success = proposalDAO.approveProposal(proposalId, user.getId(), hrNote);
+        } else if ("reject".equals(action)) {
+            success = proposalDAO.rejectProposal(proposalId, user.getId(), hrNote);
+        } else {
+            response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=1");
+            return;
+        }
+
+        if (success) {
+            // Xử lý xong -> quay về danh sách "Đang chờ duyệt" kèm thông báo qua query param
+            String msg = "approve".equals(action) ? "approved" : "rejected";
+            response.sendRedirect(ctx + "/hr/recruitment?filter=pending&msg=" + msg);
+        } else {
+            // Thất bại (VD đề xuất đã được xử lý trước đó) -> quay lại trang chi tiết, báo lỗi
+            response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=1");
+        }
     }
 
     private User getCurrentUser(HttpServletRequest request) {

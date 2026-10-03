@@ -39,7 +39,10 @@ public class EmployeeDAO {
     public List<Employee> getAllEmployees(String keyword) {
         List<Employee> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(BASE_SELECT);
-        sql.append("WHERE ep.user_id IS NOT NULL ");
+        // Phạm vi quản lý của HR: chỉ nhân viên các cơ sở (Store Manager id=4, Employee id=5).
+        // Không bao gồm Admin(1)/Director(2)/HR(3) vì đây là các vai trò quản lý cấp cao,
+        // không thuộc biên chế một chi nhánh cụ thể.
+        sql.append("WHERE ep.user_id IS NOT NULL AND u.role_id IN (4, 5) ");
 
         boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
         if (hasKeyword) {
@@ -73,7 +76,9 @@ public class EmployeeDAO {
      * Xem chi tiết 1 nhân viên theo user_id.
      */
     public Employee getEmployeeById(int userId) {
-        String sql = BASE_SELECT + "WHERE u.id = ?";
+        // Cùng điều kiện role_id IN (4,5) như getAllEmployees(), để chặn truy cập trực tiếp
+        // qua URL (VD /hr/employee-detail?id=2 trỏ tới Director) nằm ngoài phạm vi HR quản lý.
+        String sql = BASE_SELECT + "WHERE u.id = ? AND u.role_id IN (4, 5)";
 
         try (Connection conn = new DBContext().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -96,9 +101,11 @@ public class EmployeeDAO {
     public boolean updateEmployeeProfile(int userId, String fullName, String phone, String identityCard,
                                           int homeBranchId, int positionId, int departmentId, String employeeType) {
 
+        // JOIN ngầm qua subquery để đảm bảo chỉ sửa được hồ sơ của Store Manager/Employee,
+        // chặn trường hợp POST trực tiếp tới userId ngoài phạm vi (VD Director/Admin/HR).
         String sql = "UPDATE employee_profiles SET full_name = ?, phone = ?, identity_card = ?, "
                 + "home_branch_id = ?, position_id = ?, department_id = ?, employee_type = ? "
-                + "WHERE user_id = ?";
+                + "WHERE user_id = ? AND user_id IN (SELECT id FROM users WHERE role_id IN (4, 5))";
 
         try (Connection conn = new DBContext().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -143,7 +150,9 @@ public class EmployeeDAO {
 
     public List<Branch> getAllBranchesFull() {
         List<Branch> list = new ArrayList<>();
-        String sql = "SELECT id, code, name FROM branches WHERE status = 'ACTIVE'";
+        // Không lọc theo status ở đây: HR cần thấy cả chi nhánh đã đóng/inactive
+        // nếu nhân viên đang/đã thuộc chi nhánh đó, tránh dropdown bị rỗng oan.
+        String sql = "SELECT id, code, name FROM branches ORDER BY name";
         try (Connection conn = new DBContext().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {

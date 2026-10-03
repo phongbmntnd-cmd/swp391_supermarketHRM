@@ -1,0 +1,332 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
+
+:root {
+    --navy-900: #1E293B;
+    --navy-800: #273449;
+    --blue-600: #2563EB;
+    --blue-700: #1D4ED8;
+    --blue-50: #EFF6FF;
+    --slate-50: #F8FAFC;
+    --slate-100: #F1F5F9;
+    --slate-200: #E2E8F0;
+    --slate-400: #94A3B8;
+    --slate-600: #475569;
+    --slate-900: #0F172A;
+    --green-50: #F0FDF4;
+    --green-600: #16A34A;
+    --amber-50: #FFFBEB;
+    --amber-600: #D97706;
+    --red-50: #FEF2F2;
+    --red-600: #DC2626;
+    --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+    background: var(--slate-50);
+    color: var(--slate-900);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+/* ---------- Topbar ---------- */
+.topbar {
+    background: var(--navy-900);
+    color: #fff;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.topbar .back-link {
+    color: var(--slate-400);
+    text-decoration: none;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.topbar .back-link:hover { color: #fff; }
+
+.topbar h1 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+}
+
+/* ---------- Layout ---------- */
+.page {
+    max-width: 1680px;
+    width: 96%;
+    margin: 0 auto;
+    padding: 32px 0 64px;
+}
+
+.page-header {
+    margin-bottom: 24px;
+}
+
+.page-header h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    color: var(--slate-900);
+}
+
+.page-header p {
+    margin: 0;
+    color: var(--slate-600);
+    font-size: 14px;
+}
+
+/* ---------- Card / section ---------- */
+.card {
+    background: #fff;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--slate-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.card-header h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-header h3::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--blue-600);
+    display: inline-block;
+}
+
+.card-body { padding: 24px; }
+
+/* ---------- Alerts ---------- */
+.alert {
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 13.5px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+}
+.alert-success { background: var(--green-50); color: #166534; border-color: #BBF7D0; }
+.alert-error   { background: var(--red-50);   color: #991B1B; border-color: #FECACA; }
+
+/* ---------- Forms ---------- */
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 20px;
+}
+.form-grid .full { grid-column: 1 / -1; }
+
+@media (max-width: 680px) {
+    .form-grid { grid-template-columns: 1fr; }
+}
+
+.field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--slate-600);
+    margin-bottom: 6px;
+}
+
+.field input,
+.field select,
+.field textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--slate-200);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+    color: var(--slate-900);
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+    outline: none;
+    border-color: var(--blue-600);
+    box-shadow: 0 0 0 3px var(--blue-50);
+}
+
+.field textarea { resize: vertical; min-height: 72px; }
+
+/* Giá trị hiển thị dạng text thuần (trang xem chi tiết, không phải input) */
+.field > div:not(.btn) {
+    font-size: 14.5px;
+    color: var(--slate-900);
+    padding-top: 2px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    font-family: inherit;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    line-height: 1;
+}
+
+.btn-primary { background: var(--blue-600); color: #fff; }
+.btn-primary:hover { background: var(--blue-700); }
+
+.btn-success { background: var(--green-600); color: #fff; }
+.btn-success:hover { background: #15803D; }
+
+.btn-danger { background: #fff; color: var(--red-600); border-color: #FECACA; }
+.btn-danger:hover { background: var(--red-50); }
+
+.btn-ghost { background: #fff; color: var(--slate-600); border-color: var(--slate-200); }
+.btn-ghost:hover { background: var(--slate-100); }
+
+/* ---------- Tabs ---------- */
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--slate-200);
+}
+.tabs a {
+    padding: 10px 16px;
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--slate-600);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+.tabs a.active {
+    color: var(--blue-600);
+    border-bottom-color: var(--blue-600);
+}
+
+/* ---------- Table ---------- */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; table-layout: auto; }
+
+thead th {
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: none;
+    color: var(--slate-600);
+    background: var(--slate-50);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--slate-200);
+    white-space: nowrap;
+}
+
+tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--slate-100);
+    font-size: 13.5px;
+    color: var(--slate-900);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Dùng cho cột nội dung có thể rất dài (lý do, ghi chú...) nếu muốn chủ động giới hạn + cắt chữ */
+tbody td.clip {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 240px;
+}
+
+/* Các cột nội dung dài cho xuống dòng có kiểm soát thay vì cắt chữ */
+tbody td.wrap {
+    white-space: normal;
+    max-width: 320px;
+}
+
+tbody tr:hover { background: var(--slate-50); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ---------- Badges ---------- */
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.badge-PENDING   { background: var(--amber-50); color: var(--amber-600); }
+.badge-APPROVED  { background: var(--green-50); color: var(--green-600); }
+.badge-REJECTED  { background: var(--red-50);   color: var(--red-600); }
+.badge-ACTIVE    { background: var(--green-50); color: var(--green-600); }
+.badge-INACTIVE  { background: var(--slate-100); color: var(--slate-600); }
+.badge-EXPIRED   { background: var(--slate-100); color: var(--slate-600); }
+.badge-TERMINATED,
+.badge-EMERGENCY_LOCKED { background: var(--red-50); color: var(--red-600); }
+
+/* ---------- Empty state ---------- */
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--slate-600);
+}
+.empty-state .empty-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--slate-900);
+    margin-bottom: 4px;
+}
+
+/* ---------- Inline approval form inside table cell ---------- */
+.approve-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 200px;
+}
+.approve-form input[type="text"] {
+    padding: 7px 10px;
+    border: 1px solid var(--slate-200);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+}
+.approve-form .btn-row { display: flex; gap: 6px; }
+.approve-form .btn { padding: 6px 12px; font-size: 12.5px; }
+
+.processed-note {
+    font-size: 12.5px;
+    color: var(--slate-600);
+    white-space: normal;
+    max-width: 180px;
+}
+
+.approve-form { white-space: normal; }
+.processed-note strong { color: var(--slate-900); }
