@@ -13,13 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * DAO cho màn hình "Quản lý Hồ sơ Nhân sự":
- * danh sách/tìm kiếm nhân viên toàn hệ thống, xem chi tiết, cập nhật hồ sơ.
+ * DAO cho màn hình "Quản lý Hồ sơ Nhân sự": danh sách/tìm kiếm nhân viên toàn
+ * hệ thống, xem chi tiết, cập nhật hồ sơ.
  */
 public class EmployeeDAO {
 
-    private static final String BASE_SELECT =
-            "SELECT u.id AS user_id, u.username, u.email, u.status AS user_status, u.role_id, r.name AS role_name, "
+    private static final String BASE_SELECT
+            = "SELECT u.id AS user_id, u.username, u.email, u.status AS user_status, u.role_id, r.name AS role_name, "
             + "ep.full_name, ep.phone, ep.identity_card, "
             + "ep.home_branch_id, b.name AS branch_name, "
             + "ep.position_id, p.title AS position_title, "
@@ -33,8 +33,8 @@ public class EmployeeDAO {
             + "LEFT JOIN departments d ON ep.department_id = d.id ";
 
     /**
-     * Danh sách toàn bộ nhân viên (có hồ sơ), hỗ trợ tìm theo tên/username/SĐT/CCCD.
-     * keyword = null hoặc rỗng -> lấy tất cả.
+     * Danh sách toàn bộ nhân viên (có hồ sơ), hỗ trợ tìm theo
+     * tên/username/SĐT/CCCD. keyword = null hoặc rỗng -> lấy tất cả.
      */
     public List<Employee> getAllEmployees(String keyword) {
         List<Employee> list = new ArrayList<>();
@@ -50,8 +50,7 @@ public class EmployeeDAO {
         }
         sql.append("ORDER BY ep.full_name ASC");
 
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
 
             if (hasKeyword) {
                 String kw = "%" + keyword.trim() + "%";
@@ -80,8 +79,7 @@ public class EmployeeDAO {
         // qua URL (VD /hr/employee-detail?id=2 trỏ tới Director) nằm ngoài phạm vi HR quản lý.
         String sql = BASE_SELECT + "WHERE u.id = ? AND u.role_id IN (4, 5)";
 
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -99,7 +97,7 @@ public class EmployeeDAO {
      * Cập nhật thông tin chi tiết + thông tin liên lạc của nhân viên.
      */
     public boolean updateEmployeeProfile(int userId, String fullName, String phone, String identityCard,
-                                          int homeBranchId, int positionId, int departmentId, String employeeType) {
+            int homeBranchId, int positionId, int departmentId, String employeeType) {
 
         // JOIN ngầm qua subquery để đảm bảo chỉ sửa được hồ sơ của Store Manager/Employee,
         // chặn trường hợp POST trực tiếp tới userId ngoài phạm vi (VD Director/Admin/HR).
@@ -107,8 +105,7 @@ public class EmployeeDAO {
                 + "home_branch_id = ?, position_id = ?, department_id = ?, employee_type = ? "
                 + "WHERE user_id = ? AND user_id IN (SELECT id FROM users WHERE role_id IN (4, 5))";
 
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, fullName);
             ps.setString(2, phone);
@@ -133,8 +130,7 @@ public class EmployeeDAO {
      */
     public boolean updateUserStatus(int userId, String status) {
         String sql = "UPDATE users SET status = ? WHERE id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, status);
             ps.setInt(2, userId);
@@ -147,45 +143,46 @@ public class EmployeeDAO {
     }
 
     // ----- Dữ liệu cho dropdown (không giới hạn theo phòng ban như CommonDAO) -----
-
     public List<Branch> getAllBranchesFull() {
         List<Branch> list = new ArrayList<>();
-        // Không lọc theo status ở đây: HR cần thấy cả chi nhánh đã đóng/inactive
-        // nếu nhân viên đang/đã thuộc chi nhánh đó, tránh dropdown bị rỗng oan.
         String sql = "SELECT id, code, name FROM branches ORDER BY name";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Branch(rs.getInt("id"), rs.getString("code"), rs.getString("name")));
+                Branch b = new Branch();
+                b.setId(rs.getInt("id"));
+                b.setCode(rs.getString("code"));
+                b.setName(rs.getString("name"));
+                list.add(b);
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return list;
     }
 
     public List<Department> getAllDepartmentsFull() {
         List<Department> list = new ArrayList<>();
         String sql = "SELECT id, name FROM departments ORDER BY name";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 list.add(new Department(rs.getInt("id"), rs.getString("name")));
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return list;
     }
 
     public List<Position> getAllPositionsFull() {
         List<Position> list = new ArrayList<>();
         String sql = "SELECT id, title, department_id FROM positions ORDER BY title";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 list.add(new Position(rs.getInt("id"), rs.getString("title"), rs.getInt("department_id")));
             }
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return list;
     }
 

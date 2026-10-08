@@ -1,4 +1,4 @@
-package controller;
+package controller.hr;
 
 import dao.ContractDAO;
 import dao.EmployeeDAO;

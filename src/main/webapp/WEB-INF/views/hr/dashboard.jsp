@@ -24,7 +24,7 @@
                 color: #333;
             }
 
-            /* Header Bar (Đồng bộ chuẩn màu với trang Giám đốc) */
+            /* Header Bar */
             .top-navbar {
                 background-color: #2c3e50;
                 color: white;
@@ -45,19 +45,6 @@
             }
             .user-info span {
                 font-weight: 400;
-            }
-            .btn-logout {
-                background-color: #e74c3c;
-                color: white;
-                border: none;
-                padding: 7px 15px;
-                border-radius: 4px;
-                cursor: pointer;
-                text-decoration: none;
-                font-size: 14px;
-            }
-            .btn-logout:hover {
-                background-color: #c0392b;
             }
 
             /* Main Container */
@@ -139,7 +126,10 @@
             <h1>Quản Trị Hệ Thống - Nhân Sự (HR)</h1>
             <div class="user-info">
                 <span>Xin chào, <b>${sessionScope.account.username}</b></span>
-                <a href="${pageContext.request.contextPath}/login.jsp" class="btn-logout">Đăng xuất</a>
+                <a href="${pageContext.request.contextPath}/logout" 
+                   style="background-color: #dc3545; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+                    Đăng xuất
+                </a>
             </div>
         </div>
 
@@ -155,25 +145,25 @@
             <!-- Khối chức năng (Cards) dành riêng cho HR -->
             <div class="menu-grid">
 
-                <!-- Chức năng 1: Thêm nhân viên / Tạo tài khoản mới -->
+                <!-- Chức năng 1: Xem đề xuất & Cấp tài khoản -->
                 <div class="card">
-                    <h3>Thêm Nhân Viên Mới</h3>
-                    <p>Đăng ký tài khoản hệ thống, phân quyền vai trò, gán phòng ban và cơ sở làm việc cho nhân sự mới.</p>
-                    <a href="${pageContext.request.contextPath}/hr/create-user" class="card-link">Thêm nhân viên →</a>
+                    <h3>Phê duyệt & Cấp tài khoản</h3>
+                    <p>Xem xét danh sách đề xuất từ Store Manager các chi nhánh, phê duyệt và khởi tạo tài khoản nhân sự mới.</p>
+                    <a href="${pageContext.request.contextPath}/hr/recruitment" class="card-link">Phê duyệt đề xuất &rarr;</a>
                 </div>
 
                 <!-- Chức năng 2: Quản lý Hồ sơ nhân sự -->
                 <div class="card">
                     <h3>Quản lý Hồ sơ Nhân sự</h3>
                     <p>Thêm mới, cập nhật thông tin chi tiết, theo dõi hợp đồng và thông tin liên lạc của nhân viên các cơ sở.</p>
-                    <a href="${pageContext.request.contextPath}/hr/employee-management" class="card-link">Quản lý nhân sự →</a>
+                    <a href="${pageContext.request.contextPath}/hr/employee-management" class="card-link">Quản lý nhân sự &rarr;</a>
                 </div>
 
                 <!-- Chức năng 3: Quản lý Chấm công / Lịch làm việc -->
                 <div class="card">
                     <h3>Quản lý Chấm công & Ca làm</h3>
                     <p>Theo dõi bảng chấm công hàng ngày, phê duyệt đơn nghỉ phép và xếp lịch làm việc cho các chi nhánh.</p>
-                    <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công →</a>
+                    <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công &rarr;</a>
                 </div>
 
             </div>

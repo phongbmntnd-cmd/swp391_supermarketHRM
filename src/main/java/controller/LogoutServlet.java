@@ -6,19 +6,30 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
-@WebServlet(name = "AdminAccountController", urlPatterns = {"/admin/accounts"})
-public class AdminAccountController extends HttpServlet {
+@WebServlet("/logout")
+public class LogoutServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        request.getRequestDispatcher("/WEB-INF/views/admin/accounts.jsp").forward(request, response);
+
+        // 1. Lấy Session hiện tại (không tạo session mới nếu chưa có)
+        HttpSession session = request.getSession(false);
+
+        // 2. Xóa sạch thông tin đăng nhập khỏi Session
+        if (session != null) {
+            session.invalidate();
+        }
+
+        // 3. Chuyển hướng người dùng về trang đăng nhập
+        response.sendRedirect(request.getContextPath() + "/login");
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.sendRedirect("accounts");
+        doGet(request, response);
     }
 }

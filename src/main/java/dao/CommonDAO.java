@@ -59,6 +59,26 @@ public class CommonDAO {
         } catch (Exception e) { e.printStackTrace(); }
         return list;
     }
+    
+    public List<Position> getStoreEmployeePositions() {
+    List<Position> list = new ArrayList<>();
+    // Loại bỏ các vị trí quản lý cao cấp như Giám đốc, HR, Admin, Store Manager (ID <= 4)
+    String sql = "SELECT * FROM positions WHERE id > 4 ORDER BY title ASC";
+    try (Connection conn = new DBContext().getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql);
+         ResultSet rs = ps.executeQuery()) {
+        while (rs.next()) {
+            Position p = new Position();
+            p.setId(rs.getInt("id"));
+            p.setTitle(rs.getString("title"));
+            p.setDepartmentId(rs.getInt("department_id"));
+            list.add(p);
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return list;
+}
 
     // HR chỉ tạo tài khoản cho Store Manager (id = 4) và Employee (id = 5)
     public List<Role> getHRManageableRoles() {

@@ -1,4 +1,4 @@
-package controller;
+package controller.hr;
 
 import dao.EmployeeDAO;
 import model.Employee;
