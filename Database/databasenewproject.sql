@@ -400,7 +400,8 @@ CREATE TABLE `open_shift_applications` (
   `id` int NOT NULL AUTO_INCREMENT,
   `open_shift_id` int NOT NULL,
   `user_id` int NOT NULL,
-  `status` enum('PENDING','APPROVED','REJECTED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'PENDING',
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Pending',
+  `reject_reason` text COLLATE utf8mb4_unicode_ci,
   `applied_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `open_shift_id` (`open_shift_id`),
@@ -430,8 +431,8 @@ CREATE TABLE `open_shifts` (
   `id` int NOT NULL AUTO_INCREMENT,
   `branch_id` int NOT NULL,
   `shift_id` int NOT NULL,
+  `position_id` int NOT NULL,
   `work_date` date NOT NULL,
-  `quantity_needed` int DEFAULT '1',
   `status` enum('OPEN','CLOSED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'OPEN',
   PRIMARY KEY (`id`),
   KEY `branch_id` (`branch_id`),
@@ -939,4 +940,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-08 11:03:54
+-- Dump completed on 2026-10-09 20:02:03
