@@ -107,7 +107,7 @@
                                 <label>Vị trí tuyển dụng</label>
                                 <div>${proposal.positionTitle}</div>
                             </div>
-                            
+
                             <div class="field">
                                 <label>Hình thức làm việc</label>
                                 <div>
@@ -227,6 +227,5 @@
             </c:if>
 
         </div>
-
     </body>
 </html>

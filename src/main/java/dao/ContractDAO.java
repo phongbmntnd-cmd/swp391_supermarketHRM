@@ -15,6 +15,35 @@ import java.util.List;
  */
 public class ContractDAO {
 
+    /**
+     * Thêm hợp đồng mới (Dùng chung Connection trong Transaction)
+     */
+    public boolean addContractWithConn(Connection conn, int userId, String contractType, String startDate, String endDate, String status) throws Exception {
+        String sql = "INSERT INTO contracts (user_id, contract_type, start_date, end_date, status) "
+                + "VALUES (?, ?, ?, ?, ?)";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ps.setString(2, contractType);
+            
+            if (startDate != null && !startDate.trim().isEmpty()) {
+                ps.setDate(3, java.sql.Date.valueOf(startDate.trim()));
+            } else {
+                ps.setDate(3, java.sql.Date.valueOf(java.time.LocalDate.now()));
+            }
+
+            if (endDate != null && !endDate.trim().isEmpty()) {
+                ps.setDate(4, java.sql.Date.valueOf(endDate.trim()));
+            } else {
+                ps.setNull(4, Types.DATE);
+            }
+
+            ps.setString(5, status == null || status.isEmpty() ? "ACTIVE" : status);
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
     public List<Contract> getContractsByUser(int userId) {
         List<Contract> list = new ArrayList<>();
         String sql = "SELECT id, user_id, contract_type, start_date, end_date, status "

@@ -181,6 +181,14 @@
                     <a href="${pageContext.request.contextPath}/store-manager/attendance" class="card-link">Xem bảng công →</a>
                 </div>
 
+                <!-- Tính năng 4: Quản lý lịch rảnh & Phân công ca trực -->
+                <div class="card" style="border-left-color: #9b59b6;">
+                    <div>
+                        <h3>Xếp Lịch & Phân Công Ca</h3>
+                        <p>Xem lịch rảnh đã đăng ký của nhân viên, tiến hành xếp lịch trực tuần tới và Publish (công bố) lịch cho toàn nhân viên theo dõi.</p>
+                    </div>
+                    <a href="${pageContext.request.contextPath}/store-manager/schedule" class="card-link">Quản lý lịch làm việc →</a>
+                </div>
             </div>
 
         </div>
