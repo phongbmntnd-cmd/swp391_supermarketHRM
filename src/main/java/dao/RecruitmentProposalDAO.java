@@ -27,9 +27,6 @@ public class RecruitmentProposalDAO {
             + "LEFT JOIN employee_profiles ep_creator ON rp.created_by = ep_creator.user_id "
             + "LEFT JOIN employee_profiles ep_approver ON rp.approved_by = ep_approver.user_id ";
 
-    /**
-     * Tạo mới một đề xuất tuyển dụng (kèm thông tin ứng viên)
-     */
     public boolean createProposal(
             int branchId, int positionId, String employmentType,
             String fullName, String email, String phone, String identityCard,
@@ -129,9 +126,6 @@ public class RecruitmentProposalDAO {
         }
     }
 
-    /**
-     * Gửi lại đề xuất (Resubmit) khi bị từ chối
-     */
     public boolean resubmitProposal(int proposalId, int positionId, String employmentType,
             String fullName, String email, String phone, String identityCard,
             int departmentId, String shiftType, String expirationDate, String targetDate, String reason) {
@@ -209,114 +203,6 @@ public class RecruitmentProposalDAO {
         }
     }
 
-    // =========================================================================
-    // TRANSACTION PHÊ DUYỆT ĐỀ XUẤT VÀ CẤP TÀI KHOẢN TRỌN GÓI
-    // =========================================================================
-    public boolean approveProposalAndCreateUser(
-            String username, String email, int roleId, String expirationDate,
-            String fullName, String phone, String identityCard,
-            int homeBranchId, int positionId, int departmentId,
-            String employeeType, String shiftType, int proposalId, int hrUserId, String customNote) {
-
-        String sqlUser = "INSERT INTO users (username, password_hash, email, status, expiration_date, role_id, is_first_login, created_at, updated_at) "
-                + "VALUES (?, '123456', ?, 'ACTIVE', ?, ?, 1, NOW(), NOW())";
-
-        String sqlProfile = "INSERT INTO employee_profiles (user_id, full_name, phone, identity_card, home_branch_id, position_id, department_id, employee_type) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-
-        String sqlApproveProposal = "UPDATE recruitment_proposals "
-                + "SET status = 'APPROVED', approved_by = ?, hr_note = ?, updated_at = NOW() "
-                + "WHERE id = ? AND status = 'PENDING'";
-
-        Connection conn = null;
-        try {
-            conn = new DBContext().getConnection();
-            conn.setAutoCommit(false);
-
-            // 1. Insert User
-            PreparedStatement psUser = conn.prepareStatement(sqlUser, PreparedStatement.RETURN_GENERATED_KEYS);
-            psUser.setString(1, username);
-            psUser.setString(2, (email == null || email.trim().isEmpty()) ? null : email.trim());
-
-            if (expirationDate != null && !expirationDate.trim().isEmpty()) {
-                try {
-                    psUser.setDate(3, java.sql.Date.valueOf(expirationDate.trim()));
-                } catch (IllegalArgumentException ex) {
-                    psUser.setNull(3, Types.DATE);
-                }
-            } else {
-                psUser.setNull(3, Types.DATE);
-            }
-
-            psUser.setInt(4, roleId);
-            if (psUser.executeUpdate() == 0) {
-                conn.rollback();
-                return false;
-            }
-
-            int generatedUserId = 0;
-            try (ResultSet generatedKeys = psUser.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    generatedUserId = generatedKeys.getInt(1);
-                } else {
-                    conn.rollback();
-                    return false;
-                }
-            }
-
-            // 2. Insert Profile
-            PreparedStatement psProfile = conn.prepareStatement(sqlProfile);
-            psProfile.setInt(1, generatedUserId);
-            psProfile.setString(2, fullName != null ? fullName.trim() : "");
-            psProfile.setString(3, phone != null ? phone.trim() : "");
-            psProfile.setString(4, identityCard != null ? identityCard.trim() : "");
-            psProfile.setInt(5, homeBranchId);
-            psProfile.setInt(6, positionId);
-            if (departmentId > 0) {
-                psProfile.setInt(7, departmentId);
-            } else {
-                psProfile.setNull(7, Types.INTEGER);
-            }
-            psProfile.setString(8, employeeType);
-            psProfile.executeUpdate();
-
-            // 3. Ủy quyền tạo Hợp đồng sang ContractDAO
-            ContractDAO contractDAO = new ContractDAO();
-            String contractType = "Hợp đồng " + (employeeType != null ? employeeType : "CHÍNH THỨC");
-            boolean contractCreated = contractDAO.addContractWithConn(conn, generatedUserId, contractType, null, expirationDate, "ACTIVE");
-            if (!contractCreated) {
-                conn.rollback();
-                return false;
-            }
-
-            // 4. Update Proposal Status
-            if (proposalId > 0 && hrUserId > 0) {
-                PreparedStatement psProposal = conn.prepareStatement(sqlApproveProposal);
-                psProposal.setInt(1, hrUserId);
-                psProposal.setString(2, customNote);
-                psProposal.setInt(3, proposalId);
-                psProposal.executeUpdate();
-            }
-
-            conn.commit();
-            return true;
-
-        } catch (Exception e) {
-            if (conn != null) {
-                try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
-            }
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (Exception e) { e.printStackTrace(); }
-            }
-        }
-    }
-
-    /**
-     * Lấy danh sách đề xuất theo chi nhánh
-     */
     public List<RecruitmentProposal> getProposalsByBranch(int branchId) {
         List<RecruitmentProposal> list = new ArrayList<>();
         String sql = BASE_SELECT + "WHERE rp.branch_id = ? ORDER BY rp.created_at DESC";
@@ -334,9 +220,6 @@ public class RecruitmentProposalDAO {
         return list;
     }
 
-    /**
-     * Lấy toàn bộ danh sách đề xuất
-     */
     public List<RecruitmentProposal> getAllProposals() {
         List<RecruitmentProposal> list = new ArrayList<>();
         String sql = BASE_SELECT + "ORDER BY rp.created_at DESC";
@@ -351,9 +234,6 @@ public class RecruitmentProposalDAO {
         return list;
     }
 
-    /**
-     * Lấy danh sách các đề xuất đang chờ duyệt (PENDING)
-     */
     public List<RecruitmentProposal> getPendingProposals() {
         List<RecruitmentProposal> list = new ArrayList<>();
         String sql = BASE_SELECT + "WHERE rp.status = 'PENDING' ORDER BY rp.created_at DESC";
@@ -368,9 +248,6 @@ public class RecruitmentProposalDAO {
         return list;
     }
 
-    /**
-     * Lấy chi tiết đề xuất theo ID
-     */
     public RecruitmentProposal getProposalById(int id) {
         String sql = BASE_SELECT + "WHERE rp.id = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -386,9 +263,98 @@ public class RecruitmentProposalDAO {
         return null;
     }
 
-    /**
-     * Từ chối đề xuất tuyển dụng
-     */
+    public boolean approveProposal(int proposalId, int approvedBy, String hrNote) {
+        RecruitmentProposal proposal = getProposalById(proposalId);
+        if (proposal == null || !"PENDING".equals(proposal.getStatus())) {
+            return false;
+        }
+
+        Candidate c = proposal.getCandidate();
+        if (c == null) {
+            return false;
+        }
+
+        // Kiểm tra trùng lặp trực tiếp tại DAO trước khi thực hiện cấp tài khoản
+        UserDAO userDAO = new UserDAO();
+        if (c.getPhone() != null && userDAO.isPhoneExists(c.getPhone())) {
+            return false;
+        }
+        if (c.getIdentityCard() != null && userDAO.isIdentityCardExists(c.getIdentityCard())) {
+            return false;
+        }
+        if (c.getEmail() != null && !c.getEmail().trim().isEmpty() && userDAO.isEmailExists(c.getEmail())) {
+            return false;
+        }
+
+        Connection conn = null;
+        try {
+            conn = new DBContext().getConnection();
+            conn.setAutoCommit(false);
+
+            // 1. Tạo tài khoản mới trong bảng users (role_id = 5 cho nhân viên)
+            String username = (c.getEmail() != null && !c.getEmail().trim().isEmpty()) ? c.getEmail().trim() : c.getPhone();
+            String sqlUser = "INSERT INTO users (username, password_hash, email, role_id, status, is_first_login, created_at, updated_at) "
+                    + "VALUES (?, '123456', ?, 5, 'ACTIVE', 1, NOW(), NOW())";
+            
+            PreparedStatement psUser = conn.prepareStatement(sqlUser, PreparedStatement.RETURN_GENERATED_KEYS);
+            psUser.setString(1, username);
+            psUser.setString(2, c.getEmail());
+            psUser.executeUpdate();
+
+            int userId = 0;
+            try (ResultSet rs = psUser.getGeneratedKeys()) {
+                if (rs.next()) {
+                    userId = rs.getInt(1);
+                } else {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            // 2. Tạo hồ sơ nhân viên trong bảng employee_profiles
+            String sqlProfile = "INSERT INTO employee_profiles (user_id, full_name, phone, identity_card, home_branch_id, position_id, department_id, employee_type) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            PreparedStatement psProfile = conn.prepareStatement(sqlProfile);
+            psProfile.setInt(1, userId);
+            psProfile.setString(2, c.getFullName());
+            psProfile.setString(3, c.getPhone());
+            psProfile.setString(4, c.getIdentityCard());
+            psProfile.setInt(5, proposal.getBranchId());
+            psProfile.setInt(6, proposal.getPositionId());
+            if (proposal.getDepartmentId() != null) {
+                psProfile.setInt(7, proposal.getDepartmentId());
+            } else {
+                psProfile.setNull(7, Types.INTEGER);
+            }
+            psProfile.setString(8, proposal.getEmploymentType());
+            psProfile.executeUpdate();
+
+            // 3. Cập nhật trạng thái đề xuất thành APPROVED
+            String sqlUpdateProposal = "UPDATE recruitment_proposals "
+                    + "SET status = 'APPROVED', approved_by = ?, hr_note = ?, updated_at = NOW() "
+                    + "WHERE id = ? AND status = 'PENDING'";
+            PreparedStatement psProp = conn.prepareStatement(sqlUpdateProposal);
+            psProp.setInt(1, approvedBy);
+            psProp.setString(2, (hrNote == null || hrNote.trim().isEmpty()) ? "Đã phê duyệt và cấp tài khoản thành công." : hrNote);
+            psProp.setInt(3, proposalId);
+            psProp.executeUpdate();
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); conn.close(); } catch (Exception e) { e.printStackTrace(); }
+            }
+        }
+    }
+
     public boolean rejectProposal(int proposalId, int approvedBy, String hrNote) {
         String sql = "UPDATE recruitment_proposals "
                 + "SET status = 'REJECTED', approved_by = ?, hr_note = ?, updated_at = NOW() "
@@ -405,9 +371,6 @@ public class RecruitmentProposalDAO {
         return false;
     }
 
-    /**
-     * Ánh xạ ResultSet sang Object RecruitmentProposal
-     */
     private RecruitmentProposal mapResultSetToProposal(ResultSet rs) throws Exception {
         RecruitmentProposal rp = new RecruitmentProposal();
         rp.setId(rs.getInt("id"));

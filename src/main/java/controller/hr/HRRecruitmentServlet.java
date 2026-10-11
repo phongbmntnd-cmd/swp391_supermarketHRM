@@ -1,7 +1,6 @@
 package controller.hr;
 
 import controller.base.BaseServlet;
-import dao.EmployeeProfileDAO;
 import dao.RecruitmentProposalDAO;
 import dao.UserDAO;
 import model.Candidate;
@@ -94,6 +93,7 @@ public class HRRecruitmentServlet extends BaseServlet {
         RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
 
         // Xử lý khi HR chọn PHÊ DUYỆT đề xuất
+        // Trong phương thức doPost của HRRecruitmentServlet.java (nhánh "approve"):
         if ("approve".equals(action)) {
             RecruitmentProposal proposal = proposalDAO.getProposalById(proposalId);
             if (proposal == null || !"PENDING".equals(proposal.getStatus())) {
@@ -105,18 +105,14 @@ public class HRRecruitmentServlet extends BaseServlet {
             Candidate c = proposal.getCandidate();
             if (c != null) {
                 UserDAO userDAO = new UserDAO();
-                EmployeeProfileDAO profileDAO = new EmployeeProfileDAO(); // Khởi tạo EmployeeProfileDAO để check SĐT và CCCD
-
-                // SĐT và CCCD kiểm tra qua profileDAO (bảng employee_profiles)
-                if (c.getPhone() != null && profileDAO.isPhoneExists(c.getPhone())) {
+                if (c.getPhone() != null && userDAO.isPhoneExists(c.getPhone())) {
                     response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=phone_exists");
                     return;
                 }
-                if (c.getIdentityCard() != null && profileDAO.isIdentityCardExists(c.getIdentityCard())) {
+                if (c.getIdentityCard() != null && userDAO.isIdentityCardExists(c.getIdentityCard())) {
                     response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=id_exists");
                     return;
                 }
-                // Email kiểm tra qua userDAO (bảng users)
                 if (c.getEmail() != null && !c.getEmail().trim().isEmpty() && userDAO.isEmailExists(c.getEmail())) {
                     response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=email_exists");
                     return;
@@ -125,8 +121,7 @@ public class HRRecruitmentServlet extends BaseServlet {
 
             // Nếu hợp lệ -> Chuyển hướng sang form cấp tài khoản nhân sự (CreateUserServlet)
             response.sendRedirect(ctx + "/hr/create-user?proposalId=" + proposalId);
-        } 
-        // Xử lý khi HR chọn TỪ CHỐI đề xuất
+        } // Xử lý khi HR chọn TỪ CHỐI đề xuất
         else if ("reject".equals(action)) {
             if (hrNote == null || hrNote.trim().isEmpty()) {
                 response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=err_note");

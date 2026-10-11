@@ -20,6 +20,11 @@ public class EmployeeLock {
     private String username;  // Tài khoản của user bị lock
     private String email;     // Email của user bị lock
     private String phone;     // SĐT của user bị lock
+
+    // Thông tin mở rộng (JOIN từ employee_profiles, positions, departments)
+    private String positionName;
+    private String departmentName;
+    private String employeeType;
     
     public EmployeeLock() {
     }
@@ -141,5 +146,29 @@ public class EmployeeLock {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getPositionName() {
+        return positionName;
+    }
+
+    public void setPositionName(String positionName) {
+        this.positionName = positionName;
+    }
+
+    public String getDepartmentName() {
+        return departmentName;
+    }
+
+    public void setDepartmentName(String departmentName) {
+        this.departmentName = departmentName;
+    }
+
+    public String getEmployeeType() {
+        return employeeType;
+    }
+
+    public void setEmployeeType(String employeeType) {
+        this.employeeType = employeeType;
     }
 }
