@@ -2,8 +2,6 @@ package controller.hr;
 
 import controller.base.BaseServlet;
 import dao.CommonDAO;
-import dao.EmployeeProfileDAO;
-import dao.RecruitmentProposalDAO;
 import dao.UserDAO;
 import model.Department;
 import model.RecruitmentProposal;
@@ -34,10 +32,7 @@ public class CreateUserServlet extends BaseServlet {
             return;
         }
 
-        // Khởi tạo đúng các DAO chuyên trách
         UserDAO userDAO = new UserDAO();
-        EmployeeProfileDAO profileDAO = new EmployeeProfileDAO();
-        RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
         CommonDAO commonDAO = new CommonDAO();
 
         // 1. XỬ LÝ AJAX LẤY CẤU HÌNH THEO ROLE
@@ -63,7 +58,7 @@ public class CreateUserServlet extends BaseServlet {
         // 2. KIỂM TRA NẾU ĐƯỢC CHUYỂN HƯỚNG TỪ ĐỀ XUẤT (?proposalId=...)
         int proposalId = getIntParameter(request, "proposalId", -1);
         if (proposalId != -1) {
-            RecruitmentProposal proposal = proposalDAO.getProposalById(proposalId);
+            RecruitmentProposal proposal = userDAO.getProposalById(proposalId);
             if (proposal != null) {
                 // Tự động xác định Department ID dựa trên vị trí đề xuất nếu chưa có
                 if (proposal.getDepartmentId() == null || proposal.getDepartmentId() <= 0) {
@@ -110,9 +105,8 @@ public class CreateUserServlet extends BaseServlet {
         String expirationDate = getStringParameter(request, "expirationDate");
 
         UserDAO userDAO = new UserDAO();
-        EmployeeProfileDAO profileDAO = new EmployeeProfileDAO();
 
-        // VALIDATION ĐẦU VÀO (Gọi đúng DAO quản lý bảng tương ứng)
+        // VALIDATION ĐẦU VÀO
         if (userDAO.isUsernameExists(username)) {
             request.setAttribute("error", "Mã nhân viên (Username) '" + username + "' đã tồn tại!");
             doGet(request, response);
@@ -125,15 +119,13 @@ public class CreateUserServlet extends BaseServlet {
             return;
         }
 
-        // Gọi qua profileDAO vì SĐT nằm ở bảng employee_profiles
-        if (profileDAO.isPhoneExists(phone)) {
+        if (userDAO.isPhoneExists(phone)) {
             request.setAttribute("error", "Số điện thoại '" + phone + "' đã tồn tại trong hệ thống!");
             doGet(request, response);
             return;
         }
 
-        // Gọi qua profileDAO vì CCCD nằm ở bảng employee_profiles
-        if (profileDAO.isIdentityCardExists(identityCard)) {
+        if (userDAO.isIdentityCardExists(identityCard)) {
             request.setAttribute("error", "Số CCCD/CMND '" + identityCard + "' đã tồn tại!");
             doGet(request, response);
             return;
@@ -142,9 +134,8 @@ public class CreateUserServlet extends BaseServlet {
         // Tạo chuỗi thông tin tài khoản để gửi vào note cho Store Manager
         String noteForStoreManager = String.format("Đã phê duyệt. Tài khoản cấp mới - Username: %s | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)", username);
 
-        // Gọi transaction tạo tài khoản, profile và hợp đồng
-        RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
-        boolean success = proposalDAO.approveProposalAndCreateUser(
+        // Sửa lại gọi đúng tên hàm có tích hợp tạo hợp đồng
+        boolean success = userDAO.createUserWithProfileAndApproveProposalCustomNote(
                 username, email, roleId, expirationDate,
                 fullName, phone, identityCard, homeBranchId,
                 positionId, departmentId, employeeType, shiftType,

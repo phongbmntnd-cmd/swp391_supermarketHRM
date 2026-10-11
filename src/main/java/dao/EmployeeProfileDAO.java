@@ -55,6 +55,18 @@ public class EmployeeProfileDAO {
 
     /**
      * Lấy danh sách nhân viên thuộc branch của Store Manager với Search/Filter/Sort/Pagination
+     * 
+     * @param branchId Branch ID của Store Manager (BẮT BUỘC - xác định từ Store Manager)
+     * @param search Từ khóa tìm kiếm (theo full_name, username, email, phone)
+     * @param positionId Lọc theo position ID (-1 = không lọc)
+     * @param departmentId Lọc theo department ID (-1 = không lọc)
+     * @param employeeType Lọc theo employee_type (null = không lọc)
+     * @param status Lọc theo user status (null = không lọc)
+     * @param sortColumn Cột sắp xếp (whitelist)
+     * @param sortDirection ASC hoặc DESC
+     * @param offset Bắt đầu từ record nào
+     * @param limit Số record mỗi trang
+     * @return Danh sách EmployeeProfile
      */
     public List<EmployeeProfile> getEmployeesPaginated(
             int branchId, String search, Integer positionId, 
@@ -65,6 +77,7 @@ public class EmployeeProfileDAO {
         List<EmployeeProfile> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
         
+        // Base query (FIX: removed ep.created_at - column doesn't exist)
         sql.append("SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, ");
         sql.append("ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ");
         sql.append("p.title AS position_name, d.name AS department_name, ");
@@ -101,7 +114,7 @@ public class EmployeeProfileDAO {
             params.add(departmentId);
         }
         
-        // Employee type filter
+        // Employee type filter (chuẩn hóa cả 2 dạng: FULL_TIME, Full-time)
         if (employeeType != null && !employeeType.trim().isEmpty()) {
             String normalizedType = normalizeForQuery(employeeType.trim());
             sql.append("AND UPPER(REPLACE(REPLACE(ep.employee_type, '-', '_'), ' ', '_')) = ? ");
@@ -144,6 +157,14 @@ public class EmployeeProfileDAO {
 
     /**
      * Đếm tổng số nhân viên với các điều kiện lọc
+     * 
+     * @param branchId Branch ID
+     * @param search Từ khóa tìm kiếm
+     * @param positionId Lọc theo position ID
+     * @param departmentId Lọc theo department ID
+     * @param employeeType Lọc theo employee type
+     * @param status Lọc theo status
+     * @return Tổng số record
      */
     public int countEmployees(
             int branchId, String search, Integer positionId,
@@ -179,7 +200,7 @@ public class EmployeeProfileDAO {
             params.add(departmentId);
         }
         
-        // Employee type filter
+        // Employee type filter (chuẩn hóa cả 2 dạng: FULL_TIME, Full-time)
         if (employeeType != null && !employeeType.trim().isEmpty()) {
             String normalizedType = normalizeForQuery(employeeType.trim());
             sql.append("AND UPPER(REPLACE(REPLACE(ep.employee_type, '-', '_'), ' ', '_')) = ? ");
@@ -210,57 +231,17 @@ public class EmployeeProfileDAO {
         return 0;
     }
 
-    // =========================================================================
-    // CÁC HÀM KIỂM TRA TRÙNG LẶP THÔNG TIN (ĐÃ CHUYỂN TỪ USER_DAO SANG ĐÂY)
-    // =========================================================================
-
     /**
-     * Kiểm tra số điện thoại đã tồn tại trong bảng employee_profiles chưa
+     * Validate sort column - chỉ cho phép các cột trong whitelist
      */
-    public boolean isPhoneExists(String phone) {
-        if (phone == null || phone.trim().isEmpty()) {
-            return false;
-        }
-        String sql = "SELECT 1 FROM employee_profiles WHERE TRIM(phone) = TRIM(?)";
-        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, phone.trim());
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    /**
-     * Kiểm tra số CCCD/CMND đã tồn tại trong bảng employee_profiles chưa
-     */
-    public boolean isIdentityCardExists(String identityCard) {
-        if (identityCard == null || identityCard.trim().isEmpty()) {
-            return false;
-        }
-        String sql = "SELECT 1 FROM employee_profiles WHERE TRIM(identity_card) = TRIM(?)";
-        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, identityCard.trim());
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    // =========================================================================
-    // CÁC HÀM TIỆN ÍCH & DROPDOWN
-    // =========================================================================
-
     private String validateSortColumn(String sortColumn) {
         if (sortColumn == null || sortColumn.trim().isEmpty()) {
-            return "ep.full_name";
+            return "ep.full_name"; // Default
         }
+        
         String col = sortColumn.toLowerCase().trim();
+        
+        // Mapping tên cột database
         if (col.equals("full_name") || col.equals("name")) {
             return "ep.full_name";
         } else if (col.equals("username")) {
@@ -278,19 +259,25 @@ public class EmployeeProfileDAO {
         } else if (col.equals("status")) {
             return "u.status";
         } else if (col.equals("created_at") || col.equals("created")) {
-            return "u.created_at";
+            return "u.created_at";  // Dùng users.created_at vì employee_profiles không có column này
         } else {
-            return "ep.full_name";
+            return "ep.full_name"; // Default fallback
         }
     }
 
+    /**
+     * Validate sort direction - chỉ cho phép ASC hoặc DESC
+     */
     private String validateSortDirection(String sortDirection) {
         if ("DESC".equalsIgnoreCase(sortDirection)) {
             return "DESC";
         }
-        return "ASC";
+        return "ASC"; // Default
     }
 
+    /**
+     * Map ResultSet to EmployeeProfile
+     */
     private EmployeeProfile mapResultSetToProfile(ResultSet rs) throws Exception {
         EmployeeProfile profile = new EmployeeProfile();
         profile.setUserId(rs.getInt("user_id"));
@@ -302,9 +289,11 @@ public class EmployeeProfileDAO {
         profile.setDepartmentId(rs.getInt("department_id"));
         profile.setEmployeeType(rs.getString("employee_type"));
         
+        // Từ JOIN
         profile.setPositionName(rs.getString("position_name"));
         profile.setDepartmentName(rs.getString("department_name"));
         
+        // Từ users
         profile.setUsername(rs.getString("username"));
         profile.setEmail(rs.getString("email"));
         profile.setStatus(rs.getString("status"));
@@ -314,6 +303,10 @@ public class EmployeeProfileDAO {
         return profile;
     }
 
+    /**
+     * Lấy tất cả positions (dùng cho filter dropdown)
+     * @return Danh sách Position
+     */
     public List<model.Position> getAllPositions() {
         List<model.Position> list = new ArrayList<>();
         String sql = "SELECT id, title, department_id FROM positions WHERE department_id IN (4, 5) ORDER BY title";
@@ -334,6 +327,10 @@ public class EmployeeProfileDAO {
         return list;
     }
 
+    /**
+     * Lấy tất cả departments (dùng cho filter dropdown)
+     * @return Danh sách Department
+     */
     public List<model.Department> getAllDepartments() {
         List<model.Department> list = new ArrayList<>();
         String sql = "SELECT id, name FROM departments WHERE id IN (4, 5) ORDER BY name";
@@ -353,6 +350,10 @@ public class EmployeeProfileDAO {
         return list;
     }
 
+    /**
+     * Lấy các loại employee type có trong database (đã chuẩn hóa)
+     * @return Danh sách employee types (loại bỏ trùng lặp không phân biệt hoa/thường)
+     */
     public List<String> getDistinctEmployeeTypes() {
         Set<String> uniqueTypes = new LinkedHashSet<>();
         String sql = "SELECT DISTINCT employee_type FROM employee_profiles WHERE employee_type IS NOT NULL AND employee_type != '' ORDER BY employee_type";
@@ -362,6 +363,7 @@ public class EmployeeProfileDAO {
             
             while (rs.next()) {
                 String type = rs.getString("employee_type").trim();
+                // Chuẩn hóa: FULL_TIME -> Full-time, Full_Time -> Full-time
                 String normalized = normalizeEmployeeType(type);
                 if (!normalized.isEmpty()) {
                     uniqueTypes.add(normalized);
@@ -373,6 +375,9 @@ public class EmployeeProfileDAO {
         return new ArrayList<>(uniqueTypes);
     }
     
+    /**
+     * Chuẩn hóa employee type về dạng "Full-time", "Part-time"
+     */
     private String normalizeEmployeeType(String type) {
         if (type == null) return "";
         String upper = type.toUpperCase().replace("-", "_").replace(" ", "_");
@@ -390,6 +395,7 @@ public class EmployeeProfileDAO {
             case "SEASONAL":
                 return "Seasonal";
             default:
+                // Giữ nguyên nếu không khớp pattern, viết hoa chữ đầu
                 if (type.length() > 0) {
                     return type.substring(0, 1).toUpperCase() + type.substring(1).toLowerCase();
                 }
@@ -397,6 +403,11 @@ public class EmployeeProfileDAO {
         }
     }
     
+    /**
+     * Chuẩn hóa employee type cho query SQL (chuyển về dạng FULL_TIME)
+     * @param type Employee type cần chuẩn hóa
+     * @return Chuỗi chuẩn hóa cho SQL (VD: "Full-time" -> "FULL_TIME")
+     */
     private String normalizeForQuery(String type) {
         if (type == null) return "";
         String upper = type.toUpperCase().replace("-", "_").replace(" ", "_");

@@ -104,6 +104,7 @@ public class EmployeeDAO {
         String sql = "UPDATE employee_profiles SET full_name = ?, phone = ?, identity_card = ?, "
                 + "home_branch_id = ?, position_id = ?, department_id = ?, employee_type = ? "
                 + "WHERE user_id = ? AND user_id IN (SELECT id FROM users WHERE role_id IN (4, 5))";
+
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, fullName);

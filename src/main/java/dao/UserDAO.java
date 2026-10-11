@@ -1,11 +1,14 @@
 package dao;
 
 import context.DBContext;
+import model.Candidate;
 import model.Role;
 import model.User;
+import model.RecruitmentProposal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,8 +62,185 @@ public class UserDAO {
     }
 
     /**
-     * Kiểm tra username đã tồn tại chưa
+     * Hàm tạo tài khoản và hồ sơ nhân viên cơ bản
      */
+    public boolean createUserWithProfile(
+            String username, String email, int roleId, String expirationDate,
+            String fullName, String phone, String identityCard,
+            int homeBranchId, int positionId, int departmentId, String employeeType, String shiftType) {
+
+        return createUserWithProfileAndApproveProposal(username, email, roleId, expirationDate,
+                fullName, phone, identityCard, homeBranchId, positionId, departmentId,
+                employeeType, shiftType, -1, -1);
+    }
+
+    /**
+     * Hàm tạo tài khoản, hồ sơ nhân viên VÀ tự động cập nhật đề xuất tuyển dụng
+     * thành APPROVED trong 1 Transaction
+     */
+    public boolean createUserWithProfileAndApproveProposal(
+            String username, String email, int roleId, String expirationDate,
+            String fullName, String phone, String identityCard,
+            int homeBranchId, int positionId, int departmentId,
+            String employeeType, String shiftType, int proposalId, int hrUserId) {
+
+        // 1. Chèn vào bảng users (quản lý đăng nhập + ngày hết hạn tài khoản nếu có)
+        String sqlUser = "INSERT INTO users (username, password_hash, email, status, expiration_date, role_id, is_first_login) "
+                + "VALUES (?, '123456', ?, 'ACTIVE', ?, ?, 1)";
+
+        // 2. Chèn vào bảng employee_profiles
+        String sqlProfile = "INSERT INTO employee_profiles (user_id, full_name, phone, identity_card, home_branch_id, position_id, department_id, employee_type) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+        // 3. Cập nhật trạng thái đề xuất
+        String sqlApproveProposal = "UPDATE recruitment_proposals "
+                + "SET status = 'APPROVED', approved_by = ?, hr_note = 'Đã phê duyệt và cấp tài khoản thành công.', updated_at = NOW() "
+                + "WHERE id = ? AND status = 'PENDING'";
+
+        Connection conn = null;
+        try {
+            conn = new DBContext().getConnection();
+            conn.setAutoCommit(false); // Bắt đầu Transaction
+
+            // --- 1. INSERT USERS ---
+            PreparedStatement psUser = conn.prepareStatement(sqlUser, PreparedStatement.RETURN_GENERATED_KEYS);
+            psUser.setString(1, username);
+            psUser.setString(2, (email == null || email.trim().isEmpty()) ? null : email.trim());
+
+            if (expirationDate != null && !expirationDate.trim().isEmpty()) {
+                try {
+                    psUser.setDate(3, java.sql.Date.valueOf(expirationDate.trim()));
+                } catch (IllegalArgumentException ex) {
+                    psUser.setNull(3, Types.DATE);
+                }
+            } else {
+                psUser.setNull(3, Types.DATE);
+            }
+
+            psUser.setInt(4, roleId);
+
+            int affectedRows = psUser.executeUpdate();
+            if (affectedRows == 0) {
+                conn.rollback();
+                return false;
+            }
+
+            int generatedUserId = 0;
+            try (ResultSet generatedKeys = psUser.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    generatedUserId = generatedKeys.getInt(1);
+                } else {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            // --- 2. INSERT EMPLOYEE_PROFILES ---
+            PreparedStatement psProfile = conn.prepareStatement(sqlProfile);
+            psProfile.setInt(1, generatedUserId);
+            psProfile.setString(2, fullName != null ? fullName.trim() : "");
+            psProfile.setString(3, phone != null ? phone.trim() : "");
+            psProfile.setString(4, identityCard != null ? identityCard.trim() : "");
+            psProfile.setInt(5, homeBranchId);
+            psProfile.setInt(6, positionId);
+
+            if (departmentId > 0) {
+                psProfile.setInt(7, departmentId);
+            } else {
+                psProfile.setNull(7, Types.INTEGER);
+            }
+
+            psProfile.setString(8, employeeType);
+
+            psProfile.executeUpdate();
+
+            // --- 3. UPDATE RECRUITMENT_PROPOSALS ---
+            if (proposalId > 0 && hrUserId > 0) {
+                PreparedStatement psProposal = conn.prepareStatement(sqlApproveProposal);
+                psProposal.setInt(1, hrUserId);
+                psProposal.setInt(2, proposalId);
+                psProposal.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    /**
+     * Lấy thông tin đề xuất tuyển dụng theo ID
+     */
+    public RecruitmentProposal getProposalById(int proposalId) {
+        String sql = "SELECT rp.*, b.name AS branch_name, pos.title AS position_title, "
+                + "c.id AS candidate_id_val, c.full_name, c.email, c.phone, c.identity_card "
+                + "FROM recruitment_proposals rp "
+                + "LEFT JOIN candidates c ON rp.candidate_id = c.id "
+                + "LEFT JOIN branches b ON rp.branch_id = b.id "
+                + "LEFT JOIN positions pos ON rp.position_id = pos.id "
+                + "WHERE rp.id = ?";
+
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, proposalId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    RecruitmentProposal rp = new RecruitmentProposal();
+                    rp.setId(rs.getInt("id"));
+                    rp.setCandidateId(rs.getInt("candidate_id"));
+                    rp.setBranchId(rs.getInt("branch_id"));
+                    rp.setBranchName(rs.getString("branch_name"));
+                    rp.setPositionId(rs.getInt("position_id"));
+                    rp.setPositionTitle(rs.getString("position_title"));
+
+                    int deptId = rs.getInt("department_id");
+                    rp.setDepartmentId(rs.wasNull() ? null : deptId);
+
+                    rp.setEmploymentType(rs.getString("employment_type"));
+                    rp.setShiftType(rs.getString("shift_type"));
+                    rp.setExpirationDate(rs.getDate("expiration_date"));
+                    rp.setQuantity(rs.getInt("quantity"));
+                    rp.setTargetDate(rs.getDate("target_date"));
+                    rp.setReason(rs.getString("reason"));
+                    rp.setStatus(rs.getString("status"));
+
+                    Candidate c = new Candidate();
+                    c.setId(rs.getInt("candidate_id_val"));
+                    c.setFullName(rs.getString("full_name"));
+                    c.setEmail(rs.getString("email"));
+                    c.setPhone(rs.getString("phone"));
+                    c.setIdentityCard(rs.getString("identity_card"));
+                    rp.setCandidate(c);
+
+                    return rp;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    // ----- Các hàm kiểm tra trùng lặp (Đã chuẩn hóa TRIM) -----
     public boolean isUsernameExists(String username) {
         String sql = "SELECT 1 FROM users WHERE username = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -74,9 +254,6 @@ public class UserDAO {
         return false;
     }
 
-    /**
-     * Kiểm tra email đã tồn tại chưa
-     */
     public boolean isEmailExists(String email) {
         if (email == null || email.trim().isEmpty()) {
             return false;
@@ -84,6 +261,38 @@ public class UserDAO {
         String sql = "SELECT 1 FROM users WHERE TRIM(email) = TRIM(?)";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, email.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean isPhoneExists(String phone) {
+        if (phone == null || phone.trim().isEmpty()) {
+            return false;
+        }
+        String sql = "SELECT 1 FROM employee_profiles WHERE TRIM(phone) = TRIM(?)";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, phone.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean isIdentityCardExists(String identityCard) {
+        if (identityCard == null || identityCard.trim().isEmpty()) {
+            return false;
+        }
+        String sql = "SELECT 1 FROM employee_profiles WHERE TRIM(identity_card) = TRIM(?)";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, identityCard.trim());
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }
@@ -127,7 +336,7 @@ public class UserDAO {
         return String.format("%s%03d", rolePrefix, nextNumber);
     }
 
-    public User getUserById(int userId) {
+    public model.User getUserById(int userId) {
         String sql = "SELECT u.id, u.username, u.email, u.status, u.role_id, "
                 + "ep.home_branch_id, ep.full_name, ep.employee_type, "
                 + "r.name AS role_name "
@@ -140,7 +349,7 @@ public class UserDAO {
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    User user = new User();
+                    model.User user = new model.User();
                     user.setId(rs.getInt("id"));
                     user.setUsername(rs.getString("username"));
                     user.setEmail(rs.getString("email"));
@@ -148,7 +357,7 @@ public class UserDAO {
                     user.setHomeBranchId(rs.getInt("home_branch_id"));
                     user.setFullName(rs.getString("full_name"));
 
-                    Role role = new Role();
+                    model.Role role = new model.Role();
                     role.setId(rs.getInt("role_id"));
                     role.setName(rs.getString("role_name"));
                     user.setRole(role);
@@ -194,6 +403,20 @@ public class UserDAO {
         return null;
     }
 
+    public boolean updateUserStatus(int userId, String newStatus) {
+        String sql = "UPDATE users SET status = ? WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, newStatus);
+            ps.setInt(2, userId);
+
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public boolean updateStatus(int userId, String status) {
         String sql = "UPDATE users SET status = ? WHERE id = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -224,9 +447,7 @@ public class UserDAO {
 
     public List<User> getUsersByBranch(int branchId) {
         List<User> list = new ArrayList<>();
-        String sql = "SELECT u.id, u.username, u.email, u.status, ep.full_name, ep.phone "
-                   + "FROM users u LEFT JOIN employee_profiles ep ON u.id = ep.user_id "
-                   + "WHERE ep.home_branch_id = ?";
+        String sql = "SELECT * FROM users WHERE home_branch_id = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, branchId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -247,6 +468,192 @@ public class UserDAO {
         return list;
     }
 
+    public boolean createUserWithProfileAndApproveProposalCustomNote(
+            String username, String email, int roleId, String expirationDate,
+            String fullName, String phone, String identityCard,
+            int homeBranchId, int positionId, int departmentId,
+            String employeeType, String shiftType, int proposalId, int hrUserId, String customNote) {
+
+        // 1. Tạo tài khoản
+        String sqlUser = "INSERT INTO users (username, password_hash, email, status, expiration_date, role_id, is_first_login, created_at, updated_at) "
+                + "VALUES (?, '123456', ?, 'ACTIVE', ?, ?, 1, NOW(), NOW())";
+
+        // 2. Tạo hồ sơ nhân viên
+        String sqlProfile = "INSERT INTO employee_profiles (user_id, full_name, phone, identity_card, home_branch_id, position_id, department_id, employee_type) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+        // 3. Tự động tạo hợp đồng lao động đầu tiên
+        String sqlContract = "INSERT INTO contracts (user_id, contract_type, start_date, end_date, status) "
+                + "VALUES (?, ?, CURDATE(), ?, 'ACTIVE')";
+
+        // 4. Cập nhật trạng thái đề xuất
+        String sqlApproveProposal = "UPDATE recruitment_proposals "
+                + "SET status = 'APPROVED', approved_by = ?, hr_note = ?, updated_at = NOW() "
+                + "WHERE id = ? AND status = 'PENDING'";
+
+        Connection conn = null;
+        try {
+            conn = new DBContext().getConnection();
+            conn.setAutoCommit(false);
+
+            // --- 1. INSERT USER ---
+            PreparedStatement psUser = conn.prepareStatement(sqlUser, PreparedStatement.RETURN_GENERATED_KEYS);
+            psUser.setString(1, username);
+            psUser.setString(2, (email == null || email.trim().isEmpty()) ? null : email.trim());
+
+            if (expirationDate != null && !expirationDate.trim().isEmpty()) {
+                try {
+                    psUser.setDate(3, java.sql.Date.valueOf(expirationDate.trim()));
+                } catch (IllegalArgumentException ex) {
+                    psUser.setNull(3, Types.DATE);
+                }
+            } else {
+                psUser.setNull(3, Types.DATE);
+            }
+
+            psUser.setInt(4, roleId);
+            if (psUser.executeUpdate() == 0) {
+                conn.rollback();
+                return false;
+            }
+
+            int generatedUserId = 0;
+            try (ResultSet generatedKeys = psUser.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    generatedUserId = generatedKeys.getInt(1);
+                } else {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            // --- 2. INSERT PROFILE ---
+            PreparedStatement psProfile = conn.prepareStatement(sqlProfile);
+            psProfile.setInt(1, generatedUserId);
+            psProfile.setString(2, fullName != null ? fullName.trim() : "");
+            psProfile.setString(3, phone != null ? phone.trim() : "");
+            psProfile.setString(4, identityCard != null ? identityCard.trim() : "");
+            psProfile.setInt(5, homeBranchId);
+            psProfile.setInt(6, positionId);
+            if (departmentId > 0) {
+                psProfile.setInt(7, departmentId);
+            } else {
+                psProfile.setNull(7, Types.INTEGER);
+            }
+            psProfile.setString(8, employeeType);
+            psProfile.executeUpdate();
+
+            // --- 3. INSERT CONTRACT (TỰ ĐỘNG TẠO HỢP ĐỒNG) ---
+            PreparedStatement psContract = conn.prepareStatement(sqlContract);
+            psContract.setInt(1, generatedUserId);
+            psContract.setString(2, "Hợp đồng " + (employeeType != null ? employeeType : "CHÍNH THỨC"));
+            
+            if (expirationDate != null && !expirationDate.trim().isEmpty()) {
+                try {
+                    psContract.setDate(3, java.sql.Date.valueOf(expirationDate.trim()));
+                } catch (IllegalArgumentException ex) {
+                    psContract.setNull(3, Types.DATE);
+                }
+            } else {
+                psContract.setNull(3, Types.DATE);
+            }
+            psContract.executeUpdate();
+
+            // --- 4. UPDATE PROPOSAL & NOTE ---
+            if (proposalId > 0 && hrUserId > 0) {
+                PreparedStatement psProposal = conn.prepareStatement(sqlApproveProposal);
+                psProposal.setInt(1, hrUserId);
+                psProposal.setString(2, customNote);
+                psProposal.setInt(3, proposalId);
+                psProposal.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    /**
+     * Đảm bảo bảng audit_logs tồn tại với đầy đủ cột cần thiết.
+     * Tương thích mọi phiên bản MySQL (5.5, 5.7, 8.0, MariaDB).
+     */
+    private void ensureAuditLogsTableExists(Connection existingConn) {
+        try (Connection conn = (existingConn != null) ? existingConn : new DBContext().getConnection()) {
+            try (java.sql.Statement st = conn.createStatement()) {
+                // 1. Tạo bảng nếu chưa có
+                st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS audit_logs ("
+                  + "  id INT NOT NULL AUTO_INCREMENT,"
+                  + "  action VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,"
+                  + "  actor_id INT DEFAULT NULL,"
+                  + "  target_user_id INT DEFAULT NULL,"
+                  + "  description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,"
+                  + "  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,"
+                  + "  PRIMARY KEY (id),"
+                  + "  KEY idx_action (action),"
+                  + "  KEY idx_actor (actor_id),"
+                  + "  KEY idx_target (target_user_id),"
+                  + "  KEY idx_created (created_at)"
+                  + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+                );
+
+                // 2. Thêm cột thiếu (dùng information_schema, tương thích mọi phiên bản)
+                addColumnIfMissing(conn, "audit_logs", "actor_id",
+                    "ALTER TABLE audit_logs ADD COLUMN actor_id INT DEFAULT NULL");
+                addColumnIfMissing(conn, "audit_logs", "target_user_id",
+                    "ALTER TABLE audit_logs ADD COLUMN target_user_id INT DEFAULT NULL");
+                addColumnIfMissing(conn, "audit_logs", "description",
+                    "ALTER TABLE audit_logs ADD COLUMN description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                addColumnIfMissing(conn, "audit_logs", "created_at",
+                    "ALTER TABLE audit_logs ADD COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Thêm 1 cột vào bảng nếu cột đó chưa tồn tại (tương thích MySQL 5.5+).
+     */
+    private void addColumnIfMissing(Connection conn, String tableName, String columnName, String alterSql) {
+        String checkSql = "SELECT COUNT(*) FROM information_schema.columns "
+                        + "WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?";
+        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+            ps.setString(1, tableName);
+            ps.setString(2, columnName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getInt(1) == 0) {
+                    try (java.sql.Statement st = conn.createStatement()) {
+                        st.executeUpdate(alterSql);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Nếu vẫn lỗi (vd thiếu quyền), in ra nhưng không chặn luồng chính
+            e.printStackTrace();
+        }
+    }
+
     public boolean updateUserStatusWithAudit(
             int userId, String newStatus,
             String auditAction, int actorId, String description) {
@@ -256,6 +663,9 @@ public class UserDAO {
 
         Connection conn = null;
         try {
+            // Đảm bảo bảng audit_logs tồn tại với cột actor_id
+            ensureAuditLogsTableExists(conn);
+
             conn = new DBContext().getConnection();
             conn.setAutoCommit(false);
 
@@ -281,13 +691,22 @@ public class UserDAO {
 
         } catch (Exception e) {
             if (conn != null) {
-                try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
+                try {
+                    conn.rollback();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
             }
             e.printStackTrace();
             return false;
         } finally {
             if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (Exception e) { e.printStackTrace(); }
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }

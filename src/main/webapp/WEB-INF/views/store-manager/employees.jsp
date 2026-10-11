@@ -292,15 +292,37 @@
             border-radius: 4px;
             margin-bottom: 15px;
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: flex-end;
+            flex-wrap: wrap;
         }
-        .locked-filter input {
+        .locked-filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 180px;
+            flex: 1;
+        }
+        .locked-filter-group label {
+            font-size: 12px;
+            color: #c0392b;
+            font-weight: bold;
+        }
+        .locked-filter-group input {
             padding: 8px 12px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 14px;
-            min-width: 200px;
+            width: 100%;
+        }
+        .locked-filter-group input:focus {
+            outline: none;
+            border-color: #e74c3c;
+        }
+        .locked-filter-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: flex-end;
         }
         .table-locked {
             width: 100%;
@@ -578,15 +600,17 @@
                                         <div class="action-buttons">
                                             <c:choose>
                                                 <c:when test="${emp.status == 'ACTIVE'}">
-                                                    <button type="button" class="btn btn-danger btn-sm" 
-                                                            onclick="showLockModal(${emp.userId}, this.getAttribute('data-name'))"
+                                                    <button type="button" class="btn btn-danger btn-sm"
+                                                            onclick="showLockModal(this)"
+                                                            data-userid="${emp.userId}"
                                                             data-name="${fn:escapeXml(emp.fullName)}">
                                                         🔒 Khóa
                                                     </button>
                                                 </c:when>
                                                 <c:when test="${emp.status == 'EMERGENCY_LOCKED'}">
-                                                    <button type="button" class="btn btn-success btn-sm" 
-                                                            onclick="showUnlockModal(${emp.userId}, this.getAttribute('data-name'))"
+                                                    <button type="button" class="btn btn-success btn-sm"
+                                                            onclick="showUnlockModal(this)"
+                                                            data-userid="${emp.userId}"
                                                             data-name="${fn:escapeXml(emp.fullName)}">
                                                         🔓 Mở khóa
                                                     </button>
@@ -662,7 +686,7 @@
         </c:if>
         
         <!-- =============================================
-             PHẦN NHÂN VIÊN BỊ KHÓA - THU GỌN
+             PHẦN NHÂN VIÊN BỊ KHÓA - LUÔN HIỂN THỊ KHI CÓ
              ============================================= -->
         <div class="locked-section" id="lockedEmployeesSection" style="display: none;">
             <!-- Header có nút click để mở rộng/thu gọn -->
@@ -670,14 +694,23 @@
                 <h2>🔒 Nhân viên đã bị khóa <span class="count" id="lockedCount">0</span></h2>
                 <span id="toggleIcon" style="font-size: 24px;">▼</span>
             </div>
-            
+
             <!-- Nội dung bên trong - có thể thu gọn -->
             <div id="lockedContent">
-            
-            <!-- Filter cho locked employees -->
+
+            <!-- Filter cho locked employees (mở rộng: search theo NV / lý do / người khóa) -->
             <form method="GET" action="${pageContext.request.contextPath}/store-manager/employees" class="locked-filter">
-                <div style="flex: 1;">
-                    <input type="text" name="lockedSearch" placeholder="🔍 Tìm kiếm nhân viên bị khóa..." value="${lockedSearch}">
+                <div class="locked-filter-group">
+                    <label>🔍 Tìm nhân viên</label>
+                    <input type="text" name="lockedSearch" placeholder="Tên, username, email, SĐT..." value="${lockedSearch}">
+                </div>
+                <div class="locked-filter-group">
+                    <label>📝 Lý do khóa</label>
+                    <input type="text" name="lockedReasonSearch" placeholder="Nhập từ khóa trong lý do..." value="${lockedReasonSearch}">
+                </div>
+                <div class="locked-filter-group">
+                    <label>👮 Người khóa</label>
+                    <input type="text" name="lockedBySearch" placeholder="Tên người đã khóa..." value="${lockedBySearch}">
                 </div>
                 <!-- Preserve other filter params -->
                 <input type="hidden" name="search" value="${search}">
@@ -689,10 +722,12 @@
                 <input type="hidden" name="dir" value="${sortDirection}">
                 <input type="hidden" name="page" value="${currentPage}">
                 <input type="hidden" name="size" value="${pageSize}">
-                <button type="submit" class="btn btn-primary">Tìm kiếm</button>
-                <a href="${pageContext.request.contextPath}/store-manager/employees" class="btn btn-secondary">Xóa lọc</a>
+                <div class="locked-filter-buttons">
+                    <button type="submit" class="btn btn-primary">🔎 Lọc</button>
+                    <a href="${pageContext.request.contextPath}/store-manager/employees#lockedEmployeesSection" class="btn btn-secondary">🗑️ Xóa lọc</a>
+                </div>
             </form>
-            
+
             <!-- Bảng locked employees -->
             <c:choose>
                 <c:when test="${not empty lockedEmployees}">
@@ -704,6 +739,9 @@
                                 <th>Username</th>
                                 <th>Email</th>
                                 <th>SĐT</th>
+                                <th>Vị trí</th>
+                                <th>Phòng ban</th>
+                                <th>Loại NV</th>
                                 <th>Người khóa</th>
                                 <th>Thời gian bị khóa</th>
                                 <th>Lý do</th>
@@ -718,6 +756,9 @@
                                     <td>${lock.username}</td>
                                     <td>${lock.email}</td>
                                     <td>${lock.phone}</td>
+                                    <td>${lock.positionName}</td>
+                                    <td>${lock.departmentName}</td>
+                                    <td>${lock.employeeType}</td>
                                     <td>${lock.lockedByName}</td>
                                     <td><fmt:formatDate value="${lock.lockedAt}" pattern="dd/MM/yyyy HH:mm"/></td>
                                     <td class="reason-cell" title="${lock.reason}">
@@ -727,8 +768,9 @@
                                         </c:choose>
                                     </td>
                                     <td>
-                                        <button type="button" class="btn btn-success btn-sm" 
-                                                onclick="showUnlockModalFromLocked(${lock.userId}, this.getAttribute('data-name'))"
+                                        <button type="button" class="btn btn-success btn-sm"
+                                                onclick="showUnlockModalFromLocked(this)"
+                                                data-userid="${lock.userId}"
                                                 data-name="${fn:escapeXml(lock.userName)}">
                                             🔓 Mở khóa
                                         </button>
@@ -737,7 +779,7 @@
                             </c:forEach>
                         </tbody>
                     </table>
-                    
+
                     <!-- Pagination cho locked -->
                     <c:if test="${totalLockedPages > 1}">
                         <div class="locked-pagination">
@@ -746,24 +788,24 @@
                             </span>
                             <div style="display: flex; gap: 5px;">
                                 <c:if test="${currentLockedPage > 1}">
-                                    <a href="?lockedPage=1&lockedSearch=${lockedSearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}">«</a>
-                                    <a href="?lockedPage=${currentLockedPage - 1}&lockedSearch=${lockedSearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}">‹</a>
+                                    <a href="?lockedPage=1&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">«</a>
+                                    <a href="?lockedPage=${currentLockedPage - 1}&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">‹</a>
                                 </c:if>
-                                
+
                                 <c:forEach var="i" begin="${lockedPagerStart}" end="${lockedPagerEnd}">
                                     <c:choose>
                                         <c:when test="${i == currentLockedPage}">
                                             <span style="background: #e74c3c; color: white;">${i}</span>
                                         </c:when>
                                         <c:otherwise>
-                                            <a href="?lockedPage=${i}&lockedSearch=${lockedSearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}">${i}</a>
+                                            <a href="?lockedPage=${i}&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">${i}</a>
                                         </c:otherwise>
                                     </c:choose>
                                 </c:forEach>
-                                
+
                                 <c:if test="${currentLockedPage < totalLockedPages}">
-                                    <a href="?lockedPage=${currentLockedPage + 1}&lockedSearch=${lockedSearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}">›</a>
-                                    <a href="?lockedPage=${totalLockedPages}&lockedSearch=${lockedSearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}">»</a>
+                                    <a href="?lockedPage=${currentLockedPage + 1}&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">›</a>
+                                    <a href="?lockedPage=${totalLockedPages}&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">»</a>
                                 </c:if>
                             </div>
                         </div>
@@ -782,10 +824,15 @@
         <script>
             var totalLocked = ${totalLockedRecords != null ? totalLockedRecords : 0};
             if (totalLocked > 0) {
-                document.getElementById('lockedEmployeesSection').style.display = 'block';
+                var section = document.getElementById('lockedEmployeesSection');
+                section.style.display = 'block';
                 document.getElementById('lockedCount').textContent = totalLocked;
+                // Mặc định mở rộng khi có nhân viên bị khóa (theo yêu cầu: hiện ra ngay sau khi khóa)
+                var content = document.getElementById('lockedContent');
+                content.style.display = 'block';
+                document.getElementById('toggleIcon').textContent = '▼';
             }
-            
+
             // Toggle thu gọn/mở rộng phần locked
             function toggleLockedSection() {
                 var content = document.getElementById('lockedContent');
@@ -842,24 +889,28 @@
         // GLOBAL FUNCTIONS - Đặt RA NGOÀI để onclick gọi được
         // =============================================
         
-        function showLockModal(userId, fullName) {
+        function showLockModal(btn) {
+            var userId = btn.getAttribute('data-userid');
+            var fullName = btn.getAttribute('data-name');
             document.getElementById('lockUserId').value = userId;
             document.getElementById('lockEmployeeName').textContent = fullName || 'Nhân viên';
             document.getElementById('lockModal').style.display = 'block';
         }
-        
+
         function closeLockModal() {
             document.getElementById('lockModal').style.display = 'none';
         }
-        
-        function showUnlockModal(userId, fullName) {
+
+        function showUnlockModal(btn) {
+            var userId = btn.getAttribute('data-userid');
+            var fullName = btn.getAttribute('data-name');
             document.getElementById('unlockUserId').value = userId;
             document.getElementById('unlockEmployeeName').textContent = fullName || 'Nhân viên';
             document.getElementById('unlockModal').style.display = 'block';
         }
-        
-        function showUnlockModalFromLocked(userId, fullName) {
-            showUnlockModal(userId, fullName);
+
+        function showUnlockModalFromLocked(btn) {
+            showUnlockModal(btn);
         }
         
         function closeUnlockModal() {
