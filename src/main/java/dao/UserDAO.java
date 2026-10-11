@@ -593,6 +593,67 @@ public class UserDAO {
         }
     }
 
+    /**
+     * Đảm bảo bảng audit_logs tồn tại với đầy đủ cột cần thiết.
+     * Tương thích mọi phiên bản MySQL (5.5, 5.7, 8.0, MariaDB).
+     */
+    private void ensureAuditLogsTableExists(Connection existingConn) {
+        try (Connection conn = (existingConn != null) ? existingConn : new DBContext().getConnection()) {
+            try (java.sql.Statement st = conn.createStatement()) {
+                // 1. Tạo bảng nếu chưa có
+                st.executeUpdate(
+                    "CREATE TABLE IF NOT EXISTS audit_logs ("
+                  + "  id INT NOT NULL AUTO_INCREMENT,"
+                  + "  action VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,"
+                  + "  actor_id INT DEFAULT NULL,"
+                  + "  target_user_id INT DEFAULT NULL,"
+                  + "  description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,"
+                  + "  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,"
+                  + "  PRIMARY KEY (id),"
+                  + "  KEY idx_action (action),"
+                  + "  KEY idx_actor (actor_id),"
+                  + "  KEY idx_target (target_user_id),"
+                  + "  KEY idx_created (created_at)"
+                  + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+                );
+
+                // 2. Thêm cột thiếu (dùng information_schema, tương thích mọi phiên bản)
+                addColumnIfMissing(conn, "audit_logs", "actor_id",
+                    "ALTER TABLE audit_logs ADD COLUMN actor_id INT DEFAULT NULL");
+                addColumnIfMissing(conn, "audit_logs", "target_user_id",
+                    "ALTER TABLE audit_logs ADD COLUMN target_user_id INT DEFAULT NULL");
+                addColumnIfMissing(conn, "audit_logs", "description",
+                    "ALTER TABLE audit_logs ADD COLUMN description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                addColumnIfMissing(conn, "audit_logs", "created_at",
+                    "ALTER TABLE audit_logs ADD COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Thêm 1 cột vào bảng nếu cột đó chưa tồn tại (tương thích MySQL 5.5+).
+     */
+    private void addColumnIfMissing(Connection conn, String tableName, String columnName, String alterSql) {
+        String checkSql = "SELECT COUNT(*) FROM information_schema.columns "
+                        + "WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?";
+        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+            ps.setString(1, tableName);
+            ps.setString(2, columnName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getInt(1) == 0) {
+                    try (java.sql.Statement st = conn.createStatement()) {
+                        st.executeUpdate(alterSql);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Nếu vẫn lỗi (vd thiếu quyền), in ra nhưng không chặn luồng chính
+            e.printStackTrace();
+        }
+    }
+
     public boolean updateUserStatusWithAudit(
             int userId, String newStatus,
             String auditAction, int actorId, String description) {
@@ -602,6 +663,9 @@ public class UserDAO {
 
         Connection conn = null;
         try {
+            // Đảm bảo bảng audit_logs tồn tại với cột actor_id
+            ensureAuditLogsTableExists(conn);
+
             conn = new DBContext().getConnection();
             conn.setAutoCommit(false);
 

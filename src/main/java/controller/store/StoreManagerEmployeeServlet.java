@@ -170,29 +170,33 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         // LẤY DANH SÁCH NHÂN VIÊN BỊ KHÓA
         // =============================================
         String lockedSearch = getStringParameter(request, "lockedSearch");
+        String lockedReasonSearch = getStringParameter(request, "lockedReasonSearch");
+        String lockedBySearch = getStringParameter(request, "lockedBySearch");
         int lockedPage = getIntParameter(request, "lockedPage", 1);
         int lockedPageSize = 5; // Mặc định 5 record mỗi trang
-        
+
         if (lockedPage < 1) lockedPage = 1;
-        
+
         int lockedOffset = (lockedPage - 1) * lockedPageSize;
         List<EmployeeLock> lockedEmployees = employeeLockDAO.getLockedEmployeesByBranch(
-            branchId, lockedSearch, lockedOffset, lockedPageSize
+            branchId, lockedSearch, lockedReasonSearch, lockedBySearch, lockedOffset, lockedPageSize
         );
-        int totalLockedRecords = employeeLockDAO.countLockedEmployeesByBranch(branchId, lockedSearch);
+        int totalLockedRecords = employeeLockDAO.countLockedEmployeesByBranch(branchId, lockedSearch, lockedReasonSearch, lockedBySearch);
         int totalLockedPages = (int) Math.ceil((double) totalLockedRecords / lockedPageSize);
         if (totalLockedPages < 1) totalLockedPages = 1;
-        
+
         // Tính pagination buttons range cho locked
         int lockedPagerStart = Math.max(1, lockedPage - 2);
         int lockedPagerEnd = Math.min(totalLockedPages, lockedPage + 2);
-        
+
         request.setAttribute("lockedEmployees", lockedEmployees);
         request.setAttribute("totalLockedRecords", totalLockedRecords);
         request.setAttribute("totalLockedPages", totalLockedPages);
         request.setAttribute("currentLockedPage", lockedPage);
         request.setAttribute("lockedPageSize", lockedPageSize);
         request.setAttribute("lockedSearch", lockedSearch);
+        request.setAttribute("lockedReasonSearch", lockedReasonSearch);
+        request.setAttribute("lockedBySearch", lockedBySearch);
         request.setAttribute("lockedPagerStart", lockedPagerStart);
         request.setAttribute("lockedPagerEnd", lockedPagerEnd);
         
@@ -209,10 +213,13 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         // Lấy action từ parameter
         String action = request.getParameter("action");
-        
+        System.out.println("[StoreManagerEmployeeServlet] doPost called, action=" + action
+                + ", userId=" + request.getParameter("userId")
+                + ", reason=" + request.getParameter("reason"));
+
         if (action == null) {
             response.sendRedirect(request.getContextPath() + "/store-manager/employees");
             return;
@@ -334,9 +341,16 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         );
 
         if (success) {
-            // Cũng tạo lock record trong employee_locks nếu bảng tồn tại
-            if (employeeLockDAO.isTableExists()) {
-                employeeLockDAO.createLock(targetUserId, currentUser.getId(), reason);
+            // Đảm bảo bảng employee_locks tồn tại (tự tạo nếu thiếu) rồi tạo lock record
+            try {
+                employeeLockDAO.ensureTableExists();
+                boolean lockCreated = employeeLockDAO.createLock(targetUserId, currentUser.getId(), reason);
+                if (!lockCreated) {
+                    System.out.println("[Servlet] WARN: updateUserStatus OK nhưng createLock failed cho userId=" + targetUserId);
+                }
+            } catch (Exception ex) {
+                System.out.println("[Servlet] ERROR khi tạo lock record: " + ex.getMessage());
+                ex.printStackTrace();
             }
             setSuccessMessage(request, "Đã khóa tài khoản nhân viên \"" + targetUser.getFullName() + "\" thành công!");
         } else {
@@ -420,9 +434,13 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         );
 
         if (success) {
-            // Cập nhật lock record trong employee_locks nếu bảng tồn tại
-            if (employeeLockDAO.isTableExists()) {
+            // Cập nhật lock record trong employee_locks
+            try {
+                employeeLockDAO.ensureTableExists();
                 employeeLockDAO.unlock(targetUserId, currentUser.getId());
+            } catch (Exception ex) {
+                System.out.println("[Servlet] ERROR khi unlock record: " + ex.getMessage());
+                ex.printStackTrace();
             }
             setSuccessMessage(request, "Đã mở khóa tài khoản nhân viên \"" + targetUser.getFullName() + "\" thành công!");
         } else {
