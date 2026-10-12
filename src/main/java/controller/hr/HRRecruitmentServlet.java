@@ -1,10 +1,7 @@
-package controller.hr;
+package controller;
 
-import controller.base.BaseServlet;
-import dao.EmployeeProfileDAO;
+import dao.EmployeeDAO;
 import dao.RecruitmentProposalDAO;
-import dao.UserDAO;
-import model.Candidate;
 import model.RecruitmentProposal;
 import model.User;
 
@@ -12,54 +9,69 @@ import java.io.IOException;
 import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 
+/**
+ * HR Manager xem và phê duyệt / từ chối đề xuất tuyển dụng do Store Manager gửi lên.
+ * AuthFilter đã đảm bảo chỉ roleId = 3 (HR Manager) mới vào được /hr/*.
+ */
 @WebServlet("/hr/recruitment")
-public class HRRecruitmentServlet extends BaseServlet {
+public class HRRecruitmentServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
-        User currentUser = getCurrentUser(request);
-        if (currentUser == null) {
-            redirectToLogin(request, response);
-            return;
-        }
-
-        if (currentUser.getRoleId() != ROLE_HR_MANAGER && currentUser.getRoleId() != ROLE_ADMIN) {
-            sendForbidden(request, response, "Bạn không có quyền truy cập trang Tuyển dụng!");
-            return;
-        }
-
         RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
-        String idParam = getStringParameter(request, "id");
+        String idParam = request.getParameter("id");
 
-        // 1. Hiển thị trang CHI TIẾT ĐỀ XUẤT
+        // Có ?id=... -> hiển thị trang chi tiết 1 đề xuất (xem đầy đủ + duyệt/từ chối tại đây)
         if (idParam != null && !idParam.trim().isEmpty()) {
-            int id = getIntParameter(request, "id", -1);
-            if (id != -1) {
+            try {
+                int id = Integer.parseInt(idParam);
                 RecruitmentProposal proposal = proposalDAO.getProposalById(id);
-                if (proposal != null) {
-                    request.setAttribute("proposal", proposal);
-                    request.getRequestDispatcher("/WEB-INF/views/hr/recruitment-detail.jsp")
-                            .forward(request, response);
+
+                if (proposal == null) {
+                    response.sendRedirect(request.getContextPath() + "/hr/recruitment");
                     return;
                 }
+
+                request.setAttribute("proposal", proposal);
+                request.getRequestDispatcher("/WEB-INF/views/hr/recruitment-detail.jsp")
+                        .forward(request, response);
+                return;
+
+            } catch (NumberFormatException e) {
+                response.sendRedirect(request.getContextPath() + "/hr/recruitment");
+                return;
             }
-            response.sendRedirect(request.getContextPath() + "/hr/recruitment");
-            return;
         }
 
-        // 2. Hiển thị DANH SÁCH TỔNG QUAN
-        String filter = getStringParameter(request, "filter");
-        List<RecruitmentProposal> proposals = "all".equals(filter)
-                ? proposalDAO.getAllProposals()
-                : proposalDAO.getPendingProposals();
+        // Không có id -> hiển thị danh sách. ?filter=all -> toàn bộ lịch sử;
+        // mặc định chỉ xem các đề xuất đang chờ duyệt
+        String filter = request.getParameter("filter");
+        Integer branchId = parseIntOrNull(request.getParameter("branchId"));
+        Integer positionId = parseIntOrNull(request.getParameter("positionId"));
+        String employmentType = request.getParameter("employmentType");
+        String status = request.getParameter("status");
+
+        List<RecruitmentProposal> proposals = proposalDAO.getProposals(
+                filter == null ? "pending" : filter, branchId, positionId, employmentType, status);
 
         request.setAttribute("proposals", proposals);
         request.setAttribute("filter", filter == null ? "pending" : filter);
+        request.setAttribute("branchId", branchId);
+        request.setAttribute("positionId", positionId);
+        request.setAttribute("employmentType", employmentType);
+        request.setAttribute("status", status);
+
+        // Dữ liệu đổ vào dropdown lọc
+        EmployeeDAO employeeDAO = new EmployeeDAO();
+        request.setAttribute("branches", employeeDAO.getAllBranchesFull());
+        request.setAttribute("positions", employeeDAO.getAllPositionsFull());
 
         request.getRequestDispatcher("/WEB-INF/views/hr/recruitment.jsp")
                 .forward(request, response);
@@ -72,74 +84,58 @@ public class HRRecruitmentServlet extends BaseServlet {
 
         User user = getCurrentUser(request);
         if (user == null) {
-            redirectToLogin(request, response);
-            return;
-        }
-
-        if (user.getRoleId() != ROLE_HR_MANAGER && user.getRoleId() != ROLE_ADMIN) {
-            sendForbidden(request, response, "Bạn không có quyền thực hiện thao tác này!");
+            response.sendRedirect(request.getContextPath() + "/login.jsp");
             return;
         }
 
         String ctx = request.getContextPath();
-        int proposalId = getIntParameter(request, "proposalId", -1);
-        String action = getStringParameter(request, "action");
-        String hrNote = getStringParameter(request, "hrNote");
+        int proposalId;
 
-        if (proposalId == -1) {
+        try {
+            proposalId = Integer.parseInt(request.getParameter("proposalId"));
+        } catch (NumberFormatException e) {
             response.sendRedirect(ctx + "/hr/recruitment");
             return;
         }
 
+        String action = request.getParameter("action"); // "approve" hoặc "reject"
+        String hrNote = request.getParameter("hrNote");
+
         RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
+        boolean success;
 
-        // Xử lý khi HR chọn PHÊ DUYỆT đề xuất
         if ("approve".equals(action)) {
-            RecruitmentProposal proposal = proposalDAO.getProposalById(proposalId);
-            if (proposal == null || !"PENDING".equals(proposal.getStatus())) {
-                response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=1");
-                return;
-            }
-
-            // Kiểm tra validate trùng lặp thông tin ứng viên trước khi chuyển sang form tạo tài khoản
-            Candidate c = proposal.getCandidate();
-            if (c != null) {
-                UserDAO userDAO = new UserDAO();
-                EmployeeProfileDAO profileDAO = new EmployeeProfileDAO(); // Khởi tạo EmployeeProfileDAO để check SĐT và CCCD
-
-                // SĐT và CCCD kiểm tra qua profileDAO (bảng employee_profiles)
-                if (c.getPhone() != null && profileDAO.isPhoneExists(c.getPhone())) {
-                    response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=phone_exists");
-                    return;
-                }
-                if (c.getIdentityCard() != null && profileDAO.isIdentityCardExists(c.getIdentityCard())) {
-                    response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=id_exists");
-                    return;
-                }
-                // Email kiểm tra qua userDAO (bảng users)
-                if (c.getEmail() != null && !c.getEmail().trim().isEmpty() && userDAO.isEmailExists(c.getEmail())) {
-                    response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=email_exists");
-                    return;
-                }
-            }
-
-            // Nếu hợp lệ -> Chuyển hướng sang form cấp tài khoản nhân sự (CreateUserServlet)
-            response.sendRedirect(ctx + "/hr/create-user?proposalId=" + proposalId);
-        } 
-        // Xử lý khi HR chọn TỪ CHỐI đề xuất
-        else if ("reject".equals(action)) {
-            if (hrNote == null || hrNote.trim().isEmpty()) {
-                response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=err_note");
-                return;
-            }
-            boolean success = proposalDAO.rejectProposal(proposalId, user.getId(), hrNote);
-            if (success) {
-                response.sendRedirect(ctx + "/hr/recruitment?filter=pending&msg=rejected");
-            } else {
-                response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=1");
-            }
+            success = proposalDAO.approveProposal(proposalId, user.getId(), hrNote);
+        } else if ("reject".equals(action)) {
+            success = proposalDAO.rejectProposal(proposalId, user.getId(), hrNote);
         } else {
-            response.sendRedirect(ctx + "/hr/recruitment");
+            response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=1");
+            return;
         }
+
+        if (success) {
+            // Xử lý xong -> quay về danh sách "Đang chờ duyệt" kèm thông báo qua query param
+            String msg = "approve".equals(action) ? "approved" : "rejected";
+            response.sendRedirect(ctx + "/hr/recruitment?filter=pending&msg=" + msg);
+        } else {
+            // Thất bại (VD đề xuất đã được xử lý trước đó) -> quay lại trang chi tiết, báo lỗi
+            response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=1");
+        }
+    }
+
+    private Integer parseIntOrNull(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private User getCurrentUser(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return (session != null) ? (User) session.getAttribute("account") : null;
     }
 }

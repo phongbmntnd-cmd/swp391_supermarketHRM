@@ -236,7 +236,7 @@ tbody td {
     vertical-align: middle;
     white-space: nowrap;
 }
-tbody td.clip { overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+tbody td.clip { overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
 tbody td.wrap { white-space: normal; max-width: 320px; }
 tbody tr:hover { background: var(--row-hover); }
 tbody tr:last-child td { border-bottom: none; }

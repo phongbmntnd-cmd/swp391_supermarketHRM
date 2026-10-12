@@ -24,6 +24,7 @@ public class DBContext {
 
 
 
+
     public static Connection getConnection() throws Exception {
         // 1. Nạp Driver kết nối MySQL
         Class.forName("com.mysql.cj.jdbc.Driver");
