@@ -1,4 +1,4 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <!DOCTYPE html>
@@ -23,9 +23,7 @@
         <p>Xem xét và phê duyệt yêu cầu tuyển dụng do Store Manager các cơ sở gửi lên.</p>
     </div>
 
-    <c:if test="${param.msg == 'approved'}"><div class="alert alert-success">Đã phê duyệt đề xuất tuyển dụng!</div></c:if>
     <c:if test="${param.msg == 'rejected'}"><div class="alert alert-success">Đã từ chối đề xuất tuyển dụng!</div></c:if>
-    <c:if test="${param.err == '1'}"><div class="alert alert-error">Xử lý thất bại! Vui lòng thử lại.</div></c:if>
 
     <div class="tabs">
         <a href="?filter=pending&branchId=${branchId}&positionId=${positionId}&employmentType=${employmentType}&status=${status}"
@@ -64,6 +62,7 @@
                             <option value="">-- Tất cả --</option>
                             <option value="FULL_TIME" ${employmentType == 'FULL_TIME' ? 'selected' : ''}>Toàn thời gian</option>
                             <option value="PART_TIME" ${employmentType == 'PART_TIME' ? 'selected' : ''}>Bán thời gian</option>
+                            <option value="CASUAL" ${employmentType == 'CASUAL' ? 'selected' : ''}>Thời vụ</option>
                         </select>
                     </div>
                     <div class="field">
@@ -82,14 +81,16 @@
                 </div>
             </form>
         </div>
+
         <div class="table-wrap">
             <table>
                 <thead>
                 <tr>
                     <th>Ngày tạo</th>
                     <th>Chi nhánh</th>
+                    <th>Ứng viên đề xuất</th>
                     <th>Vị trí</th>
-                    <th>SL</th>
+                    <th>Hình thức</th>
                     <th>Người đề xuất</th>
                     <th>Trạng thái</th>
                     <th>Thao tác</th>
@@ -98,10 +99,22 @@
                 <tbody>
                 <c:forEach var="rp" items="${proposals}">
                     <tr>
-                        <td><fmt:formatDate value="${rp.createdAt}" pattern="dd/MM/yyyy"/></td>
+                        <td><fmt:formatDate value="${rp.createdAt}" pattern="dd/MM/yyyy HH:mm"/></td>
                         <td title="${rp.branchName}">${rp.branchName}</td>
+                        <td>
+                            <a href="${pageContext.request.contextPath}/hr/recruitment?id=${rp.id}" style="color:var(--primary); font-weight:bold; text-decoration:none;">
+                                ${rp.candidate.fullName}
+                            </a>
+                        </td>
                         <td title="${rp.positionTitle}">${rp.positionTitle}</td>
-                        <td>${rp.quantity}</td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${rp.employmentType == 'FULL_TIME'}">Toàn thời gian</c:when>
+                                <c:when test="${rp.employmentType == 'PART_TIME'}">Bán thời gian</c:when>
+                                <c:when test="${rp.employmentType == 'CASUAL'}">Thời vụ</c:when>
+                                <c:otherwise>${rp.employmentType}</c:otherwise>
+                            </c:choose>
+                        </td>
                         <td title="${rp.createdByName}">${rp.createdByName}</td>
                         <td><span class="badge badge-${rp.status}">${rp.status}</span></td>
                         <td>
@@ -116,12 +129,7 @@
             <c:if test="${empty proposals}">
                 <div class="empty-state">
                     <div class="empty-title">Không có đề xuất nào</div>
-                    <div>
-                        <c:choose>
-                            <c:when test="${filter == 'all'}">Hệ thống chưa ghi nhận đề xuất tuyển dụng nào.</c:when>
-                            <c:otherwise>Hiện không có đề xuất nào đang chờ xử lý.</c:otherwise>
-                        </c:choose>
-                    </div>
+                    <div>Thử thay đổi bộ lọc hoặc chuyển sang tab khác.</div>
                 </div>
             </c:if>
         </div>

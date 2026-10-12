@@ -428,4 +428,12 @@ public class EmployeeProfileDAO {
                 return upper;
         }
     }
+
+    public boolean isPhoneExists(String phone) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    public boolean isIdentityCardExists(String identityCard) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
 }

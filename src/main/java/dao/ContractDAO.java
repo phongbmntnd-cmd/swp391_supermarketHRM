@@ -87,4 +87,8 @@ public class ContractDAO {
         c.setStatus(rs.getString("status"));
         return c;
     }
+
+    boolean addContractWithConn(Connection conn, int generatedUserId, String contractType, Object object, String expirationDate, String active) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
 }
