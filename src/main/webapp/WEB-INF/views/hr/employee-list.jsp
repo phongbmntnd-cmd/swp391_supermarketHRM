@@ -18,18 +18,54 @@
 <div class="page">
 
     <div class="page-header">
-        <h2>Danh sách nhân sự toàn hệ thống</h2>
+        <h2>📋 Danh sách nhân sự toàn hệ thống</h2>
         <p>Thêm mới, cập nhật thông tin chi tiết, theo dõi hợp đồng và thông tin liên lạc của nhân viên các cơ sở.</p>
     </div>
 
     <div class="card">
         <div class="card-header">
-            <h3>Tìm kiếm</h3>
-            <form method="get" action="${pageContext.request.contextPath}/hr/employee-management"
-                  style="display:flex; gap:8px;">
-                <input type="text" name="keyword" placeholder="Tên, username, SĐT, CCCD..." value="${keyword}"
-                       style="padding:8px 12px; border:1px solid var(--slate-200); border-radius:8px; width:260px; font-family:inherit;">
-                <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+            <h3>🔍 Tìm kiếm &amp; lọc</h3>
+        </div>
+        <div class="card-body" style="border-bottom:1px solid var(--border-light); padding-top:16px; padding-bottom:16px;">
+            <form method="get" action="${pageContext.request.contextPath}/hr/employee-management">
+                <div class="filter-row">
+                    <div class="field">
+                        <label for="keyword">🔍 Tìm kiếm</label>
+                        <input type="text" id="keyword" name="keyword"
+                               placeholder="Tên, username, SĐT, CCCD..." value="${keyword}">
+                    </div>
+                    <div class="field">
+                        <label for="positionId">📌 Vị trí</label>
+                        <select id="positionId" name="positionId">
+                            <option value="">-- Tất cả --</option>
+                            <c:forEach var="p" items="${positions}">
+                                <option value="${p.id}" ${positionId == p.id ? 'selected' : ''}>${p.title}</option>
+                            </c:forEach>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="departmentId">🏢 Phòng ban</label>
+                        <select id="departmentId" name="departmentId">
+                            <option value="">-- Tất cả --</option>
+                            <c:forEach var="d" items="${departments}">
+                                <option value="${d.id}" ${departmentId == d.id ? 'selected' : ''}>${d.name}</option>
+                            </c:forEach>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="employeeType">👤 Loại nhân viên</label>
+                        <select id="employeeType" name="employeeType">
+                            <option value="">-- Tất cả --</option>
+                            <option value="FULL_TIME" ${employeeType == 'FULL_TIME' ? 'selected' : ''}>Toàn thời gian</option>
+                            <option value="PART_TIME" ${employeeType == 'PART_TIME' ? 'selected' : ''}>Bán thời gian</option>
+                            <option value="SEASONAL" ${employeeType == 'SEASONAL' ? 'selected' : ''}>Thời vụ</option>
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">🔍 Lọc</button>
+                        <a href="${pageContext.request.contextPath}/hr/employee-management" class="btn btn-ghost">🗑️ Xóa lọc</a>
+                    </div>
+                </div>
             </form>
         </div>
 
@@ -46,24 +82,24 @@
                     <th>Vị trí</th>
                     <th>Loại HĐ</th>
                     <th>Trạng thái TK</th>
-                    <th></th>
+                    <th>Thao tác</th>
                 </tr>
                 </thead>
                 <tbody>
                 <c:forEach var="e" items="${employees}">
                     <tr>
-                        <td title="${e.username}">${e.username}</td>
-                        <td title="${e.fullName}">${e.fullName}</td>
-                        <td title="${e.phone}">${e.phone}</td>
-                        <td title="${e.identityCard}">${e.identityCard}</td>
-                        <td title="${e.branchName}">${e.branchName}</td>
-                        <td title="${e.departmentName}">${e.departmentName}</td>
-                        <td title="${e.positionTitle}">${e.positionTitle}</td>
+                        <td>${e.username}</td>
+                        <td class="clip" title="${e.fullName}">${e.fullName}</td>
+                        <td>${e.phone}</td>
+                        <td>${e.identityCard}</td>
+                        <td class="clip" title="${e.branchName}">${e.branchName}</td>
+                        <td class="clip" title="${e.departmentName}">${e.departmentName}</td>
+                        <td class="clip" title="${e.positionTitle}">${e.positionTitle}</td>
                         <td>${e.employeeType}</td>
-                        <td class="no-clip"><span class="badge badge-${e.userStatus}">${e.userStatus}</span></td>
-                        <td class="no-clip">
+                        <td><span class="badge badge-${e.userStatus}">${e.userStatus}</span></td>
+                        <td>
                             <a class="btn btn-ghost" href="${pageContext.request.contextPath}/hr/employee-detail?id=${e.userId}">
-                                Xem / Sửa
+                                ✏️ Xem / Sửa
                             </a>
                         </td>
                     </tr>
