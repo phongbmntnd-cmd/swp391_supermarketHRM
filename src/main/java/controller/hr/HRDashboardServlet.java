@@ -36,7 +36,7 @@ public class HRDashboardServlet extends BaseServlet {
             EmployeeDAO empDao = new EmployeeDAO();
             
             // 1. Tổng nhân sự toàn hệ thống (role 4 và 5)
-            int totalEmployees = empDao.getAllEmployees(null).size();
+            int totalEmployees = empDao.getAllEmployees(null,null,null,null).size();
 
             // 2. Đề xuất tuyển dụng đang chờ duyệt (PENDING)
             RecruitmentProposalDAO proposalDao = new RecruitmentProposalDAO();

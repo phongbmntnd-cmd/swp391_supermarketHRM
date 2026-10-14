@@ -64,7 +64,7 @@ public class StoreManagerDashboardServlet extends BaseServlet {
 
             // 4. Chỉ đếm nhân viên (role_id = 5) thuộc đúng chi nhánh này
             EmployeeDAO empDao = new EmployeeDAO();
-            int totalEmployees = empDao.getAllEmployees(null).stream()
+            int totalEmployees = empDao.getAllEmployees(null,null,null,null).stream()
                     .filter(e -> e.getHomeBranchId() == branchId && e.getRoleId() == 5)
                     .mapToInt(e -> 1).sum();
 

@@ -355,6 +355,64 @@ public class RecruitmentProposalDAO {
         return list;
     }
 
+    /**
+     * ========== HÀM MỚI THÊM ==========
+     * Lấy danh sách đề xuất có lọc theo chi nhánh / vị trí / hình thức làm việc / trạng thái.
+     * Mỗi tham số null (hoặc rỗng với String) nghĩa là không lọc theo điều kiện đó.
+     * tabFilter: "pending" -> khi KHÔNG có status được chọn tường minh, mặc định chỉ lấy PENDING
+     *            (giữ đúng hành vi của 2 tab "Đang chờ duyệt" / "Tất cả" đang có sẵn).
+     * Không thay thế getAllProposals()/getPendingProposals() - 2 hàm đó vẫn giữ nguyên để
+     * không ảnh hưởng chỗ nào khác đang gọi tới.
+     */
+    public List<RecruitmentProposal> getProposals(String tabFilter, Integer branchId, Integer positionId,
+                                                   String employmentType, String status) {
+        List<RecruitmentProposal> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder(BASE_SELECT);
+        sql.append("WHERE 1=1 ");
+
+        boolean hasBranch = branchId != null && branchId > 0;
+        if (hasBranch) sql.append("AND rp.branch_id = ? ");
+
+        boolean hasPosition = positionId != null && positionId > 0;
+        if (hasPosition) sql.append("AND rp.position_id = ? ");
+
+        boolean hasEmploymentType = employmentType != null && !employmentType.trim().isEmpty();
+        if (hasEmploymentType) sql.append("AND rp.employment_type = ? ");
+
+        boolean hasStatus = status != null && !status.trim().isEmpty();
+        boolean defaultPending = !hasStatus && "pending".equals(tabFilter);
+
+        if (hasStatus) {
+            sql.append("AND rp.status = ? ");
+        } else if (defaultPending) {
+            sql.append("AND rp.status = 'PENDING' ");
+        }
+
+        sql.append("ORDER BY rp.created_at DESC");
+
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
+            int idx = 1;
+            if (hasBranch) ps.setInt(idx++, branchId);
+            if (hasPosition) ps.setInt(idx++, positionId);
+            if (hasEmploymentType) ps.setString(idx++, employmentType);
+            if (hasStatus) ps.setString(idx++, status);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapResultSetToProposal(rs));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    /**
+     * Lấy chi tiết đề xuất theo ID
+     */
     public RecruitmentProposal getProposalById(int id) {
         String sql = BASE_SELECT + "WHERE rp.id = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
