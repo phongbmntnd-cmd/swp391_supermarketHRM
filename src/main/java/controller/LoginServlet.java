@@ -17,12 +17,19 @@ public class LoginServlet extends BaseServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         // Nếu người dùng đã đăng nhập rồi mà vẫn gõ URL /login, điều hướng họ thẳng về Dashboard tương ứng
         User currentUser = getCurrentUser(request);
         if (currentUser != null) {
             redirectByRole(currentUser.getRoleId(), request, response);
             return;
+        }
+
+        // Truyền thông báo lỗi nếu user bị khóa / inactive do AuthFilter đá về
+        if ("1".equals(request.getParameter("locked"))) {
+            request.setAttribute("error", "Tài khoản của bạn đã bị tạm khóa bởi Admin. Vui lòng liên hệ quản trị viên để được mở khóa.");
+        } else if ("1".equals(request.getParameter("inactive"))) {
+            request.setAttribute("error", "Tài khoản của bạn hiện không hoạt động. Vui lòng liên hệ quản trị viên.");
         }
 
         request.getRequestDispatcher("login.jsp").forward(request, response);

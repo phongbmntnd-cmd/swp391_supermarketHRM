@@ -25,6 +25,8 @@ public class EmployeeLock {
     private String positionName;
     private String departmentName;
     private String employeeType;
+    private String roleName;    // Tên vai trò (từ bảng roles)
+    private String branchName;   // Tên chi nhánh (từ bảng branches)
     
     public EmployeeLock() {
     }
@@ -170,5 +172,21 @@ public class EmployeeLock {
 
     public void setEmployeeType(String employeeType) {
         this.employeeType = employeeType;
+    }
+
+    public String getRoleName() {
+        return roleName;
+    }
+
+    public void setRoleName(String roleName) {
+        this.roleName = roleName;
+    }
+
+    public String getBranchName() {
+        return branchName;
+    }
+
+    public void setBranchName(String branchName) {
+        this.branchName = branchName;
     }
 }

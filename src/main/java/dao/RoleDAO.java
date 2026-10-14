@@ -100,7 +100,7 @@ public class RoleDAO {
         try (Connection conn = new DBContext().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
-            
+
             while (rs.next()) {
                 Role role = new Role();
                 role.setId(rs.getInt("id"));
@@ -112,5 +112,99 @@ public class RoleDAO {
             e.printStackTrace();
         }
         return list;
+    }
+
+    // =====================================================
+    //  CRUD cho Master Data
+    // =====================================================
+
+    public boolean existsByName(String name) {
+        String sql = "SELECT COUNT(*) FROM roles WHERE name = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean existsByNameOtherThan(String name, int id) {
+        String sql = "SELECT COUNT(*) FROM roles WHERE name = ? AND id <> ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.setInt(2, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public String getRoleName(int id) {
+        String sql = "SELECT name FROM roles WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getString(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public boolean createRole(String name, String description) {
+        String sql = "INSERT INTO roles (name, description) VALUES (?, ?)";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            if (description == null || description.isEmpty()) {
+                ps.setNull(2, java.sql.Types.VARCHAR);
+            } else {
+                ps.setString(2, description);
+            }
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean updateRole(int id, String name, String description) {
+        String sql = "UPDATE roles SET name = ?, description = ? WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            if (description == null || description.isEmpty()) {
+                ps.setNull(2, java.sql.Types.VARCHAR);
+            } else {
+                ps.setString(2, description);
+            }
+            ps.setInt(3, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean deleteRole(int id) {
+        String sql = "DELETE FROM roles WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            return ps.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 }

@@ -53,6 +53,21 @@ public class AuthFilter implements Filter {
             }
         }
 
+        // =====================================================================
+        // CHẶN USER BỊ KHÓA (EMERGENCY_LOCKED) ĐANG DÙNG SESSION CŨ
+        // Nếu account trong session không còn ACTIVE thì buộc đăng xuất ngay
+        // =====================================================================
+        if (user != null && !"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+            // Xóa token của user này khỏi ServletContext để không thể đăng nhập lại
+            req.getServletContext().removeAttribute("user_token_" + user.getId());
+            session.invalidate();
+            String lockedMsg = "EMERGENCY_LOCKED".equalsIgnoreCase(user.getStatus())
+                    ? "?locked=1"
+                    : "?inactive=1";
+            res.sendRedirect(req.getContextPath() + "/login.jsp" + lockedMsg);
+            return;
+        }
+
         // 1. XỬ LÝ KHI TRUY CẬP TRANG LOGIN
         if (path.equals("/login") || path.equals("/login.jsp") || path.equals("/")) {
             // NẾU ĐÃ ĐĂNG NHẬP -> Tự động bật ngược lại Dashboard, KHÔNG cho xem trang Login

@@ -2,6 +2,7 @@ package dao;
 
 import context.DBContext;
 import model.Candidate;
+import model.EmployeeLock;
 import model.Role;
 import model.User;
 import model.RecruitmentProposal;
@@ -371,6 +372,43 @@ public class UserDAO {
         return null;
     }
 
+    /**
+     * Lấy user theo username (chỉ trả về nếu tồn tại)
+     */
+    public model.User getUserByUsername(String username) {
+        if (username == null || username.trim().isEmpty()) return null;
+        String sql = "SELECT u.id, u.username, u.email, u.status, u.role_id, "
+                + "ep.home_branch_id, ep.full_name, "
+                + "r.name AS role_name "
+                + "FROM users u "
+                + "JOIN roles r ON u.role_id = r.id "
+                + "LEFT JOIN employee_profiles ep ON u.id = ep.user_id "
+                + "WHERE u.username = ? LIMIT 1";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    model.User user = new model.User();
+                    user.setId(rs.getInt("id"));
+                    user.setUsername(rs.getString("username"));
+                    user.setEmail(rs.getString("email"));
+                    user.setStatus(rs.getString("status"));
+                    user.setHomeBranchId(rs.getInt("home_branch_id"));
+                    user.setFullName(rs.getString("full_name"));
+                    model.Role r = new model.Role();
+                    r.setId(rs.getInt("role_id"));
+                    r.setName(rs.getString("role_name"));
+                    user.setRole(r);
+                    return user;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     public int getUserRoleId(int userId) {
         String sql = "SELECT role_id FROM users WHERE id = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -709,5 +747,292 @@ public class UserDAO {
                 }
             }
         }
+    }
+
+    // ===========================================================
+    //  CÁC METHOD MỚI PHỤC VỤ MODULE 1: QUẢN LÝ TÀI KHOẢN (ADMIN)
+    // ===========================================================
+
+    // Whitelist các cột cho phép sort (chống SQL injection)
+    private static final List<String> ACCOUNT_SORT_COLUMNS = List.of(
+            "u.username", "ep.full_name", "u.email", "u.status", "r.name"
+    );
+
+    private String validateAccountSortColumn(String sortColumn) {
+        if (sortColumn == null || sortColumn.trim().isEmpty()) {
+            return "u.username";
+        }
+        String col = sortColumn.toLowerCase().trim();
+        switch (col) {
+            case "username":     return "u.username";
+            case "full_name":    return "ep.full_name";
+            case "email":        return "u.email";
+            case "status":       return "u.status";
+            case "role":         return "r.name";
+            default:             return "u.username";
+        }
+    }
+
+    /**
+     * Lấy danh sách tài khoản toàn hệ thống (dành cho Admin)
+     * - Bao gồm MỌI role (Admin, Director, HR, Store Manager, Employee)
+     * - LEFT JOIN employee_profiles + branches để lấy tên NV + tên chi nhánh
+     *
+     * @param search     Từ khóa tìm kiếm (username / full_name / email / phone)
+     * @param roleId     Lọc theo role (-1 = không lọc)
+     * @param branchId   Lọc theo chi nhánh (-1 = không lọc)
+     * @param status     Lọc theo status (null = không lọc)
+     * @param sortColumn Cột sắp xếp
+     * @param sortDir    ASC / DESC
+     * @param offset     Offset
+     * @param limit      Limit
+     */
+    public List<User> getAccountsPaginated(
+            String search, int roleId, int branchId, String status,
+            String sortColumn, String sortDir, int offset, int limit) {
+
+        List<User> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT u.id, u.username, u.email, u.status, u.expiration_date, u.is_first_login, ");
+        sql.append("       u.role_id, r.name AS role_name, ");
+        sql.append("       ep.full_name, ep.phone, ep.home_branch_id, ");
+        sql.append("       b.name AS branch_name ");
+        sql.append("FROM users u ");
+        sql.append("JOIN roles r ON u.role_id = r.id ");
+        sql.append("LEFT JOIN employee_profiles ep ON u.id = ep.user_id ");
+        sql.append("LEFT JOIN branches b ON ep.home_branch_id = b.id ");
+        sql.append("WHERE 1 = 1 ");
+
+        List<Object> params = new ArrayList<>();
+
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append("AND (u.username LIKE ? OR ep.full_name LIKE ? OR u.email LIKE ? OR ep.phone LIKE ?) ");
+            String p = "%" + search.trim() + "%";
+            params.add(p); params.add(p); params.add(p); params.add(p);
+        }
+        if (roleId > 0) {
+            sql.append("AND u.role_id = ? ");
+            params.add(roleId);
+        }
+        if (branchId > 0) {
+            sql.append("AND ep.home_branch_id = ? ");
+            params.add(branchId);
+        }
+        if (status != null && !status.trim().isEmpty()) {
+            sql.append("AND u.status = ? ");
+            params.add(status.trim());
+        }
+
+        String col = validateAccountSortColumn(sortColumn);
+        String dir = "DESC".equalsIgnoreCase(sortDir) ? "DESC" : "ASC";
+        sql.append("ORDER BY ").append(col).append(" ").append(dir);
+        sql.append(", u.id ASC "); // tie-breaker ổn định
+        sql.append("LIMIT ? OFFSET ?");
+        params.add(limit);
+        params.add(offset);
+
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    User u = new User();
+                    u.setId(rs.getInt("id"));
+                    u.setUsername(rs.getString("username"));
+                    u.setEmail(rs.getString("email"));
+                    u.setStatus(rs.getString("status"));
+                    u.setExpirationDate(rs.getTimestamp("expiration_date"));
+                    u.setFirstLogin(rs.getBoolean("is_first_login"));
+                    u.setFullName(rs.getString("full_name"));
+                    u.setPhone(rs.getString("phone"));
+                    u.setHomeBranchId(rs.getInt("home_branch_id"));
+                    u.setBranchName(rs.getString("branch_name"));
+
+                    Role role = new Role();
+                    role.setId(rs.getInt("role_id"));
+                    role.setName(rs.getString("role_name"));
+                    u.setRole(role);
+
+                    list.add(u);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    /**
+     * Đếm tổng số tài khoản theo filter (tương ứng getAccountsPaginated)
+     */
+    public int countAccounts(String search, int roleId, int branchId, String status) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT COUNT(*) FROM users u ");
+        sql.append("JOIN roles r ON u.role_id = r.id ");
+        sql.append("LEFT JOIN employee_profiles ep ON u.id = ep.user_id ");
+        sql.append("LEFT JOIN branches b ON ep.home_branch_id = b.id ");
+        sql.append("WHERE 1 = 1 ");
+
+        List<Object> params = new ArrayList<>();
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append("AND (u.username LIKE ? OR ep.full_name LIKE ? OR u.email LIKE ? OR ep.phone LIKE ?) ");
+            String p = "%" + search.trim() + "%";
+            params.add(p); params.add(p); params.add(p); params.add(p);
+        }
+        if (roleId > 0) {
+            sql.append("AND u.role_id = ? ");
+            params.add(roleId);
+        }
+        if (branchId > 0) {
+            sql.append("AND ep.home_branch_id = ? ");
+            params.add(branchId);
+        }
+        if (status != null && !status.trim().isEmpty()) {
+            sql.append("AND u.status = ? ");
+            params.add(status.trim());
+        }
+
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    /**
+     * Lấy tất cả tài khoản đang bị EMERGENCY_LOCKED trong toàn hệ thống
+     * (Admin thấy hết, không giới hạn branch)
+     */
+    public List<EmployeeLock> getLockedAccountsBySystem(
+            String search, String reasonSearch, String lockedBySearch,
+            int offset, int limit) {
+
+        List<EmployeeLock> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT el.id, el.user_id, el.locked_by, el.unlocked_by, el.reason, el.locked_at, ");
+        sql.append("       el.unlocked_at, el.is_active, ");
+        sql.append("       locked_ep.full_name AS locked_by_name, ");
+        sql.append("       IFNULL(unlocked_ep.full_name, '') AS unlocked_by_name, ");
+        sql.append("       user_ep.full_name AS user_name, ");
+        sql.append("       u.username, u.email, u.status, user_ep.phone, ");
+        sql.append("       u.role_id, r.name AS role_name, ");
+        sql.append("       user_ep.home_branch_id, IFNULL(b.name, '') AS branch_name ");
+        sql.append("FROM employee_locks el ");
+        sql.append("JOIN employee_profiles user_ep ON el.user_id = user_ep.user_id ");
+        sql.append("JOIN users u ON el.user_id = u.id ");
+        sql.append("JOIN roles r ON u.role_id = r.id ");
+        sql.append("JOIN employee_profiles locked_ep ON el.locked_by = locked_ep.user_id ");
+        sql.append("LEFT JOIN employee_profiles unlocked_ep ON el.unlocked_by = unlocked_ep.user_id ");
+        sql.append("LEFT JOIN branches b ON user_ep.home_branch_id = b.id ");
+        sql.append("WHERE el.is_active = TRUE ");
+
+        List<Object> params = new ArrayList<>();
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append("AND (user_ep.full_name LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR user_ep.phone LIKE ?) ");
+            String p = "%" + search.trim() + "%";
+            params.add(p); params.add(p); params.add(p); params.add(p);
+        }
+        if (reasonSearch != null && !reasonSearch.trim().isEmpty()) {
+            sql.append("AND el.reason LIKE ? ");
+            params.add("%" + reasonSearch.trim() + "%");
+        }
+        if (lockedBySearch != null && !lockedBySearch.trim().isEmpty()) {
+            sql.append("AND locked_ep.full_name LIKE ? ");
+            params.add("%" + lockedBySearch.trim() + "%");
+        }
+
+        sql.append("ORDER BY el.locked_at DESC LIMIT ? OFFSET ?");
+        params.add(limit);
+        params.add(offset);
+
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    EmployeeLock lock = mapLockResultSet(rs);
+                    list.add(lock);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    /**
+     * Đếm tổng số tài khoản bị khóa trong toàn hệ thống
+     */
+    public int countLockedAccountsBySystem(String search, String reasonSearch, String lockedBySearch) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT COUNT(*) FROM employee_locks el ");
+        sql.append("JOIN employee_profiles user_ep ON el.user_id = user_ep.user_id ");
+        sql.append("JOIN users u ON el.user_id = u.id ");
+        sql.append("JOIN employee_profiles locked_ep ON el.locked_by = locked_ep.user_id ");
+        sql.append("WHERE el.is_active = TRUE ");
+
+        List<Object> params = new ArrayList<>();
+        if (search != null && !search.trim().isEmpty()) {
+            sql.append("AND (user_ep.full_name LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR user_ep.phone LIKE ?) ");
+            String p = "%" + search.trim() + "%";
+            params.add(p); params.add(p); params.add(p); params.add(p);
+        }
+        if (reasonSearch != null && !reasonSearch.trim().isEmpty()) {
+            sql.append("AND el.reason LIKE ? ");
+            params.add("%" + reasonSearch.trim() + "%");
+        }
+        if (lockedBySearch != null && !lockedBySearch.trim().isEmpty()) {
+            sql.append("AND locked_ep.full_name LIKE ? ");
+            params.add("%" + lockedBySearch.trim() + "%");
+        }
+
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    /**
+     * Map ResultSet -> EmployeeLock (cho query có thêm role_name, branch_name)
+     */
+    private EmployeeLock mapLockResultSet(ResultSet rs) throws Exception {
+        EmployeeLock lock = new EmployeeLock();
+        lock.setId(rs.getInt("id"));
+        lock.setUserId(rs.getInt("user_id"));
+        lock.setLockedBy(rs.getInt("locked_by"));
+        int unlockedBy = rs.getInt("unlocked_by");
+        if (!rs.wasNull()) lock.setUnlockedBy(unlockedBy);
+        lock.setReason(rs.getString("reason"));
+        lock.setLockedAt(rs.getTimestamp("locked_at"));
+        lock.setUnlockedAt(rs.getTimestamp("unlocked_at"));
+        lock.setActive(rs.getBoolean("is_active"));
+        lock.setLockedByName(rs.getString("locked_by_name"));
+        lock.setUnlockedByName(rs.getString("unlocked_by_name"));
+        lock.setUserName(rs.getString("user_name"));
+        lock.setUsername(rs.getString("username"));
+        lock.setEmail(rs.getString("email"));
+        lock.setPhone(rs.getString("phone"));
+        lock.setRoleName(rs.getString("role_name"));
+        lock.setBranchName(rs.getString("branch_name"));
+        return lock;
     }
 }
