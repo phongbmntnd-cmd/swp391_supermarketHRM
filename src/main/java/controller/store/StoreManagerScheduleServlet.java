@@ -138,13 +138,29 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         }
 
         String action = getStringParameter(request, "action");
-        String startDate = getStringParameter(request, "startDate"); // Giữ lại mốc tuần đang thao tác để redirect về đúng tuần
+        String startDate = getStringParameter(request, "startDate"); // Mốc ngày bắt đầu tuần (Thứ Hai)
+        int branchId = getIntParameter(request, "branchId", -1);
+
         ShiftScheduleDAO scheduleDAO = new ShiftScheduleDAO();
+
+        // 1. Kiểm tra an toàn: Nếu tuần này đã Publish, tuyệt đối chặn mọi thao tác assign hoặc updateRequirement
+        if (startDate != null && !startDate.trim().isEmpty() && branchId != -1) {
+            try {
+                LocalDate startDt = LocalDate.parse(startDate);
+                LocalDate endDt = startDt.plusDays(6);
+                boolean isAlreadyPublished = scheduleDAO.isWeekPublished(branchId, startDt.toString(), endDt.toString());
+                if (isAlreadyPublished && ("assign".equals(action) || "updateRequirement".equals(action))) {
+                    response.getWriter().write("published_locked");
+                    return;
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
 
         if ("assign".equals(action)) {
             int userId = getIntParameter(request, "userId", -1);
             int shiftId = getIntParameter(request, "shiftId", -1);
-            int branchId = getIntParameter(request, "branchId", -1);
             String workDate = getStringParameter(request, "workDate");
 
             if (userId != -1 && shiftId != -1 && branchId != -1 && workDate != null) {
@@ -159,7 +175,6 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             }
 
         } else if ("updateRequirement".equals(action)) {
-            int branchId = getIntParameter(request, "branchId", -1);
             int positionId = getIntParameter(request, "positionId", -1);
             int shiftId = getIntParameter(request, "shiftId", -1);
             String workDate = getStringParameter(request, "workDate");
@@ -172,7 +187,6 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             }
 
         } else if ("publish".equals(action)) {
-            int branchId = getIntParameter(request, "branchId", -1);
             if (branchId != -1) {
                 scheduleDAO.publishSchedules(branchId);
             }

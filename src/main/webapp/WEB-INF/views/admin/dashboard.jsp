@@ -297,9 +297,9 @@
             </div>
             <ul class="sidebar-menu">
                 <li class="active"><a href="${pageContext.request.contextPath}/admin/dashboard"><i class="fa-solid fa-gauge-high"></i> Tổng quan hệ thống</a></li>
-                <li><a href="#"><i class="fa-solid fa-users-gear"></i> Quản lý tài khoản</a></li>
-                <li><a href="#"><i class="fa-solid fa-database"></i> Quản lý Master Data</a></li>
-                <li><a href="#"><i class="fa-solid fa-shield-cat"></i> Audit Log & Giám sát</a></li>
+                <li><a href="${pageContext.request.contextPath}/admin/accounts"><i class="fa-solid fa-users-gear"></i> Quản lý tài khoản</a></li>
+                <li><a href="${pageContext.request.contextPath}/admin/master-data"><i class="fa-solid fa-database"></i> Quản lý Master Data</a></li>
+                <li><a href="${pageContext.request.contextPath}/admin/audit-logs"><i class="fa-solid fa-shield-cat"></i> Audit Log & Giám sát</a></li>
             </ul>
         </div>
 
@@ -382,7 +382,7 @@
                             </div>
                             <p>Thực hiện các thao tác CRUD người dùng, khóa/mở khóa tài khoản (Lock/Unlock) khẩn cấp và hỗ trợ reset mật khẩu khi cần thiết.</p>
                         </div>
-                        <a href="#" class="card-link">Quản lý tài khoản <i class="fa-solid fa-arrow-right"></i></a>
+                        <li><a href="${pageContext.request.contextPath}/admin/accounts"><i class="fa-solid fa-users-gear"></i> Quản lý tài khoản</a>
                     </div>
 
                     <!-- Tính năng 2: Quản lý Master Data -->
@@ -396,7 +396,7 @@
                             </div>
                             <p>Cấu hình và quản lý dữ liệu nền tảng hệ thống bao gồm danh mục phòng ban, vị trí công việc, loại nhân sự và các thông số cấu hình chung.</p>
                         </div>
-                        <a href="#" class="card-link">Cấu hình dữ liệu <i class="fa-solid fa-arrow-right"></i></a>
+                       <a href="${pageContext.request.contextPath}/admin/master-data"><i class="fa-solid fa-database"></i> Quản lý Master Data</a>
                     </div>
 
                     <!-- Tính năng 3: Giám sát Audit Log -->
@@ -410,7 +410,7 @@
                             </div>
                             <p>Theo dõi lịch sử truy cập, nhật ký thay đổi dữ liệu (Audit Log) và giám sát trạng thái hoạt động bảo mật của toàn bộ hệ thống chuỗi.</p>
                         </div>
-                        <a href="#" class="card-link">Xem nhật ký hệ thống <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/admin/audit-logs"><i class="fa-solid fa-shield-cat"></i> Audit Log & Giám sát</a>
                     </div>
 
                 </div>

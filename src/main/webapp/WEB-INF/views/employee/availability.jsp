@@ -256,7 +256,7 @@
                                 </div>
 
                                 <div class="d-flex justify-content-between align-items-center mt-3">
-                                    <span class="text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Lưu ý: Nhân viên Part-time cần đăng ký tối thiểu <strong>3 ca/tuần</strong> để đảm bảo định mức công việc.</span>
+                                    <span class="text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Lưu ý: Nhân viên Part-time cần đăng ký tối thiểu <strong>5 ca/tuần</strong> để đảm bảo định mức công việc.</span>
                                     <c:if test="${isRegistrationOpen}">
                                         <button type="submit" class="btn btn-save btn-primary text-white">
                                             <i class="fa-solid fa-floppy-disk me-2"></i> Lưu Đăng Ký Lịch Rảnh

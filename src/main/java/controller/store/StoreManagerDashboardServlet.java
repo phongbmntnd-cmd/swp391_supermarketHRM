@@ -78,7 +78,7 @@ public class StoreManagerDashboardServlet extends BaseServlet {
 
             // 7. Số tài khoản đang bị khóa khẩn cấp tại chi nhánh
             EmployeeLockDAO lockDao = new EmployeeLockDAO();
-            int lockedCount = lockDao.countLockedEmployeesByBranch(branchId, null);
+            int lockedCount = lockDao.countLockedEmployeesByBranch(branchId, null, null, null);
 
             // Đưa dữ liệu ra request attribute
             request.setAttribute("currentBranch", currentBranch);

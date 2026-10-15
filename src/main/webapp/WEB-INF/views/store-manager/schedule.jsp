@@ -1,6 +1,6 @@
 <%-- 
-    Document   : schedule
-    Author     : phong
+    Document    : schedule
+    Author      : phong
 --%>
 
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
@@ -34,6 +34,15 @@
             .employee-tag:hover { background: #f8f9fa; }
             .employee-tag.assigned { background: #d1e7dd; border-color: #a3cfbb; color: #0f5132; }
             .employee-tag.assigned strong { color: #0f5132; }
+            
+            /* CSS khóa tương tác khi đã Published */
+            .published-locked .employee-tag {
+                cursor: not-allowed;
+                opacity: 0.85;
+            }
+            .published-locked .employee-tag:hover {
+                background: #ffffff;
+            }
         </style>
     </head>
     <body>
@@ -97,7 +106,7 @@
                         </div>
 
                         <div class="table-responsive mb-5">
-                            <table class="table table-bordered text-center align-middle">
+                            <table class="table table-bordered text-center align-middle ${isPublished ? 'published-locked' : ''}">
                                 <thead>
                                     <tr>
                                         <th style="width: 15%;">Ca Làm Việc</th>
@@ -168,10 +177,12 @@
                                                         <span class="badge ${badgeClass} fw-bold" style="font-size: 11px;" title="Đã xếp / Số lượng cần">
                                                             ${assignedCount} / ${requiredCount}
                                                         </span>
-                                                        <button type="button" class="btn btn-sm btn-link p-0 text-muted" style="font-size: 11px;" 
-                                                                onclick="openRequirementPrompt('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}')">
-                                                            <i class="fa-solid fa-pen"></i>
-                                                        </button>
+                                                        <c:if test="${!isPublished}">
+                                                            <button type="button" class="btn btn-sm btn-link p-0 text-muted" style="font-size: 11px;" 
+                                                                    onclick="openRequirementPrompt('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}')">
+                                                                <i class="fa-solid fa-pen"></i>
+                                                            </button>
+                                                        </c:if>
                                                     </div>
 
                                                     <c:set var="hasEmployee" value="false" />
@@ -247,7 +258,16 @@
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
+            // Biến trạng thái Publish từ Server truyền xuống JavaScript
+            const isPublished = ${isPublished};
+
             function toggleAssignment(element, userId, shiftId, branchId, workDate) {
+                // Nếu lịch đã được Publish, chặn tuyệt đối không cho thao tác click phân công
+                if (isPublished) {
+                    alert('Lịch làm việc tuần này đã được Publish. Không thể thay đổi phân công ca!');
+                    return;
+                }
+
                 const formData = new URLSearchParams();
                 formData.append('action', 'assign');
                 formData.append('userId', userId);
@@ -265,6 +285,11 @@
                     throw new Error('Lỗi kết nối server.');
                 })
                 .then(result => {
+                    if (result.trim() === 'published_locked') {
+                        alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
+                        location.reload();
+                        return;
+                    }
                     const icon = element.querySelector('.check-icon');
                     if (result.trim() === 'added') {
                         element.classList.add('assigned');
@@ -282,6 +307,11 @@
             }
 
             function openRequirementPrompt(branchId, positionId, shiftId, workDate, currentCount) {
+                if (isPublished) {
+                    alert('Lịch làm việc tuần này đã được Publish. Không thể chỉnh sửa định mức!');
+                    return;
+                }
+
                 let newCount = prompt("Nhập số lượng nhân sự yêu cầu cho ca này:", currentCount);
                 if (newCount !== null && newCount.trim() !== "") {
                     let parsedCount = parseInt(newCount);
@@ -308,6 +338,11 @@
                         throw new Error('Lỗi cập nhật định mức.');
                     })
                     .then(result => {
+                        if (result.trim() === 'published_locked') {
+                            alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
+                            location.reload();
+                            return;
+                        }
                         if (result.trim() === 'success') {
                             location.reload();
                         } else {

@@ -272,7 +272,7 @@ public class ShiftScheduleDAO {
         return defaultCount;
     }
 
-    // 12.Kiểm tra xem lịch trong tuần (từ startDate đến endDate) của chi nhánh đã được publish chưa
+    // 12. Kiểm tra xem lịch trong tuần (từ startDate đến endDate) của chi nhánh đã được publish chưa
     public boolean isWeekPublished(int branchId, String startDate, String endDate) {
         String sql = "SELECT id FROM shift_schedules WHERE branch_id = ? AND work_date BETWEEN ? AND ? AND status = 'Published' LIMIT 1";
         try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
