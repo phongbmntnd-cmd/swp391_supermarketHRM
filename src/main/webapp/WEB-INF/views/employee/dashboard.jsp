@@ -376,7 +376,7 @@
                                     <ul style="list-style-type: none; padding: 0; margin: 0;">
                                         <c:forEach var="shift" items="${todayShifts}">
                                             <li style="font-weight: 700; color: #16a34a; font-size: 14px;">${shift}</li>
-                                        </c:forEach>
+                                            </c:forEach>
                                     </ul>
                                 </c:when>
                                 <c:otherwise>
@@ -470,9 +470,8 @@
                             </div>
                             <p>Gửi các yêu cầu xin nghỉ phép, đổi ca làm việc hoặc phản hồi về lịch trực lên cấp trên xét duyệt.</p>
                         </div>
-                        <a href="#" class="card-link">Quản lý đơn từ <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/employee/request-shift" class="card-link">Quản lý đơn từ →</a>
                     </div>
-
                 </div>
 
             </div>
