@@ -66,7 +66,7 @@ CREATE TABLE `audit_logs` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `audit_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -75,7 +75,7 @@ CREATE TABLE `audit_logs` (
 
 LOCK TABLES `audit_logs` WRITE;
 /*!40000 ALTER TABLE `audit_logs` DISABLE KEYS */;
-INSERT INTO `audit_logs` VALUES (1,NULL,'EMERGENCY_LOCK','Emergency Lock bởi Store Manager',NULL,'2026-10-13 23:25:36',7,36),(2,NULL,'EMERGENCY_UNLOCK','Emergency Unlock bởi Store Manager',NULL,'2026-10-13 23:25:39',7,36);
+INSERT INTO `audit_logs` VALUES (1,NULL,'EMERGENCY_LOCK','Emergency Lock bởi Store Manager',NULL,'2026-10-13 23:25:36',7,36),(2,NULL,'EMERGENCY_UNLOCK','Emergency Unlock bởi Store Manager',NULL,'2026-10-13 23:25:39',7,36),(3,NULL,'EMERGENCY_LOCK','Emergency Lock bởi Store Manager: htht',NULL,'2026-10-15 04:06:28',7,36),(4,1,'CREATE_POSITION','[actor=#1] Tạo vị trí mới: \'Nhân viên pha chế\' thuộc phòng ban id=4','0:0:0:0:0:0:0:1','2026-10-15 04:08:16',1,NULL);
 /*!40000 ALTER TABLE `audit_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -239,7 +239,7 @@ CREATE TABLE `employee_availabilities` (
   KEY `shift_id` (`shift_id`),
   CONSTRAINT `employee_availabilities_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `employee_availabilities_ibfk_2` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -248,7 +248,7 @@ CREATE TABLE `employee_availabilities` (
 
 LOCK TABLES `employee_availabilities` WRITE;
 /*!40000 ALTER TABLE `employee_availabilities` DISABLE KEYS */;
-INSERT INTO `employee_availabilities` VALUES (1,37,'MONDAY',1),(2,37,'TUESDAY',2),(3,37,'WEDNESDAY',2),(4,37,'THURSDAY',2),(5,37,'FRIDAY',2);
+INSERT INTO `employee_availabilities` VALUES (6,37,'MONDAY',2),(7,37,'TUESDAY',2),(8,37,'WEDNESDAY',2),(9,37,'THURSDAY',2),(10,37,'FRIDAY',2),(11,37,'SATURDAY',2),(12,37,'SUNDAY',2);
 /*!40000 ALTER TABLE `employee_availabilities` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -278,7 +278,7 @@ CREATE TABLE `employee_locks` (
   CONSTRAINT `fk_lock_by` FOREIGN KEY (`locked_by`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_lock_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_unlock_by` FOREIGN KEY (`unlocked_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -287,7 +287,7 @@ CREATE TABLE `employee_locks` (
 
 LOCK TABLES `employee_locks` WRITE;
 /*!40000 ALTER TABLE `employee_locks` DISABLE KEYS */;
-INSERT INTO `employee_locks` VALUES (1,36,7,7,NULL,'2026-10-13 23:25:36','2026-10-13 23:25:39',0);
+INSERT INTO `employee_locks` VALUES (1,36,7,7,NULL,'2026-10-13 23:25:36','2026-10-13 23:25:39',0),(2,36,7,NULL,'htht','2026-10-15 04:06:28',NULL,1);
 /*!40000 ALTER TABLE `employee_locks` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -559,7 +559,7 @@ CREATE TABLE `positions` (
   UNIQUE KEY `title` (`title`),
   KEY `department_id` (`department_id`),
   CONSTRAINT `positions_ibfk_1` FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -568,7 +568,7 @@ CREATE TABLE `positions` (
 
 LOCK TABLES `positions` WRITE;
 /*!40000 ALTER TABLE `positions` DISABLE KEYS */;
-INSERT INTO `positions` VALUES (1,'Giám Đốc Chuỗi',1),(2,'Quản Lý Nhân Sự',2),(3,'Quản Trị Hệ Thống',3),(4,'Quản Lý Chi Nhánh',4),(6,'Nhân Viên Thu Ngân',5),(7,'Nhân Viên Bán Hàng & Trưng Bày',5),(8,'Nhân Viên Kho Chi Nhánh',4),(9,'Nhân Viên Bảo Vệ',4),(10,'Nhân Viên Vệ Sinh & Tạp Vụ',4);
+INSERT INTO `positions` VALUES (1,'Giám Đốc Chuỗi',1),(2,'Quản Lý Nhân Sự',2),(3,'Quản Trị Hệ Thống',3),(4,'Quản Lý Chi Nhánh',4),(6,'Nhân Viên Thu Ngân',5),(7,'Nhân Viên Bán Hàng & Trưng Bày',5),(8,'Nhân Viên Kho Chi Nhánh',4),(9,'Nhân Viên Bảo Vệ',4),(10,'Nhân Viên Vệ Sinh & Tạp Vụ',4),(11,'Nhân viên pha chế',4);
 /*!40000 ALTER TABLE `positions` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -822,7 +822,7 @@ CREATE TABLE `shift_schedules` (
   CONSTRAINT `shift_schedules_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `shift_schedules_ibfk_3` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`id`),
   CONSTRAINT `shift_schedules_ibfk_4` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -831,7 +831,7 @@ CREATE TABLE `shift_schedules` (
 
 LOCK TABLES `shift_schedules` WRITE;
 /*!40000 ALTER TABLE `shift_schedules` DISABLE KEYS */;
-INSERT INTO `shift_schedules` VALUES (2,3,37,2,'2026-10-20',NULL,'PUBLISHED'),(3,3,37,2,'2026-10-21',NULL,'PUBLISHED'),(4,3,37,2,'2026-10-22',NULL,'PUBLISHED'),(5,3,37,2,'2026-10-23',NULL,'PUBLISHED'),(6,3,37,1,'2026-10-19',NULL,'PUBLISHED'),(8,3,38,4,'2026-10-26',NULL,'PUBLISHED'),(9,3,38,4,'2026-10-27',NULL,'PUBLISHED'),(10,3,38,4,'2026-10-28',NULL,'PUBLISHED'),(11,3,38,4,'2026-10-29',NULL,'PUBLISHED'),(12,3,38,4,'2026-10-30',NULL,'PUBLISHED');
+INSERT INTO `shift_schedules` VALUES (2,3,37,2,'2026-10-20',NULL,'PUBLISHED'),(3,3,37,2,'2026-10-21',NULL,'PUBLISHED'),(4,3,37,2,'2026-10-22',NULL,'PUBLISHED'),(5,3,37,2,'2026-10-23',NULL,'PUBLISHED'),(6,3,37,1,'2026-10-19',NULL,'PUBLISHED'),(8,3,38,4,'2026-10-26',NULL,'PUBLISHED'),(9,3,38,4,'2026-10-27',NULL,'PUBLISHED'),(10,3,38,4,'2026-10-28',NULL,'PUBLISHED'),(11,3,38,4,'2026-10-29',NULL,'PUBLISHED'),(12,3,38,4,'2026-10-30',NULL,'PUBLISHED'),(20,3,37,2,'2026-10-24',NULL,'DRAFT'),(24,3,37,2,'2026-10-19',NULL,'DRAFT'),(25,3,37,2,'2026-10-25',NULL,'DRAFT'),(28,3,38,4,'2026-10-19',NULL,'DRAFT'),(31,3,38,4,'2026-10-20',NULL,'DRAFT'),(32,3,38,4,'2026-10-21',NULL,'DRAFT');
 /*!40000 ALTER TABLE `shift_schedules` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -893,7 +893,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin_user','123456','admin@supermarket.com',1,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(2,'director_user','123456','director@supermarket.com',2,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(3,'hrm_user','123456','hrm@supermarket.com',3,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(4,'sm_user','123456','sm1@supermarket.com',4,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(5,'emp_user','123456','emp1@supermarket.com',5,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-10-13 07:53:55',0),(6,'sm2_user','123456','sm2@supermarket.com',4,'ACTIVE',NULL,'2026-10-07 08:41:12','2026-10-07 08:41:12',0),(7,'sm3_user','123456','sm3@supermarket.com',4,'ACTIVE',NULL,'2026-10-07 08:41:12','2026-10-07 08:41:12',0),(36,'NV001','123456','test1@gmail.com',5,'ACTIVE',NULL,'2026-10-13 14:59:16','2026-10-13 23:25:39',0),(37,'NV002','123456','test@gmail.com',5,'ACTIVE','2026-10-21 00:00:00','2026-10-13 15:52:59','2026-10-13 16:12:35',0),(38,'NV003','123456','test3@gmail.com',5,'ACTIVE',NULL,'2026-10-21 05:17:09','2026-10-21 05:17:53',0),(39,'NV004','123456','test4@gmail.com',5,'ACTIVE',NULL,'2026-10-21 05:23:51','2026-10-21 05:24:16',0);
+INSERT INTO `users` VALUES (1,'admin_user','123456','admin@supermarket.com',1,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(2,'director_user','123456','director@supermarket.com',2,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(3,'hrm_user','123456','hrm@supermarket.com',3,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(4,'sm_user','123456','sm1@supermarket.com',4,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(5,'emp_user','123456','emp1@supermarket.com',5,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-10-13 07:53:55',0),(6,'sm2_user','123456','sm2@supermarket.com',4,'ACTIVE',NULL,'2026-10-07 08:41:12','2026-10-07 08:41:12',0),(7,'sm3_user','123456','sm3@supermarket.com',4,'ACTIVE',NULL,'2026-10-07 08:41:12','2026-10-07 08:41:12',0),(36,'NV001','123456','test1@gmail.com',5,'EMERGENCY_LOCKED',NULL,'2026-10-13 14:59:16','2026-10-15 04:06:28',0),(37,'NV002','123456','test@gmail.com',5,'ACTIVE','2026-10-21 00:00:00','2026-10-13 15:52:59','2026-10-13 16:12:35',0),(38,'NV003','123456','test3@gmail.com',5,'ACTIVE',NULL,'2026-10-21 05:17:09','2026-10-21 05:17:53',0),(39,'NV004','123456','test4@gmail.com',5,'ACTIVE',NULL,'2026-10-21 05:23:51','2026-10-21 05:24:16',0);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -980,4 +980,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-19 13:45:56
+-- Dump completed on 2026-10-16  0:31:39
