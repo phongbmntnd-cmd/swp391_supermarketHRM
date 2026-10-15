@@ -189,6 +189,16 @@
                     </div>
                     <a href="${pageContext.request.contextPath}/store-manager/schedule" class="card-link">Quản lý lịch làm việc →</a>
                 </div>
+
+                <!-- Tính năng 5: Quán lí đổi ca -->                
+                <div class="card" style="border-left-color: #2ecc71;">
+                    <div>
+                        <h3>Quản lí Đổi Ca</h3>
+                        <p>Xem xét, tiếp nhận và phê duyệt các đơn xin đổi ca làm việc do nhân viên gửi lên hệ thống.</p>
+                    </div>
+                    <a href="${pageContext.request.contextPath}/store-manager/shift-requests" class="card-link">Xem thông tin đổi ca →</a>
+                </div>
+                
             </div>
 
         </div>

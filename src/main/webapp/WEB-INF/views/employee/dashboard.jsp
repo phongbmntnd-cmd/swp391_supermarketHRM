@@ -176,7 +176,7 @@
                         <h3>Đơn Từ & Khiếu Nại Ca</h3>
                         <p>Gửi các yêu cầu xin nghỉ phép, đổi ca làm việc hoặc phản hồi về lịch trực lên cấp trên xét duyệt.</p>
                     </div>
-                    <a href="#" class="card-link">Quản lý đơn từ →</a>
+                    <a href="${pageContext.request.contextPath}/employee/request-shift" class="card-link">Quản lý đơn từ →</a>
                 </div>
 
             </div>
