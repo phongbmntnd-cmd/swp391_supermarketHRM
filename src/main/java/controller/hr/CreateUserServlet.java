@@ -92,6 +92,7 @@ public class CreateUserServlet extends BaseServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        request.setCharacterEncoding("UTF-8");
 
         User currentUser = getCurrentUser(request);
         if (currentUser == null || (currentUser.getRoleId() != ROLE_HR_MANAGER && currentUser.getRoleId() != ROLE_ADMIN)) {
@@ -107,6 +108,9 @@ public class CreateUserServlet extends BaseServlet {
         int positionId = getIntParameter(request, "positionId", -1);
         String employeeType = getStringParameter(request, "employeeType");
         String expirationDate = getStringParameter(request, "expirationDate");
+        
+        // Lấy tham số shiftType được gửi lên từ form (hoặc từ đề xuất)
+        String shiftType = getStringParameter(request, "shiftType");
 
         RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
         RecruitmentProposal proposal = null;
@@ -122,6 +126,10 @@ public class CreateUserServlet extends BaseServlet {
             proposal = proposalDAO.getProposalById(proposalId);
             if (proposal != null) {
                 homeBranchId = proposal.getBranchId(); // Cố định cơ sở gốc
+                // Nếu form không truyền shiftType lên, lấy trực tiếp từ proposal ra
+                if (shiftType == null || shiftType.trim().isEmpty()) {
+                    shiftType = proposal.getShiftType();
+                }
                 // Lấy thông tin chuẩn từ ứng viên gắn liền với đề xuất, chống sửa đổi
                 if (proposal.getCandidate() != null) {
                     fullName = proposal.getCandidate().getFullName();
@@ -169,7 +177,7 @@ public class CreateUserServlet extends BaseServlet {
 
         String noteForStoreManager = String.format("Đã phê duyệt. Tài khoản cấp mới - Username: %s | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)", username);
 
-        // Thực hiện transaction tạo tài khoản (Đã bỏ shiftType)
+        // Thực hiện transaction tạo tài khoản (Đã truyền thêm shiftType nếu DAO của bạn hỗ trợ lưu)
         boolean success = proposalDAO.approveProposalAndCreateUser(
                 username, email, roleId, expirationDate,
                 fullName, phone, identityCard, homeBranchId,

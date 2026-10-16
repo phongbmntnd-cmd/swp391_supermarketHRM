@@ -8,11 +8,25 @@
         <title>Quản Lý Đề Xuất Tuyển Dụng</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
         <style>
-            body { background-color: #f8f9fa; }
-            .main-container { max-width: 1200px; margin: 30px auto; }
-            .status-PENDING { color: #ffc107; font-weight: bold; }
-            .status-APPROVED { color: #198754; font-weight: bold; }
-            .status-REJECTED { color: #dc3545; font-weight: bold; }
+            body {
+                background-color: #f8f9fa;
+            }
+            .main-container {
+                max-width: 1200px;
+                margin: 30px auto;
+            }
+            .status-PENDING {
+                color: #ffc107;
+                font-weight: bold;
+            }
+            .status-APPROVED {
+                color: #198754;
+                font-weight: bold;
+            }
+            .status-REJECTED {
+                color: #dc3545;
+                font-weight: bold;
+            }
         </style>
     </head>
     <body>
@@ -45,7 +59,7 @@
                                 <th>Ngày tạo</th>
                                 <th>Họ tên ứng viên</th>
                                 <th>Vị trí</th>
-                                <th>Hình thức</th>
+                                <th>Hình thức & Ca làm</th>
                                 <th>Trạng thái</th>
                                 <th>Ghi chú từ HR</th>
                                 <th class="text-center">Hành động</th>
@@ -60,7 +74,10 @@
                                         <small class="text-muted">${not empty rp.candidate ? rp.candidate.phone : ''}</small>
                                     </td>
                                     <td>${rp.positionTitle}</td>
-                                    <td><span class="badge bg-info text-dark">${rp.employmentType}</span></td>
+                                    <td>
+                                        <span class="badge bg-info text-dark">${rp.employmentType}</span><br>
+                                        <small class="text-muted">Ca: ${rp.shiftType}</small>
+                                    </td>
                                     <td>
                                         <span class="status-${rp.status}">
                                             <c:choose>
@@ -74,7 +91,7 @@
                                     <td class="text-center">
                                         <c:if test="${rp.status == 'REJECTED'}">
                                             <button class="btn btn-sm btn-warning text-white" 
-                                                    onclick="openResubmitModal('${rp.id}', '${rp.candidate.fullName}', '${rp.candidate.phone}', '${rp.candidate.identityCard}', '${rp.candidate.email}', '${rp.positionId}', '${rp.employmentType}', '${rp.targetDate}', '${rp.reason}')">
+                                                    onclick="openResubmitModal('${rp.id}', '${rp.candidate.fullName}', '${rp.candidate.phone}', '${rp.candidate.identityCard}', '${rp.candidate.email}', '${rp.positionId}', '${rp.employmentType}', '${rp.shiftType}', '${rp.targetDate}', '${rp.reason}')">
                                                 Sửa & Gửi lại
                                             </button>
                                         </c:if>
@@ -107,7 +124,7 @@
                         </div>
                         <div class="modal-body">
                             <input type="hidden" name="action" value="create">
-                            
+
                             <!-- HIỂN THỊ LỖI NGAY TRONG MODAL -->
                             <c:if test="${not empty error}">
                                 <div class="alert alert-danger py-2 mb-3" role="alert">
@@ -145,9 +162,22 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Hình thức làm việc <span class="text-danger">*</span></label>
-                                    <select name="employeeType" class="form-select" required>
+                                    <select id="employeeTypeSelect" name="employeeType" class="form-select" onchange="updateShiftOptions('employeeTypeSelect', 'shiftTypeSelect')" required>
                                         <option value="FULL_TIME">FULL_TIME (Toàn thời gian)</option>
                                         <option value="PART_TIME">PART_TIME (Bán thời gian)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- PHÂN LOẠI CA LÀM THEO HÌNH THỨC NHÂN SỰ -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-12">
+                                    <label class="form-label">Loại ca làm việc <span class="text-danger">*</span></label>
+                                    <select id="shiftTypeSelect" name="shiftType" class="form-select" required>
+                                        <!-- Mặc định ban đầu là FULL_TIME -->
+                                        <option value="FT_ROTATING">Ca xoay linh hoạt (Sáng - Chiều - Tối)</option>
+                                        <option value="FT_FIXED_MORNING">Ca cố định sáng</option>
+                                        <option value="FT_FIXED_EVENING">Ca cố định tối</option>
                                     </select>
                                 </div>
                             </div>
@@ -200,7 +230,7 @@
                         <div class="modal-body">
                             <input type="hidden" name="action" value="resubmit">
                             <input type="hidden" id="editProposalId" name="proposalId">
-                            
+
                             <div class="row g-3 mb-3">
                                 <div class="col-md-5">
                                     <label class="form-label">Họ và tên ứng viên <span class="text-danger">*</span></label>
@@ -231,9 +261,19 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Hình thức làm việc <span class="text-danger">*</span></label>
-                                    <select id="editEmployeeType" name="employeeType" class="form-select" required>
+                                    <select id="editEmployeeType" name="employeeType" class="form-select" onchange="updateShiftOptions('editEmployeeType', 'editShiftType')" required>
                                         <option value="FULL_TIME">FULL_TIME</option>
                                         <option value="PART_TIME">PART_TIME</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- PHÂN LOẠI CA LÀM (EDIT) -->
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-12">
+                                    <label class="form-label">Loại ca làm việc <span class="text-danger">*</span></label>
+                                    <select id="editShiftType" name="shiftType" class="form-select" required>
+                                        <!-- Danh sách ca sẽ được cập nhật động qua JS -->
                                     </select>
                                 </div>
                             </div>
@@ -274,56 +314,95 @@
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            function handleContractTypeChange(selectId, expContId) {
-                const contractType = document.getElementById(selectId).value;
-                const expContainer = document.getElementById(expContId);
-                const expInput = expContainer.querySelector('input');
+                                        // Hàm thay đổi danh sách ca động dựa theo Hình thức làm việc (Full-time / Part-time)
+                                        function updateShiftOptions(employeeTypeId, shiftTypeId, selectedValue = '') {
+                                            const empType = document.getElementById(employeeTypeId).value;
+                                            const shiftSelect = document.getElementById(shiftTypeId);
 
-                if (contractType === 'THOI_VU') {
-                    expContainer.style.display = 'block';
-                    expInput.required = true;
-                } else {
-                    expContainer.style.display = 'none';
-                    expInput.required = false;
-                    expInput.value = '';
-                }
-            }
+                                            shiftSelect.innerHTML = ''; // Clear cũ
 
-            document.addEventListener("DOMContentLoaded", function () {
-                const today = new Date().toISOString().split('T')[0];
-                
-                const targetDateInput = document.getElementById('targetDateInput');
-                if (targetDateInput) targetDateInput.min = today;
+                                            if (empType === 'FULL_TIME') {
+                                                shiftSelect.innerHTML = `
+                        <option value="FT_ROTATING">Ca xoay linh hoạt (Sáng - Chiều - Tối)</option>
+                        <option value="FT_FIXED_MORNING">Ca cố định sáng</option>
+                        <option value="FT_FIXED_EVENING">Ca cố định tối</option>
+                    `;
+                                            } else if (empType === 'PART_TIME') {
+                                                shiftSelect.innerHTML = `
+                        <option value="PT_FLEXIBLE">Ca xoay linh hoạt (Theo lịch rảnh hàng tuần)</option>
+                        <option value="PT_FIXED_MORNING">Chỉ làm ca sáng</option>
+                        <option value="PT_FIXED_AFTERNOON">Chỉ làm ca chiều</option>
+                        <option value="PT_FIXED_EVENING">Chỉ làm ca tối</option>
+                        <option value="PT_SEASONAL_WEEKEND">Thời vụ / Cuối tuần</option>
+                    `;
+                                            }
 
-                const expirationDateInput = document.getElementById('expirationDateInput');
-                if (expirationDateInput) expirationDateInput.min = today;
+                                            if (selectedValue) {
+                                                shiftSelect.value = selectedValue;
+                                        }
+                                        }
 
-                const editTargetDate = document.getElementById('editTargetDate');
-                if (editTargetDate) editTargetDate.min = today;
+                                        function handleContractTypeChange(selectId, expContId) {
+                                            const contractType = document.getElementById(selectId).value;
+                                            const expContainer = document.getElementById(expContId);
+                                            const expInput = expContainer.querySelector('input');
 
-                const editExpirationDate = document.getElementById('editExpirationDate');
-                if (editExpirationDate) editExpirationDate.min = today;
+                                            if (contractType === 'THOI_VU') {
+                                                expContainer.style.display = 'block';
+                                                expInput.required = true;
+                                            } else {
+                                                expContainer.style.display = 'none';
+                                                expInput.required = false;
+                                                expInput.value = '';
+                                            }
+                                        }
 
-                <c:if test="${not empty error}">
-                    var createModal = new bootstrap.Modal(document.getElementById('createProposalModal'));
-                    createModal.show();
-                </c:if>
-            });
+                                        document.addEventListener("DOMContentLoaded", function () {
+                                            const today = new Date().toISOString().split('T')[0];
 
-            function openResubmitModal(id, fullName, phone, identityCard, email, positionId, employmentType, targetDate, reason) {
-                document.getElementById('editProposalId').value = id;
-                document.getElementById('editFullName').value = fullName;
-                document.getElementById('editPhone').value = phone;
-                document.getElementById('editIdentityCard').value = identityCard;
-                document.getElementById('editEmail').value = (email !== 'null' && email !== 'undefined') ? email : '';
-                document.getElementById('editPositionId').value = positionId;
-                document.getElementById('editEmployeeType').value = employmentType;
-                document.getElementById('editTargetDate').value = (targetDate !== 'null' && targetDate !== 'undefined') ? targetDate : '';
-                document.getElementById('editReason').value = reason;
+                                            const targetDateInput = document.getElementById('targetDateInput');
+                                            if (targetDateInput)
+                                                targetDateInput.min = today;
 
-                var resubmitModal = new bootstrap.Modal(document.getElementById('resubmitModal'));
-                resubmitModal.show();
-            }
+                                            const expirationDateInput = document.getElementById('expirationDateInput');
+                                            if (expirationDateInput)
+                                                expirationDateInput.min = today;
+
+                                            const editTargetDate = document.getElementById('editTargetDate');
+                                            if (editTargetDate)
+                                                editTargetDate.min = today;
+
+                                            const editExpirationDate = document.getElementById('editExpirationDate');
+                                            if (editExpirationDate)
+                                                editExpirationDate.min = today;
+
+                                            // Khởi tạo option ca khi load form tạo mới
+                                            updateShiftOptions('employeeTypeSelect', 'shiftTypeSelect');
+
+            <c:if test="${not empty error}">
+                                            var createModal = new bootstrap.Modal(document.getElementById('createProposalModal'));
+                                            createModal.show();
+            </c:if>
+                                        });
+
+                                        function openResubmitModal(id, fullName, phone, identityCard, email, positionId, employmentType, shiftType, targetDate, reason) {
+                                            document.getElementById('editProposalId').value = id;
+                                            document.getElementById('editFullName').value = fullName;
+                                            document.getElementById('editPhone').value = phone;
+                                            document.getElementById('editIdentityCard').value = identityCard;
+                                            document.getElementById('editEmail').value = (email !== 'null' && email !== 'undefined') ? email : '';
+                                            document.getElementById('editPositionId').value = positionId;
+                                            document.getElementById('editEmployeeType').value = employmentType;
+
+                                            // Cập nhật lại list ca của modal edit rồi mới gán giá trị shiftType cũ vào
+                                            updateShiftOptions('editEmployeeType', 'editShiftType', shiftType);
+
+                                            document.getElementById('editTargetDate').value = (targetDate !== 'null' && targetDate !== 'undefined') ? targetDate : '';
+                                            document.getElementById('editReason').value = reason;
+
+                                            var resubmitModal = new bootstrap.Modal(document.getElementById('resubmitModal'));
+                                            resubmitModal.show();
+                                        }
         </script>
     </body>
 </html>

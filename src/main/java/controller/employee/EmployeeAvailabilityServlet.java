@@ -40,26 +40,33 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         LocalDate today = LocalDate.now();
         LocalDate nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         LocalDate nextSunday = nextMonday.plusDays(6);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         
-        request.setAttribute("startDate", nextMonday.format(formatter));
-        request.setAttribute("endDate", nextSunday.format(formatter));
+        DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        DateTimeFormatter isoFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+        request.setAttribute("startDate", nextMonday.format(displayFormatter));
+        request.setAttribute("endDate", nextSunday.format(displayFormatter));
+        request.setAttribute("weekStartDate", nextMonday.format(isoFormatter)); 
+
+        // Kiểm tra thời gian mở cổng: Chỉ mở từ Thứ Hai đến hết Thứ Tư
         LocalDateTime now = LocalDateTime.now();
-        boolean isRegistrationOpen = (now.getDayOfWeek() != DayOfWeek.SUNDAY);
+        DayOfWeek currentDay = now.getDayOfWeek();
+        boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY || 
+                                      currentDay == DayOfWeek.TUESDAY || 
+                                      currentDay == DayOfWeek.WEDNESDAY);
         request.setAttribute("isRegistrationOpen", isRegistrationOpen);
 
         EmployeeAvailabilityDAO dao = new EmployeeAvailabilityDAO();
         EmployeeProfileDAO profileDAO = new EmployeeProfileDAO();
 
-        // Lấy thông tin profile của nhân viên trước để xác định loại nhân sự
         EmployeeProfile profile = profileDAO.getProfileByUserId(user.getId());
         String employeeType = (profile != null && profile.getEmployeeType() != null) ? profile.getEmployeeType().trim().toUpperCase() : "FULL_TIME";
-        String fixedShiftType = (profile != null && profile.getShiftType() != null) ? profile.getShiftType().trim().toUpperCase() : "";
+        String shiftType = (profile != null && profile.getShiftType() != null) ? profile.getShiftType().trim().toUpperCase() : "";
 
-        // Chỉ lấy danh sách ca tương ứng với loại nhân viên (Full-time hoặc Part-time)
         List<Shift> shifts = dao.getShiftsByEmployeeType(employeeType);
-        List<EmployeeAvailability> currentAvailabilities = dao.getAvailabilitiesByUserId(user.getId());
+        
+        // Lấy lịch rảnh theo đúng user và đúng mốc tuần
+        List<EmployeeAvailability> currentAvailabilities = dao.getAvailabilitiesByUserIdAndWeek(user.getId(), nextMonday.format(isoFormatter));
 
         boolean hasRegistered = (currentAvailabilities != null && !currentAvailabilities.isEmpty());
         request.setAttribute("hasRegistered", hasRegistered);
@@ -67,8 +74,8 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         request.setAttribute("shifts", shifts);
         request.setAttribute("currentAvailabilities", currentAvailabilities);
         request.setAttribute("employeeType", employeeType);
-        request.setAttribute("fixedShiftType", fixedShiftType);
-        
+        request.setAttribute("shiftType", shiftType);
+
         request.getRequestDispatcher("/WEB-INF/views/employee/availability.jsp").forward(request, response);
     }
 
@@ -85,15 +92,28 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
             return;
         }
 
+        // Chặn bảo mật phía server: Nếu quá thời hạn (sau ngày Thứ Tư) mà cố tình gửi request lưu
         LocalDateTime now = LocalDateTime.now();
-        if (now.getDayOfWeek() == DayOfWeek.SUNDAY) {
+        DayOfWeek currentDay = now.getDayOfWeek();
+        boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY || 
+                                      currentDay == DayOfWeek.TUESDAY || 
+                                      currentDay == DayOfWeek.WEDNESDAY);
+        if (!isRegistrationOpen) {
             response.sendRedirect("availability?error=closed");
             return;
+        }
+
+        // Lấy mốc tuần từ request form gửi lên
+        String weekStartDate = request.getParameter("weekStartDate");
+        if (weekStartDate == null || weekStartDate.trim().isEmpty()) {
+            LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+            weekStartDate = nextMonday.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         }
 
         EmployeeProfileDAO profileDAO = new EmployeeProfileDAO();
         EmployeeProfile profile = profileDAO.getProfileByUserId(user.getId());
         String employeeType = (profile != null && profile.getEmployeeType() != null) ? profile.getEmployeeType().trim().toUpperCase() : "FULL_TIME";
+        String shiftType = (profile != null && profile.getShiftType() != null) ? profile.getShiftType().trim().toUpperCase() : "";
 
         if ("FULL_TIME".equals(employeeType)) {
             response.sendRedirect("availability?error=unauthorized_action");
@@ -104,17 +124,40 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         List<EmployeeAvailability> newAvailabilities = new ArrayList<>();
 
         if (selectedAvailabilities != null) {
+            EmployeeAvailabilityDAO dao = new EmployeeAvailabilityDAO();
+            List<Shift> shifts = dao.getAllShifts(); 
+
             for (String item : selectedAvailabilities) {
                 String[] parts = item.split("_");
                 if (parts.length == 2) {
                     String dayOfWeek = parts[0];
                     int shiftId = Integer.parseInt(parts[1]);
-                    newAvailabilities.add(new EmployeeAvailability(0, user.getId(), dayOfWeek, shiftId));
+
+                    String shiftName = "";
+                    for (Shift s : shifts) {
+                        if (s.getId() == shiftId) {
+                            shiftName = s.getName() != null ? s.getName().toLowerCase() : "";
+                            break;
+                        }
+                    }
+
+                    // Chặn bảo mật phân quyền ca cố định
+                    if ("PT_FIXED_MORNING".equals(shiftType) && !shiftName.contains("sáng")) {
+                        continue;
+                    }
+                    if ("PT_FIXED_AFTERNOON".equals(shiftType) && !shiftName.contains("chiều")) {
+                        continue;
+                    }
+                    if ("PT_FIXED_EVENING".equals(shiftType) && !shiftName.contains("tối")) {
+                        continue;
+                    }
+
+                    newAvailabilities.add(new EmployeeAvailability(0, user.getId(), weekStartDate, dayOfWeek, shiftId));
                 }
             }
         }
 
-        // Tăng mức tối thiểu lên 5 ca / tuần cho nhân viên Part-time
+        // Kiểm tra định mức tối thiểu 5 ca / tuần cho Part-time
         int minShiftsRequired = 5;
         if (newAvailabilities.size() < minShiftsRequired) {
             response.sendRedirect("availability?error=min_shifts&min=" + minShiftsRequired);
@@ -122,7 +165,7 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         }
 
         EmployeeAvailabilityDAO dao = new EmployeeAvailabilityDAO();
-        dao.saveAvailabilities(user.getId(), newAvailabilities);
+        dao.saveAvailabilities(user.getId(), weekStartDate, newAvailabilities);
 
         response.sendRedirect("availability?success=true");
     }

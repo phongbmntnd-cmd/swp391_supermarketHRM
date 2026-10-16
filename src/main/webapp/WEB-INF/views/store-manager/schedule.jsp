@@ -5,6 +5,7 @@
 
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
 <%@ page import="java.util.Map" %>
 <%@ page import="model.Shift" %>
 <%@ page import="dao.ShiftScheduleDAO" %>
@@ -187,29 +188,46 @@
 
                                                     <c:set var="hasEmployee" value="false" />
 
-                                                    <%-- PHÂN TÁC CA: Nếu ca là ca Full-time thì chỉ hiển thị nhân viên Full-time --%>
+                                                    <%-- PHÂN TÁC CA: Nếu ca là ca Full-time thì chỉ hiển thị nhân viên Full-time (đã lọc theo shiftType cố định) --%>
                                                     <c:choose>
                                                         <c:when test="${shift.name.toLowerCase().contains('full-time') || shift.name.toLowerCase().contains('full time')}">
                                                             <c:forEach var="ft" items="${fullTimeEmployees}">
                                                                 <c:if test="${ft.positionTitle eq pos.title}">
-                                                                    <c:set var="currentKey" value="${ft.userId}_${shift.id}_${workDate}" />
-                                                                    <c:set var="isAssigned" value="false" />
-                                                                    <c:forEach var="asg" items="${assignedList}">
-                                                                        <c:if test="${asg eq currentKey}">
-                                                                            <c:set var="isAssigned" value="true" />
-                                                                        </c:if>
-                                                                    </c:forEach>
+                                                                    <%-- Lọc ràng buộc cố định ca --%>
+                                                                    <c:set var="ftShiftType" value="${not empty ft.shiftType ? fn:toUpperCase(ft.shiftType) : ''}" />
+                                                                    <c:set var="showFt" value="true" />
+                                                                    <c:set var="shiftNameLower" value="${fn:toLowerCase(shift.name)}" />
 
-                                                                    <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
-                                                                         onclick="toggleAssignment(this, '${ft.userId}', '${shift.id}', '${managerBranchId}', '${workDate}')">
-                                                                        <div>
-                                                                            <strong>${ft.fullName}</strong> <span class="badge bg-info text-dark" style="font-size: 9px;">FT</span>
+                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_MORNING' and not fn:contains(shiftNameLower, 'sáng')}">
+                                                                        <c:set var="showFt" value="false" />
+                                                                    </c:if>
+                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_AFTERNOON' and not fn:contains(shiftNameLower, 'chiều')}">
+                                                                        <c:set var="showFt" value="false" />
+                                                                    </c:if>
+                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_EVENING' and not fn:contains(shiftNameLower, 'tối')}">
+                                                                        <c:set var="showFt" value="false" />
+                                                                    </c:if>
+
+                                                                    <c:if test="${showFt}">
+                                                                        <c:set var="currentKey" value="${ft.userId}_${shift.id}_${workDate}" />
+                                                                        <c:set var="isAssigned" value="false" />
+                                                                        <c:forEach var="asg" items="${assignedList}">
+                                                                            <c:if test="${asg eq currentKey}">
+                                                                                <c:set var="isAssigned" value="true" />
+                                                                            </c:if>
+                                                                        </c:forEach>
+
+                                                                        <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
+                                                                             onclick="toggleAssignment(this, '${ft.userId}', '${shift.id}', '${managerBranchId}', '${workDate}')">
+                                                                            <div>
+                                                                                <strong>${ft.fullName}</strong> <span class="badge bg-info text-dark" style="font-size: 9px;">FT</span>
+                                                                            </div>
+                                                                            <div>
+                                                                                <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
+                                                                            </div>
                                                                         </div>
-                                                                        <div>
-                                                                            <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
-                                                                        </div>
-                                                                    </div>
-                                                                    <c:set var="hasEmployee" value="true" />
+                                                                        <c:set var="hasEmployee" value="true" />
+                                                                    </c:if>
                                                                 </c:if>
                                                             </c:forEach>
                                                         </c:when>

@@ -53,6 +53,7 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         String action = getStringParameter(request, "action");
         int positionId = getIntParameter(request, "positionId", -1);
         String employmentType = getStringParameter(request, "employeeType");
+        String shiftType = getStringParameter(request, "shiftType"); // Bổ sung lấy loại ca làm việc từ form
         String fullName = getStringParameter(request, "fullName");
         String email = getStringParameter(request, "email");
         String phone = getStringParameter(request, "phone");
@@ -100,21 +101,25 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
             request.setAttribute("error", "Email không đúng định dạng!");
         } else if (positionId == -1) {
             request.setAttribute("error", "Vui lòng chọn vị trí đề xuất!");
+        } else if (shiftType == null || shiftType.trim().isEmpty()) {
+            request.setAttribute("error", "Vui lòng chọn loại ca làm việc!");
         } else if (parsedTargetDate == null || parsedTargetDate.before(today)) {
             request.setAttribute("error", "Ngày mong muốn có nhân sự không được hợp lệ hoặc trong quá khứ!");
         } else {
             boolean success = false;
             if ("resubmit".equals(action)) {
                 int proposalId = getIntParameter(request, "proposalId", -1);
-                success = proposalDAO.resubmitProposal(proposalId, positionId, employmentType, fullName, email, phone, identityCard, departmentId, expirationDate, targetDate, reason);
+                // Truyền thêm shiftType vào hàm resubmit
+                success = proposalDAO.resubmitProposal(proposalId, positionId, employmentType, shiftType, fullName, email, phone, identityCard, departmentId, expirationDate, targetDate, reason);
                 if (success) {
                     request.setAttribute("message", "Cập nhật và gửi lại đề xuất thành công!");
                 } else {
                     request.setAttribute("error", "Gửi lại đề xuất thất bại!");
                 }
             } else {
+                // Truyền thêm shiftType vào hàm createProposal
                 success = proposalDAO.createProposal(
-                        user.getHomeBranchId(), positionId, employmentType,
+                        user.getHomeBranchId(), positionId, employmentType, shiftType,
                         fullName, email, phone, identityCard, departmentId,
                         expirationDate, targetDate, reason, user.getId()
                 );

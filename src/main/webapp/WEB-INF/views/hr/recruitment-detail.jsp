@@ -124,6 +124,16 @@
                     </div>
                 </div>
 
+                <!-- BỔ SUNG: Hiển thị Loại ca làm việc do Store Manager đề xuất -->
+                <div class="field">
+                    <label>Loại ca làm việc</label>
+                    <div>
+                        <span style="font-weight: 500; color: #0d6efd;">
+                            ${empty proposal.shiftType ? 'Chưa xác định' : proposal.shiftType}
+                        </span>
+                    </div>
+                </div>
+
                 <div class="field">
                     <label>Hạn HĐ (Nếu có)</label>
                     <div>

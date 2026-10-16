@@ -64,6 +64,8 @@
                         <input type="hidden" name="departmentId" value="${proposal.departmentId}">
                         <input type="hidden" name="positionId" value="${proposal.positionId}">
                         <input type="hidden" name="employeeType" value="${proposal.employmentType}">
+                        <!-- BỔ SUNG: Truyền ngầm shiftType sang servlet xử lý -->
+                        <input type="hidden" name="shiftType" value="${proposal.shiftType}">
                     </c:if>
 
                     <!-- 1. THÔNG TIN TÀI KHOẢN -->
@@ -105,7 +107,7 @@
                     </div>
 
                     <!-- 3. PHÂN CÔNG TỔ CHỨC -->
-                    <div class="section-title">3. Phân công tổ chức</div>
+                    <div class="section-title">3. Phân công tổ chức & Ca làm việc</div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <label class="form-label">Cơ sở làm việc <span class="text-danger">*</span></label>
@@ -132,6 +134,14 @@
                                     <option value="${p.id}" data-dept="${p.departmentId}" ${not empty proposal && proposal.positionId == p.id ? 'selected' : ''}>${p.title}</option>
                                 </c:forEach>
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- BỔ SUNG: Hiển thị Loại ca làm việc để HR nắm thông tin -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold text-primary">Loại ca làm việc đăng ký</label>
+                            <input type="text" class="form-control" value="${empty proposal || empty proposal.shiftType ? 'Chưa xác định' : proposal.shiftType}" readonly>
                         </div>
                     </div>
 

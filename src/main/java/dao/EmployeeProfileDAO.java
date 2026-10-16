@@ -29,7 +29,7 @@ public class EmployeeProfileDAO {
      */
     public EmployeeProfile getProfileByUserId(int userId) {
         String sql = "SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, "
-                   + "ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, "
+                   + "ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.shift_type, "
                    + "p.title AS position_name, d.name AS department_name, "
                    + "u.username, u.email, u.status, u.role_id, r.name AS role_name "
                    + "FROM employee_profiles ep "
@@ -285,7 +285,7 @@ public class EmployeeProfileDAO {
         return "ASC";
     }
 
-    private EmployeeProfile mapResultSetToProfile(ResultSet rs) throws Exception {
+   private EmployeeProfile mapResultSetToProfile(ResultSet rs) throws Exception {
         EmployeeProfile profile = new EmployeeProfile();
         profile.setUserId(rs.getInt("user_id"));
         profile.setFullName(rs.getString("full_name"));
@@ -296,7 +296,8 @@ public class EmployeeProfileDAO {
         profile.setDepartmentId(rs.getInt("department_id"));
         profile.setEmployeeType(rs.getString("employee_type"));
         
-        // Đã lược bỏ shift_type hoàn toàn theo cấu trúc database mới
+        // Đọc giá trị shift_type từ database lên model
+        profile.setShiftType(rs.getString("shift_type"));
         
         profile.setPositionName(rs.getString("position_name"));
         profile.setDepartmentName(rs.getString("department_name"));

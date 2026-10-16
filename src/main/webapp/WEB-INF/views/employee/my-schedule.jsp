@@ -46,7 +46,7 @@
                     <div class="d-flex align-items-center gap-3">
                         <%-- Nút điều hướng Tuần trước / Tuần sau cho nhân viên --%>
                         <div class="btn-group" role="group">
-                            <a href="schedule?startDate=${prevWeekDate}" class="btn btn-outline-light btn-sm px-3">
+                            <a href="my-schedule?startDate=${prevWeekDate}" class="btn btn-outline-light btn-sm px-3">
                                 <i class="fa-solid fa-chevron-left me-1"></i> Tuần trước
                             </a>
                             <a href="schedule?startDate=${nextWeekDate}" class="btn btn-outline-light btn-sm px-3">

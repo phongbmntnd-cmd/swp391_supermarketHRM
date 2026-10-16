@@ -128,10 +128,10 @@ public class ShiftScheduleDAO {
         return shiftList;
     }
 
-    // [MỚI] 7.1. Lấy danh sách nhân viên Full-time theo chi nhánh để hiển thị mặc định lên bảng xếp lịch
+    // [ĐÃ SỬA] 7.1. Lấy danh sách nhân viên Full-time theo chi nhánh (có kèm shiftType để lọc ca cố định)
     public List<Map<String, Object>> getFullTimeEmployeesByBranch(int branchId) {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT ep.user_id, ep.full_name, p.id as position_id, p.title as position_title "
+        String sql = "SELECT ep.user_id, ep.full_name, p.id as position_id, p.title as position_title, ep.shift_type "
                 + "FROM employee_profiles ep "
                 + "JOIN positions p ON ep.position_id = p.id "
                 + "WHERE ep.home_branch_id = ? AND ep.employee_type = 'FULL_TIME'";
@@ -144,6 +144,7 @@ public class ShiftScheduleDAO {
                     emp.put("fullName", rs.getString("full_name"));
                     emp.put("positionId", rs.getInt("position_id"));
                     emp.put("positionTitle", rs.getString("position_title"));
+                    emp.put("shiftType", rs.getString("shift_type")); // Bổ sung dòng này để truyền shiftType ra giao diện
                     list.add(emp);
                 }
             }
