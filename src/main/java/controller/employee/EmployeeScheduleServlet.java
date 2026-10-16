@@ -24,14 +24,12 @@ public class EmployeeScheduleServlet extends BaseServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // --- XÁC THỰC PHIÊN ĐĂNG NHẬP QUA BASESERVLET ---
         User account = getCurrentUser(request);
         if (account == null) {
             redirectToLogin(request, response);
             return;
         }
 
-        // Kiểm tra phân quyền nhân viên
         if (!hasRole(request, ROLE_EMPLOYEE) && account.getRoleId() != ROLE_ADMIN) {
             sendForbidden(request, response, "Bạn không có quyền xem lịch làm việc này!");
             return;
@@ -39,13 +37,32 @@ public class EmployeeScheduleServlet extends BaseServlet {
 
         int userId = account.getId();
 
-        LocalDate today = LocalDate.now();
-        LocalDate nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        // Nhận tham số startDate từ request để đồng bộ tuần với bên Store Manager hoặc khi nhân viên đổi tuần xem
+        String startDateParam = request.getParameter("startDate");
+        LocalDate nextMonday;
+        try {
+            if (startDateParam != null && !startDateParam.trim().isEmpty()) {
+                nextMonday = LocalDate.parse(startDateParam);
+            } else {
+                LocalDate today = LocalDate.now();
+                nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+            }
+        } catch (Exception e) {
+            nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        }
+
         LocalDate nextSunday = nextMonday.plusDays(6);
+        
+        // Tính toán tuần trước và tuần sau phục vụ nút điều hướng
+        LocalDate prevMonday = nextMonday.minusWeeks(1);
+        LocalDate followingMonday = nextMonday.plusWeeks(1);
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         request.setAttribute("startDate", nextMonday.format(formatter));
         request.setAttribute("endDate", nextSunday.format(formatter));
+        request.setAttribute("prevWeekDate", prevMonday.toString());
+        request.setAttribute("nextWeekDate", followingMonday.toString());
 
         // Lấy danh sách ca làm việc từ bảng shifts
         List<Map<String, Object>> shifts = new ArrayList<>();
@@ -65,13 +82,11 @@ public class EmployeeScheduleServlet extends BaseServlet {
             e.printStackTrace();
         }
 
-        // Lấy lịch làm việc CHÍNH THỨC (đã Publish) của nhân viên này trong tuần
-        String sqlSchedules = "SELECT ss.shift_id, ss.work_date, b.name AS branch_name, pos.title AS position_title " +
-                              "FROM shift_schedules ss " +
-                              "JOIN branches b ON ss.branch_id = b.id " +
-                              "JOIN employee_profiles ep ON ss.user_id = ep.user_id " +
-                              "JOIN positions pos ON ep.position_id = pos.id " +
-                              "WHERE ss.user_id = ? AND ss.status = 'Published' AND ss.work_date BETWEEN ? AND ?";
+        // Lấy lịch làm việc CHÍNH THỨC (đã Publish) của nhân viên này trong tuần tương ứng
+        String sqlSchedules = "SELECT ss.shift_id, ss.work_date, b.name AS branch_name " +
+                            "FROM shift_schedules ss " +
+                            "JOIN branches b ON ss.branch_id = b.id " +
+                            "WHERE ss.user_id = ? AND ss.status = 'Published' AND ss.work_date BETWEEN ? AND ?";
         
         List<String> mySchedules = new ArrayList<>();
         String branchName = "Chưa cập nhật";
@@ -86,13 +101,24 @@ public class EmployeeScheduleServlet extends BaseServlet {
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     int shiftId = rs.getInt("shift_id");
-                    String workDate = rs.getString("work_date"); // YYYY-MM-DD
+                    String workDate = rs.getString("work_date");
                     
-                    // Key định danh cho mỗi ô ca/ngày: shiftId_workDate
                     mySchedules.add(shiftId + "_" + workDate);
-                    
                     branchName = rs.getString("branch_name");
-                    positionTitle = rs.getString("position_title");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Lấy thông tin vị trí của nhân viên từ bảng employee_profiles
+        String sqlProfile = "SELECT pos.title FROM employee_profiles ep JOIN positions pos ON ep.position_id = pos.id WHERE ep.user_id = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement st = conn.prepareStatement(sqlProfile)) {
+            st.setInt(1, userId);
+            try (ResultSet rs = st.executeQuery()) {
+                if (rs.next()) {
+                    positionTitle = rs.getString("title");
                 }
             }
         } catch (Exception e) {

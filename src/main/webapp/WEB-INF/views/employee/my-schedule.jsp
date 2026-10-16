@@ -39,11 +39,26 @@
             <div class="card card-custom">
                 <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
-                        <h2><i class="fa-solid fa-calendar-days me-2"></i> Lịch Trực Chính Thức Tuần Tới</h2>
+                        <h2><i class="fa-solid fa-calendar-days me-2"></i> Lịch Trực Chính Thức</h2>
                         <p class="mb-0 small mt-1"><i class="fa-solid fa-clock-rotate-left me-1"></i> Áp dụng từ: <strong>${startDate}</strong> đến <strong>${endDate}</strong></p>
                     </div>
-                    <div>
-                        <span class="badge bg-light text-success p-2 fs-6"><i class="fa-solid fa-store me-1"></i> ${branchName} - ${positionTitle}</span>
+                    
+                    <div class="d-flex align-items-center gap-3">
+                        <%-- Nút điều hướng Tuần trước / Tuần sau cho nhân viên --%>
+                        <div class="btn-group" role="group">
+                            <a href="my-schedule?startDate=${prevWeekDate}" class="btn btn-outline-light btn-sm px-3">
+                                <i class="fa-solid fa-chevron-left me-1"></i> Tuần trước
+                            </a>
+                            <a href="schedule?startDate=${nextWeekDate}" class="btn btn-outline-light btn-sm px-3">
+                                Tuần sau <i class="fa-solid fa-chevron-right ms-1"></i>
+                            </a>
+                        </div>
+
+                        <div>
+                            <span class="badge bg-light text-success p-2 fs-6 shadow-sm">
+                                <i class="fa-solid fa-store me-1"></i> ${branchName} &nbsp;|&nbsp; <i class="fa-solid fa-briefcase me-1"></i> ${positionTitle}
+                            </span>
+                        </div>
                     </div>
                 </div>
 

@@ -1,10 +1,15 @@
 <%-- 
-    Document   : schedule
-    Author     : phong
+    Document    : schedule
+    Author      : phong
 --%>
 
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ page import="java.util.Map" %>
+<%@ page import="model.Shift" %>
+<%@ page import="dao.ShiftScheduleDAO" %>
+
 <html>
     <head>
         <meta charset="UTF-8">
@@ -30,6 +35,15 @@
             .employee-tag:hover { background: #f8f9fa; }
             .employee-tag.assigned { background: #d1e7dd; border-color: #a3cfbb; color: #0f5132; }
             .employee-tag.assigned strong { color: #0f5132; }
+            
+            /* CSS khóa tương tác khi đã Published */
+            .published-locked .employee-tag {
+                cursor: not-allowed;
+                opacity: 0.85;
+            }
+            .published-locked .employee-tag:hover {
+                background: #ffffff;
+            }
         </style>
     </head>
     <body>
@@ -41,24 +55,45 @@
 
         <div class="main-container">
             <c:if test="${param.success eq 'published'}">
-                <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã công bố (Publish) lịch làm việc tuần tới thành công! Nhân viên đã có thể xem lịch trên hệ thống.</div>
+                <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã công bố (Publish) lịch làm việc tuần này thành công! Nhân viên đã có thể xem lịch trên hệ thống.</div>
             </c:if>
 
             <div class="card card-custom">
                 <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div>
-                        <h2><i class="fa-solid fa-calendar-check me-2"></i> Bảng Phân Công Ca Làm Việc Tuần Tới</h2>
+                        <h2><i class="fa-solid fa-calendar-check me-2"></i> Bảng Phân Công Ca Làm Việc</h2>
                         <p class="mb-0 small mt-1"><i class="fa-solid fa-clock-rotate-left me-1"></i> Áp dụng từ: <strong>${startDate}</strong> đến <strong>${endDate}</strong></p>
                     </div>
-                    <div>
-                        <!-- Nút Publish chuyển trạng thái lịch để nhân viên nhìn thấy -->
-                        <form action="schedule" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn công bố (Publish) toàn bộ lịch làm việc đã chọn cho nhân viên cơ sở không?');">
-                            <input type="hidden" name="action" value="publish">
-                            <input type="hidden" name="branchId" value="${managerBranchId}">
-                            <button type="submit" class="btn btn-publish">
-                                <i class="fa-solid fa-bullhorn me-2"></i> Publish Lịch Trực
-                            </button>
-                        </form>
+                    
+                    <div class="d-flex align-items-center gap-3">
+                        <%-- Nút điều hướng Tuần trước / Tuần sau --%>
+                        <div class="btn-group" role="group">
+                            <a href="schedule?startDate=${prevWeekDate}" class="btn btn-outline-light btn-sm px-3">
+                                <i class="fa-solid fa-chevron-left me-1"></i> Tuần trước
+                            </a>
+                            <a href="schedule?startDate=${nextWeekDate}" class="btn btn-outline-light btn-sm px-3">
+                                Tuần sau <i class="fa-solid fa-chevron-right ms-1"></i>
+                            </a>
+                        </div>
+
+                        <%-- Kiểm tra trạng thái đã Publish hay chưa để ẩn/hiện nút --%>
+                        <c:choose>
+                            <c:when test="${isPublished}">
+                                <span class="badge bg-success p-2 px-3" style="font-size: 13px;">
+                                    <i class="fa-solid fa-circle-check me-1"></i> Đã Publish Lịch
+                                </span>
+                            </c:when>
+                            <c:otherwise>
+                                <form action="schedule" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn công bố (Publish) toàn bộ lịch làm việc đã chọn cho nhân viên cơ sở không?');" class="mb-0">
+                                    <input type="hidden" name="action" value="publish">
+                                    <input type="hidden" name="branchId" value="${managerBranchId}">
+                                    <input type="hidden" name="startDate" value="${startDateRaw}">
+                                    <button type="submit" class="btn btn-publish">
+                                        <i class="fa-solid fa-bullhorn me-2"></i> Publish Lịch Trực
+                                    </button>
+                                </form>
+                            </c:otherwise>
+                        </c:choose>
                     </div>
                 </div>
 
@@ -72,7 +107,7 @@
                         </div>
 
                         <div class="table-responsive mb-5">
-                            <table class="table table-bordered text-center align-middle">
+                            <table class="table table-bordered text-center align-middle ${isPublished ? 'published-locked' : ''}">
                                 <thead>
                                     <tr>
                                         <th style="width: 15%;">Ca Làm Việc</th>
@@ -104,35 +139,127 @@
 
                                             <%-- Duyệt các ngày trong tuần cho từng ca của vị trí này --%>
                                             <c:forEach var="day" items="${days}">
-                                                <td style="background-color: #fafbfc; min-width: 120px;">
+                                                <c:set var="workDate" value="${dayDateMap[day]}" />
+                                                <c:set var="reqKey" value="${workDate}_${pos.id}_${shift.id}" />
+                                                
+                                                <%-- Lấy định mức từ DB hoặc gọi hàm gợi ý thông minh --%>
+                                                <c:set var="reqData" value="${weeklyRequirements[reqKey]}" />
+                                                <c:choose>
+                                                    <c:when test="${not empty reqData}">
+                                                        <c:set var="requiredCount" value="${reqData.requiredCount}" />
+                                                    </c:when>
+                                                    <c:otherwise>
+                                                        <%
+                                                            String wDate = (String) pageContext.getAttribute("workDate");
+                                                            int pId = Integer.parseInt(String.valueOf(((Map)pageContext.getAttribute("pos")).get("id")));
+                                                            int sId = ((Shift)pageContext.getAttribute("shift")).getId();
+                                                            ShiftScheduleDAO tempDao = new ShiftScheduleDAO();
+                                                            int smartCount = tempDao.getSmartDefaultRequirement(wDate, pId, sId);
+                                                            pageContext.setAttribute("requiredCount", smartCount);
+                                                        %>
+                                                    </c:otherwise>
+                                                </c:choose>
+                                                
+                                                <%-- Lấy số lượng thực tế đã được xếp --%>
+                                                <c:set var="assignedCount" value="${weeklyAssignedCounts[reqKey]}" />
+                                                <c:if test="${empty assignedCount}">
+                                                    <c:set var="assignedCount" value="0" />
+                                                </c:if>
+
+                                                <%-- Xử lý màu sắc Badge: Đủ người = Xanh lá, Chưa đủ = Xám trung tính --%>
+                                                <c:set var="badgeClass" value="bg-secondary" />
+                                                <c:if test="${assignedCount ge requiredCount}">
+                                                    <c:set var="badgeClass" value="bg-success" />
+                                                </c:if>
+
+                                                <td style="background-color: #fafbfc; min-width: 140px; vertical-align: top;">
+                                                    <%-- Header hiển thị Đã xếp / Cần --%>
+                                                    <div class="d-flex justify-content-between align-items-center mb-2 px-1 border-bottom pb-1">
+                                                        <span class="badge ${badgeClass} fw-bold" style="font-size: 11px;" title="Đã xếp / Số lượng cần">
+                                                            ${assignedCount} / ${requiredCount}
+                                                        </span>
+                                                        <c:if test="${!isPublished}">
+                                                            <button type="button" class="btn btn-sm btn-link p-0 text-muted" style="font-size: 11px;" 
+                                                                    onclick="openRequirementPrompt('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}')">
+                                                                <i class="fa-solid fa-pen"></i>
+                                                            </button>
+                                                        </c:if>
+                                                    </div>
+
                                                     <c:set var="hasEmployee" value="false" />
-                                                    <c:forEach var="reg" items="${branchRegistrations}">
-                                                        <%-- Chỉ hiển thị nhân viên nếu khớp đúng Vị trí, đúng Ca và đúng Thứ --%>
-                                                        <c:if test="${reg.positionTitle eq pos.title and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
-                                                            
-                                                            <c:set var="currentKey" value="${reg.userId}_${shift.id}_${dayDateMap[day]}" />
-                                                            <c:set var="isAssigned" value="false" />
-                                                            <c:forEach var="asg" items="${assignedList}">
-                                                                <c:if test="${asg eq currentKey}">
-                                                                    <c:set var="isAssigned" value="true" />
+
+                                                    <%-- PHÂN TÁC CA: Nếu ca là ca Full-time thì chỉ hiển thị nhân viên Full-time (đã lọc theo shiftType cố định) --%>
+                                                    <c:choose>
+                                                        <c:when test="${shift.name.toLowerCase().contains('full-time') || shift.name.toLowerCase().contains('full time')}">
+                                                            <c:forEach var="ft" items="${fullTimeEmployees}">
+                                                                <c:if test="${ft.positionTitle eq pos.title}">
+                                                                    <%-- Lọc ràng buộc cố định ca --%>
+                                                                    <c:set var="ftShiftType" value="${not empty ft.shiftType ? fn:toUpperCase(ft.shiftType) : ''}" />
+                                                                    <c:set var="showFt" value="true" />
+                                                                    <c:set var="shiftNameLower" value="${fn:toLowerCase(shift.name)}" />
+
+                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_MORNING' and not fn:contains(shiftNameLower, 'sáng')}">
+                                                                        <c:set var="showFt" value="false" />
+                                                                    </c:if>
+                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_AFTERNOON' and not fn:contains(shiftNameLower, 'chiều')}">
+                                                                        <c:set var="showFt" value="false" />
+                                                                    </c:if>
+                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_EVENING' and not fn:contains(shiftNameLower, 'tối')}">
+                                                                        <c:set var="showFt" value="false" />
+                                                                    </c:if>
+
+                                                                    <c:if test="${showFt}">
+                                                                        <c:set var="currentKey" value="${ft.userId}_${shift.id}_${workDate}" />
+                                                                        <c:set var="isAssigned" value="false" />
+                                                                        <c:forEach var="asg" items="${assignedList}">
+                                                                            <c:if test="${asg eq currentKey}">
+                                                                                <c:set var="isAssigned" value="true" />
+                                                                            </c:if>
+                                                                        </c:forEach>
+
+                                                                        <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
+                                                                             onclick="toggleAssignment(this, '${ft.userId}', '${shift.id}', '${managerBranchId}', '${workDate}')">
+                                                                            <div>
+                                                                                <strong>${ft.fullName}</strong> <span class="badge bg-info text-dark" style="font-size: 9px;">FT</span>
+                                                                            </div>
+                                                                            <div>
+                                                                                <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
+                                                                            </div>
+                                                                        </div>
+                                                                        <c:set var="hasEmployee" value="true" />
+                                                                    </c:if>
                                                                 </c:if>
                                                             </c:forEach>
+                                                        </c:when>
+                                                        <c:otherwise>
+                                                            <%-- Nếu là ca thường (Part-time / Casual), chỉ hiển thị nhân viên đã đăng ký lịch rảnh --%>
+                                                            <c:forEach var="reg" items="${branchRegistrations}">
+                                                                <c:if test="${reg.positionTitle eq pos.title and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
+                                                                    <c:set var="currentKey" value="${reg.userId}_${shift.id}_${workDate}" />
+                                                                    <c:set var="isAssigned" value="false" />
+                                                                    <c:forEach var="asg" items="${assignedList}">
+                                                                        <c:if test="${asg eq currentKey}">
+                                                                            <c:set var="isAssigned" value="true" />
+                                                                        </c:if>
+                                                                    </c:forEach>
 
-                                                            <%-- Thẻ nhân viên tích hợp AJAX click ngầm không cần alert hay reload trang --%>
-                                                            <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
-                                                                 onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${dayDateMap[day]}')">
-                                                                <div>
-                                                                    <strong>${reg.fullName}</strong>
-                                                                </div>
-                                                                <div>
-                                                                    <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
-                                                                </div>
-                                                            </div>
-                                                            <c:set var="hasEmployee" value="true" />
-                                                        </c:if>
-                                                    </c:forEach>
+                                                                    <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
+                                                                         onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}')">
+                                                                        <div>
+                                                                            <strong>${reg.fullName}</strong> <span class="badge bg-light text-dark" style="font-size: 9px;">PT</span>
+                                                                        </div>
+                                                                        <div>
+                                                                            <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                    <c:set var="hasEmployee" value="true" />
+                                                                </c:if>
+                                                            </c:forEach>
+                                                        </c:otherwise>
+                                                    </c:choose>
+                                                    
                                                     <c:if test="${!hasEmployee}">
-                                                        <span class="text-muted small fst-italic">Trống</span>
+                                                        <div class="text-muted small fst-italic py-2">Không có nhân sự</div>
                                                     </c:if>
                                                 </td>
                                             </c:forEach>
@@ -149,8 +276,16 @@
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            // Hàm xử lý AJAX khi Store Manager click vào thẻ nhân viên
+            // Biến trạng thái Publish từ Server truyền xuống JavaScript
+            const isPublished = ${isPublished};
+
             function toggleAssignment(element, userId, shiftId, branchId, workDate) {
+                // Nếu lịch đã được Publish, chặn tuyệt đối không cho thao tác click phân công
+                if (isPublished) {
+                    alert('Lịch làm việc tuần này đã được Publish. Không thể thay đổi phân công ca!');
+                    return;
+                }
+
                 const formData = new URLSearchParams();
                 formData.append('action', 'assign');
                 formData.append('userId', userId);
@@ -160,18 +295,19 @@
 
                 fetch('schedule', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: formData.toString()
                 })
                 .then(response => {
-                    if (response.ok) {
-                        return response.text();
-                    }
+                    if (response.ok) return response.text();
                     throw new Error('Lỗi kết nối server.');
                 })
                 .then(result => {
+                    if (result.trim() === 'published_locked') {
+                        alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
+                        location.reload();
+                        return;
+                    }
                     const icon = element.querySelector('.check-icon');
                     if (result.trim() === 'added') {
                         element.classList.add('assigned');
@@ -180,11 +316,62 @@
                         element.classList.remove('assigned');
                         icon.className = 'fa-solid fa-circle text-muted check-icon';
                     }
+                    setTimeout(() => location.reload(), 300);
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     alert('Có lỗi xảy ra khi lưu phân công.');
                 });
+            }
+
+            function openRequirementPrompt(branchId, positionId, shiftId, workDate, currentCount) {
+                if (isPublished) {
+                    alert('Lịch làm việc tuần này đã được Publish. Không thể chỉnh sửa định mức!');
+                    return;
+                }
+
+                let newCount = prompt("Nhập số lượng nhân sự yêu cầu cho ca này:", currentCount);
+                if (newCount !== null && newCount.trim() !== "") {
+                    let parsedCount = parseInt(newCount);
+                    if (isNaN(parsedCount) || parsedCount < 1) {
+                        alert("Số lượng yêu cầu phải là số nguyên lớn hơn hoặc bằng 1!");
+                        return;
+                    }
+
+                    const formData = new URLSearchParams();
+                    formData.append('action', 'updateRequirement');
+                    formData.append('branchId', branchId);
+                    formData.append('positionId', positionId);
+                    formData.append('shiftId', shiftId);
+                    formData.append('workDate', workDate);
+                    formData.append('requiredCount', parsedCount);
+
+                    fetch('schedule', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData.toString()
+                    })
+                    .then(response => {
+                        if (response.ok) return response.text();
+                        throw new Error('Lỗi cập nhật định mức.');
+                    })
+                    .then(result => {
+                        if (result.trim() === 'published_locked') {
+                            alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
+                            location.reload();
+                            return;
+                        }
+                        if (result.trim() === 'success') {
+                            location.reload();
+                        } else {
+                            alert('Không thể cập nhật định mức.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Có lỗi xảy ra khi kết nối server.');
+                    });
+                }
             }
         </script>
     </body>

@@ -21,9 +21,10 @@ public class RecruitmentProposal {
     private int positionId;
     private String positionTitle;   // JOIN positions
     private Integer departmentId;   // Phòng ban đề xuất (Có thể NULL)
-    private String employmentType;  // FULL_TIME, PART_TIME, CASUAL
+    private String employmentType;  // FULL_TIME, PART_TIME
+    private String contractType;    // CHINH_THUC, THOI_VU
     private String shiftType;       // Ca làm việc
-    private Date expirationDate;    // Ngày hết hạn đề xuất / thử việc
+    private Date expirationDate;    // Ngày hết hạn hợp đồng thời vụ
     private int quantity;           // Số lượng (mặc định = 1)
     private Date targetDate;
     private String reason;          // Lý do đề xuất
@@ -113,6 +114,14 @@ public class RecruitmentProposal {
 
     public void setEmploymentType(String employmentType) {
         this.employmentType = employmentType;
+    }
+
+    public String getContractType() {
+        return contractType;
+    }
+
+    public void setContractType(String contractType) {
+        this.contractType = contractType;
     }
 
     public String getShiftType() {

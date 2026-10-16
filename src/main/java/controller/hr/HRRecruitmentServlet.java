@@ -1,6 +1,7 @@
 package controller.hr;
 
 import controller.base.BaseServlet;
+import dao.CommonDAO;
 import dao.EmployeeProfileDAO;
 import dao.RecruitmentProposalDAO;
 import dao.UserDAO;
@@ -52,14 +53,30 @@ public class HRRecruitmentServlet extends BaseServlet {
             return;
         }
 
-        // 2. Hiển thị DANH SÁCH TỔNG QUAN
+        // 2. Hiển thị DANH SÁCH TỔNG QUAN - có lọc thêm Chi nhánh / Vị trí / Hình thức / Trạng thái
         String filter = getStringParameter(request, "filter");
-        List<RecruitmentProposal> proposals = "all".equals(filter)
-                ? proposalDAO.getAllProposals()
-                : proposalDAO.getPendingProposals();
+        int branchIdParam = getIntParameter(request, "branchId", -1);
+        int positionIdParam = getIntParameter(request, "positionId", -1);
+        String employmentType = getStringParameter(request, "employmentType");
+        String status = getStringParameter(request, "status");
+
+        Integer branchId = branchIdParam == -1 ? null : branchIdParam;
+        Integer positionId = positionIdParam == -1 ? null : positionIdParam;
+
+        List<RecruitmentProposal> proposals = proposalDAO.getProposals(
+                filter == null ? "pending" : filter, branchId, positionId, employmentType, status);
 
         request.setAttribute("proposals", proposals);
         request.setAttribute("filter", filter == null ? "pending" : filter);
+        request.setAttribute("branchId", branchId);
+        request.setAttribute("positionId", positionId);
+        request.setAttribute("employmentType", employmentType);
+        request.setAttribute("status", status);
+
+        // Dữ liệu đổ vào dropdown lọc
+        CommonDAO commonDAO = new CommonDAO();
+        request.setAttribute("branches", commonDAO.getAllBranches());
+        request.setAttribute("positions", commonDAO.getStoreEmployeePositions());
 
         request.getRequestDispatcher("/WEB-INF/views/hr/recruitment.jsp")
                 .forward(request, response);

@@ -2,7 +2,11 @@ package controller.employee;
 
 import controller.base.BaseServlet;
 import model.User;
+import model.Employee;
+import dao.EmployeeDAO;
+import dao.ShiftScheduleDAO;
 import java.io.IOException;
+import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,7 +32,23 @@ public class EmployeeDashboardServlet extends BaseServlet {
             return;
         }
 
-        // 3. Giữ nguyên câu lệnh forward ra view của bạn
+        try {
+            // 3. Lấy thông tin chi tiết nhân viên (Cơ sở, Vị trí,...)
+            EmployeeDAO empDao = new EmployeeDAO();
+            Employee emp = empDao.getEmployeeById(currentUser.getId());
+
+            // 4. Lấy danh sách toàn bộ ca trực trong ngày hôm nay của nhân viên
+            ShiftScheduleDAO scheduleDao = new ShiftScheduleDAO();
+            List<String> todayShifts = scheduleDao.getTodayShiftsForEmployee(currentUser.getId());
+
+            request.setAttribute("emp", emp);
+            request.setAttribute("todayShifts", todayShifts);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 5. Forward ra view dashboard.jsp
         request.getRequestDispatcher("/WEB-INF/views/employee/dashboard.jsp").forward(request, response);
     }
 }

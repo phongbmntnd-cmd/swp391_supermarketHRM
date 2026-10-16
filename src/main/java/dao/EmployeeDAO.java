@@ -34,9 +34,10 @@ public class EmployeeDAO {
 
     /**
      * Danh sách toàn bộ nhân viên (có hồ sơ), hỗ trợ tìm theo
-     * tên/username/SĐT/CCCD. keyword = null hoặc rỗng -> lấy tất cả.
+     * tên/username/SĐT/CCCD và lọc theo vị trí / phòng ban / loại nhân viên
+     * (mỗi tham số null/rỗng nghĩa là không lọc).
      */
-    public List<Employee> getAllEmployees(String keyword) {
+    public List<Employee> getAllEmployees(String keyword, Integer positionId, Integer departmentId, String employeeType) {
         List<Employee> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(BASE_SELECT);
         // Phạm vi quản lý của HR: chỉ nhân viên các cơ sở (Store Manager id=4, Employee id=5).
@@ -48,16 +49,42 @@ public class EmployeeDAO {
         if (hasKeyword) {
             sql.append("AND (u.username LIKE ? OR ep.full_name LIKE ? OR ep.phone LIKE ? OR ep.identity_card LIKE ?) ");
         }
+
+        boolean hasPosition = positionId != null && positionId > 0;
+        if (hasPosition) {
+            sql.append("AND ep.position_id = ? ");
+        }
+
+        boolean hasDepartment = departmentId != null && departmentId > 0;
+        if (hasDepartment) {
+            sql.append("AND ep.department_id = ? ");
+        }
+
+        boolean hasEmployeeType = employeeType != null && !employeeType.trim().isEmpty();
+        if (hasEmployeeType) {
+            sql.append("AND ep.employee_type = ? ");
+        }
+
         sql.append("ORDER BY ep.full_name ASC");
 
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
 
+            int idx = 1;
             if (hasKeyword) {
                 String kw = "%" + keyword.trim() + "%";
-                ps.setString(1, kw);
-                ps.setString(2, kw);
-                ps.setString(3, kw);
-                ps.setString(4, kw);
+                ps.setString(idx++, kw);
+                ps.setString(idx++, kw);
+                ps.setString(idx++, kw);
+                ps.setString(idx++, kw);
+            }
+            if (hasPosition) {
+                ps.setInt(idx++, positionId);
+            }
+            if (hasDepartment) {
+                ps.setInt(idx++, departmentId);
+            }
+            if (hasEmployeeType) {
+                ps.setString(idx++, employeeType);
             }
 
             try (ResultSet rs = ps.executeQuery()) {
@@ -74,23 +101,50 @@ public class EmployeeDAO {
     /**
      * Xem chi tiết 1 nhân viên theo user_id.
      */
+    // Lấy thông tin chi tiết nhân viên theo ID, có JOIN bảng branches và positions để lấy tên cơ sở và vị trí
     public Employee getEmployeeById(int userId) {
-        // Cùng điều kiện role_id IN (4,5) như getAllEmployees(), để chặn truy cập trực tiếp
-        // qua URL (VD /hr/employee-detail?id=2 trỏ tới Director) nằm ngoài phạm vi HR quản lý.
-        String sql = BASE_SELECT + "WHERE u.id = ? AND u.role_id IN (4, 5)";
-
+        Employee emp = null;
+        String sql = "SELECT ep.*, u.username, u.email, u.status as user_status, "
+                + "b.name as branch_name, p.title as position_title, d.name as department_name, r.name as role_name "
+                + "FROM employee_profiles ep "
+                + "JOIN users u ON ep.user_id = u.id "
+                + "LEFT JOIN branches b ON ep.home_branch_id = b.id "
+                + "LEFT JOIN positions p ON ep.position_id = p.id "
+                + "LEFT JOIN departments d ON ep.department_id = d.id "
+                + "LEFT JOIN roles r ON u.role_id = r.id "
+                + "WHERE ep.user_id = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return mapRow(rs);
+                    emp = new Employee();
+                    emp.setUserId(rs.getInt("user_id"));
+                    emp.setUsername(rs.getString("username"));
+                    emp.setEmail(rs.getString("email"));
+                    emp.setUserStatus(rs.getString("user_status"));
+
+                    emp.setFullName(rs.getString("full_name"));
+                    emp.setPhone(rs.getString("phone"));
+                    emp.setIdentityCard(rs.getString("identity_card"));
+
+                    emp.setHomeBranchId(rs.getInt("home_branch_id"));
+                    emp.setBranchName(rs.getString("branch_name")); // Kéo tên chi nhánh lên
+
+                    emp.setPositionId(rs.getInt("position_id"));
+                    emp.setPositionTitle(rs.getString("position_title")); // Kéo tên vị trí lên
+
+                    emp.setDepartmentId(rs.getInt("department_id"));
+                    emp.setDepartmentName(rs.getString("department_name"));
+
+                    emp.setEmployeeType(rs.getString("employee_type"));
+                    emp.setRoleId(rs.getInt("role_id"));
+                    emp.setRoleName(rs.getString("role_name"));
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+        return emp;
     }
 
     /**
@@ -104,6 +158,7 @@ public class EmployeeDAO {
         String sql = "UPDATE employee_profiles SET full_name = ?, phone = ?, identity_card = ?, "
                 + "home_branch_id = ?, position_id = ?, department_id = ?, employee_type = ? "
                 + "WHERE user_id = ? AND user_id IN (SELECT id FROM users WHERE role_id IN (4, 5))";
+
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, fullName);
@@ -144,14 +199,12 @@ public class EmployeeDAO {
     // ----- Dữ liệu cho dropdown (không giới hạn theo phòng ban như CommonDAO) -----
     public List<Branch> getAllBranchesFull() {
         List<Branch> list = new ArrayList<>();
+        // Không lọc theo status ở đây: HR cần thấy cả chi nhánh đã đóng/inactive
+        // nếu nhân viên đang/đã thuộc chi nhánh đó, tránh dropdown bị rỗng oan.
         String sql = "SELECT id, code, name FROM branches ORDER BY name";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                Branch b = new Branch();
-                b.setId(rs.getInt("id"));
-                b.setCode(rs.getString("code"));
-                b.setName(rs.getString("name"));
-                list.add(b);
+                list.add(new Branch(rs.getInt("id"), rs.getString("code"), rs.getString("name")));
             }
         } catch (Exception e) {
             e.printStackTrace();

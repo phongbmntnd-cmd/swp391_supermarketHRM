@@ -15,6 +15,7 @@ public class User {
     private String fullName;
     private boolean isFirstLogin;
     private String positionName;
+    private String branchName; // Thêm để hiển thị tên chi nhánh (set từ DAO khi JOIN)
 
     public User() {
     }
@@ -119,6 +120,14 @@ public class User {
 
     public void setPositionName(String positionName) {
         this.positionName = positionName;
+    }
+
+    public String getBranchName() {
+        return branchName;
+    }
+
+    public void setBranchName(String branchName) {
+        this.branchName = branchName;
     }
     
     

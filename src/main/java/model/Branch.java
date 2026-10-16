@@ -23,6 +23,10 @@ public class Branch {
         this.createdAt = createdAt;
     }
 
+    public Branch(int aInt, String string, String string0) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
     public int getId() {
         return id;
     }
