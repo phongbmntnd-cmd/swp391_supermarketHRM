@@ -57,7 +57,7 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         }
 
         LocalDate nextSunday = nextMonday.plusDays(6);
-        
+
         // Tính toán mốc tuần trước và tuần sau để phục vụ nút điều hướng trên giao diện
         LocalDate prevMonday = nextMonday.minusWeeks(1);
         LocalDate followingMonday = nextMonday.plusWeeks(1);
@@ -73,12 +73,17 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         EmployeeAvailabilityDAO availabilityDAO = new EmployeeAvailabilityDAO();
         ShiftScheduleDAO scheduleDAO = new ShiftScheduleDAO();
 
+        // --- BỔ SUNG ĐOẠN NÀY ĐỂ LẤY DANH SÁCH CƠ SỞ KHÁC ---
+        dao.BranchDAO branchDAO = new dao.BranchDAO();
+        List<model.Branch> otherBranches = branchDAO.getOtherBranches(managerBranchId);
+        request.setAttribute("allBranches", otherBranches);
+
         List<Shift> shifts = availabilityDAO.getAllShifts();
         List<Map<String, Object>> branchRegistrations = availabilityDAO.getRegistrationsByBranchId(managerBranchId);
-        
+
         // Lấy danh sách nhân viên Full-time cố định của chi nhánh
         List<Map<String, Object>> fullTimeEmployees = scheduleDAO.getFullTimeEmployeesByBranch(managerBranchId);
-        
+
         List<String> assignedList = scheduleDAO.getAssignedKeysByBranchId(managerBranchId);
 
         // Kiểm tra xem lịch trong tuần này của chi nhánh đã được publish chưa
@@ -179,7 +184,9 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             int shiftId = getIntParameter(request, "shiftId", -1);
             String workDate = getStringParameter(request, "workDate");
             int requiredCount = getIntParameter(request, "requiredCount", 1);
-            if (requiredCount < 1) requiredCount = 1;
+            if (requiredCount < 1) {
+                requiredCount = 1;
+            }
 
             if (branchId != -1 && positionId != -1 && shiftId != -1 && workDate != null) {
                 scheduleDAO.updateShiftRequirementByDate(branchId, positionId, shiftId, workDate, requiredCount);
@@ -192,6 +199,23 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             }
             // Giữ nguyên tham số startDate trên URL khi redirect về để quản lý không bị nhảy mất tuần đang xem
             String redirectUrl = "schedule?success=published";
+            if (startDate != null && !startDate.trim().isEmpty()) {
+                redirectUrl += "&startDate=" + startDate;
+            }
+            response.sendRedirect(redirectUrl);
+        } else if ("createTransferProposal".equals(action)) {
+            // Xử lý lưu đề xuất điều chuyển nhân sự giữa các cơ sở ở đây
+            int sourceStoreId = getIntParameter(request, "sourceStoreId", -1);
+            int positionId = getIntParameter(request, "positionId", -1);
+            int shiftId = getIntParameter(request, "shiftId", -1);
+            String workDate = getStringParameter(request, "workDate");
+            int requiredCount = getIntParameter(request, "requiredCount", 0);
+            String reason = getStringParameter(request, "reason");
+
+            // TODO: Gọi hàm DAO tương ứng để lưu thông tin đề xuất mượn nhân sự vào database tại đây
+            // Ví dụ: scheduleDAO.createTransferProposal(branchId, sourceStoreId, positionId, shiftId, workDate, requiredCount, reason);
+            // Redirect lại trang kèm theo mốc startDate cũ để giữ nguyên tuần đang xem
+            String redirectUrl = "schedule?success=transfer_created";
             if (startDate != null && !startDate.trim().isEmpty()) {
                 redirectUrl += "&startDate=" + startDate;
             }

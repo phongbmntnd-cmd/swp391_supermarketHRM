@@ -53,7 +53,7 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         String action = getStringParameter(request, "action");
         int positionId = getIntParameter(request, "positionId", -1);
         String employmentType = getStringParameter(request, "employeeType");
-        String shiftType = getStringParameter(request, "shiftType"); // Bổ sung lấy loại ca làm việc từ form
+        String shiftType = getStringParameter(request, "shiftType");
         String fullName = getStringParameter(request, "fullName");
         String email = getStringParameter(request, "email");
         String phone = getStringParameter(request, "phone");
@@ -89,50 +89,61 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
 
         RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
+        String errorMessage = null;
 
         // Validation chung
         if (fullName == null || fullName.trim().isEmpty()) {
-            request.setAttribute("error", "Vui lòng nhập họ và tên ứng viên!");
+            errorMessage = "Vui lòng nhập họ và tên ứng viên!";
         } else if (phone == null || !phone.matches(phoneRegex)) {
-            request.setAttribute("error", "Số điện thoại không hợp lệ! (Bắt đầu bằng 0 và gồm 10 chữ số)");
+            errorMessage = "Số điện thoại không hợp lệ! (Bắt đầu bằng 0 và gồm 10 chữ số)";
         } else if (identityCard == null || !identityCard.matches(idCardRegex)) {
-            request.setAttribute("error", "Số CCCD/CMND không hợp lệ! (Phải là 9 hoặc 12 chữ số)");
+            errorMessage = "Số CCCD/CMND không hợp lệ! (Phải là 9 hoặc 12 chữ số)";
         } else if (email != null && !email.trim().isEmpty() && !email.matches(emailRegex)) {
-            request.setAttribute("error", "Email không đúng định dạng!");
+            errorMessage = "Email không đúng định dạng!";
         } else if (positionId == -1) {
-            request.setAttribute("error", "Vui lòng chọn vị trí đề xuất!");
+            errorMessage = "Vui lòng chọn vị trí đề xuất!";
         } else if (shiftType == null || shiftType.trim().isEmpty()) {
-            request.setAttribute("error", "Vui lòng chọn loại ca làm việc!");
+            errorMessage = "Vui lòng chọn loại ca làm việc!";
         } else if (parsedTargetDate == null || parsedTargetDate.before(today)) {
-            request.setAttribute("error", "Ngày mong muốn có nhân sự không được hợp lệ hoặc trong quá khứ!");
+            errorMessage = "Ngày mong muốn có nhân sự không được hợp lệ hoặc trong quá khứ!";
+        }
+
+        // Nếu có lỗi validation -> Set attribute và forward lại trang chứa modal
+        if (errorMessage != null) {
+            request.setAttribute("error", errorMessage);
+            loadFormData(request, user);
+            request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment.jsp").forward(request, response);
+            return;
+        }
+
+        // Thực hiện Thao tác CSDL (Create hoặc Resubmit)
+        boolean success = false;
+        if ("resubmit".equals(action)) {
+            int proposalId = getIntParameter(request, "proposalId", -1);
+            success = proposalDAO.resubmitProposal(proposalId, positionId, employmentType, shiftType, fullName, email, phone, identityCard, departmentId, expirationDate, targetDate, reason);
+            if (success) {
+                request.getSession().setAttribute("message", "Cập nhật và gửi lại đề xuất thành công!");
+            }
         } else {
-            boolean success = false;
-            if ("resubmit".equals(action)) {
-                int proposalId = getIntParameter(request, "proposalId", -1);
-                // Truyền thêm shiftType vào hàm resubmit
-                success = proposalDAO.resubmitProposal(proposalId, positionId, employmentType, shiftType, fullName, email, phone, identityCard, departmentId, expirationDate, targetDate, reason);
-                if (success) {
-                    request.setAttribute("message", "Cập nhật và gửi lại đề xuất thành công!");
-                } else {
-                    request.setAttribute("error", "Gửi lại đề xuất thất bại!");
-                }
-            } else {
-                // Truyền thêm shiftType vào hàm createProposal
-                success = proposalDAO.createProposal(
-                        user.getHomeBranchId(), positionId, employmentType, shiftType,
-                        fullName, email, phone, identityCard, departmentId,
-                        expirationDate, targetDate, reason, user.getId()
-                );
-                if (success) {
-                    request.setAttribute("message", "Gửi đề xuất tuyển dụng thành công! Vui lòng chờ HR phê duyệt.");
-                } else {
-                    request.setAttribute("error", "Gửi đề xuất thất bại!");
-                }
+            success = proposalDAO.createProposal(
+                    user.getHomeBranchId(), positionId, employmentType, shiftType,
+                    fullName, email, phone, identityCard, departmentId,
+                    expirationDate, targetDate, reason, user.getId()
+            );
+            if (success) {
+                request.getSession().setAttribute("message", "Gửi đề xuất tuyển dụng thành công! Vui lòng chờ HR phê duyệt.");
             }
         }
 
-        loadFormData(request, user);
-        request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment.jsp").forward(request, response);
+        if (success) {
+            // ÁP DỤNG CHUẨN PRG (Post/Redirect/Get): Chuyển hướng sang GET để tránh nhân bản khi F5
+            response.sendRedirect(request.getContextPath() + "/store-manager/recruitment");
+        } else {
+            // Thất bại khi thao tác với Database
+            request.setAttribute("error", "Thực hiện thao tác thất bại! Vui lòng thử lại.");
+            loadFormData(request, user);
+            request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment.jsp").forward(request, response);
+        }
     }
 
     private void loadFormData(HttpServletRequest request, User user) {

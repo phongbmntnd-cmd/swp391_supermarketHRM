@@ -104,7 +104,7 @@ public class EmployeeDAO {
     // Lấy thông tin chi tiết nhân viên theo ID, có JOIN bảng branches và positions để lấy tên cơ sở và vị trí
     public Employee getEmployeeById(int userId) {
         Employee emp = null;
-        String sql = "SELECT ep.*, u.username, u.email, u.status as user_status, "
+        String sql = "SELECT ep.*, u.username, u.email, u.status as user_status, u.role_id, "
                 + "b.name as branch_name, p.title as position_title, d.name as department_name, r.name as role_name "
                 + "FROM employee_profiles ep "
                 + "JOIN users u ON ep.user_id = u.id "

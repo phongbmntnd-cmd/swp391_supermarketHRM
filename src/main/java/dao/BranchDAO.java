@@ -39,6 +39,39 @@ public class BranchDAO {
         }
         return list;
     }
+    
+    // 1.1
+    /**
+     * Lấy danh sách tất cả các cơ sở ngoại trừ cơ sở hiện tại (dùng cho việc mượn nhân sự)
+     * @param currentBranchId ID của cơ sở hiện tại cần loại bỏ
+     * @return Danh sách các Branch khác
+     */
+    public List<Branch> getOtherBranches(int currentBranchId) {
+        List<Branch> list = new ArrayList<>();
+        String sql = "SELECT id, code, name, address, status, store_manager_id, created_at "
+                   + "FROM branches WHERE id != ? AND status = 'ACTIVE' ORDER BY name ASC";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, currentBranchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Branch b = new Branch();
+                    b.setId(rs.getInt("id"));
+                    b.setCode(rs.getString("code"));
+                    b.setName(rs.getString("name"));
+                    b.setAddress(rs.getString("address"));
+                    b.setStatus(rs.getString("status"));
+                    b.setStoreManagerId(rs.getInt("store_manager_id"));
+                    b.setCreatedAt(rs.getTimestamp("created_at"));
+                    list.add(b);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
 
     // 2. Thêm mới Cơ sở
     public boolean insertBranch(String code, String name, String address) {
