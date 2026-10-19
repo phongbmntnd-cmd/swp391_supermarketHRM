@@ -9,11 +9,43 @@ import java.util.List;
 
 public class EmployeeAvailabilityDAO {
 
-    // Lấy danh sách ca làm việc từ bảng shifts
+    // 1. Lấy tất cả danh sách ca làm việc (Phục vụ cho Store Manager xếp lịch)
     public List<Shift> getAllShifts() {
         List<Shift> list = new ArrayList<>();
-        String sql = "SELECT id, name, start_time, end_time FROM shifts";
-        try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql); ResultSet rs = st.executeQuery()) {
+        String sql = "SELECT id, name, start_time, end_time FROM shifts ORDER BY start_time";
+        try (Connection conn = DBContext.getConnection(); 
+             PreparedStatement st = conn.prepareStatement(sql); 
+             ResultSet rs = st.executeQuery()) {
+
+            while (rs.next()) {
+                Shift s = new Shift();
+                s.setId(rs.getInt("id"));
+                s.setName(rs.getString("name"));
+                s.setStartTime(rs.getTime("start_time"));
+                s.setEndTime(rs.getTime("end_time"));
+                list.add(s);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    // 2. Lấy danh sách ca làm việc tùy theo loại nhân sự (Phục vụ cho nhân viên đăng ký lịch rảnh)
+    public List<Shift> getShiftsByEmployeeType(String employeeType) {
+        List<Shift> list = new ArrayList<>();
+        String sql = "SELECT id, name, start_time, end_time FROM shifts WHERE ";
+        
+        if ("FULL_TIME".equalsIgnoreCase(employeeType)) {
+            sql += "name LIKE '%Full-time%'";
+        } else {
+            sql += "name NOT LIKE '%Full-time%'";
+        }
+        sql += " ORDER BY start_time";
+
+        try (Connection conn = DBContext.getConnection(); 
+             PreparedStatement st = conn.prepareStatement(sql); 
+             ResultSet rs = st.executeQuery()) {
 
             while (rs.next()) {
                 Shift s = new Shift();
@@ -52,7 +84,7 @@ public class EmployeeAvailabilityDAO {
         return list;
     }
 
-    //lấy tất cả lịch rảnh của nhân viên
+    // Lấy tất cả lịch rảnh của nhân viên
     public List<EmployeeAvailability> getAllAvailabilities() {
         List<EmployeeAvailability> list = new ArrayList<>();
         String sql = "SELECT * FROM employee_availabilities";
@@ -79,15 +111,13 @@ public class EmployeeAvailabilityDAO {
         Connection conn = null;
         try {
             conn = DBContext.getConnection();
-            conn.setAutoCommit(false); // Bắt đầu transaction
+            conn.setAutoCommit(false);
 
-            // Xóa lịch rảnh cũ của user
             try (PreparedStatement stDel = conn.prepareStatement(deleteSql)) {
                 stDel.setInt(1, userId);
                 stDel.executeUpdate();
             }
 
-            // Thêm mới danh sách lịch rảnh
             try (PreparedStatement stIns = conn.prepareStatement(insertSql)) {
                 for (EmployeeAvailability av : availabilities) {
                     stIns.setInt(1, userId);
@@ -98,11 +128,11 @@ public class EmployeeAvailabilityDAO {
                 stIns.executeBatch();
             }
 
-            conn.commit(); // Xác nhận transaction thành công
+            conn.commit();
         } catch (Exception e) {
             if (conn != null) {
                 try {
-                    conn.rollback(); // Rollback nếu có lỗi xảy ra
+                    conn.rollback();
                 } catch (SQLException ex) {
                     ex.printStackTrace();
                 }
@@ -112,7 +142,7 @@ public class EmployeeAvailabilityDAO {
             if (conn != null) {
                 try {
                     conn.setAutoCommit(true);
-                    conn.close(); // Đóng kết nối
+                    conn.close();
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }

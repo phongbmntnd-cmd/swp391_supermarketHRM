@@ -33,15 +33,15 @@ public class RecruitmentProposalDAO {
     public boolean createProposal(
             int branchId, int positionId, String employmentType,
             String fullName, String email, String phone, String identityCard,
-            int departmentId, String shiftType, String expirationDate, String targetDate,
+            int departmentId, String expirationDate, String targetDate,
             String reason, int createdBy) {
 
         String sqlCandidate = "INSERT INTO candidates (full_name, email, phone, identity_card, created_at) "
                 + "VALUES (?, ?, ?, ?, NOW())";
 
         String sqlProposal = "INSERT INTO recruitment_proposals "
-                + "(candidate_id, branch_id, position_id, department_id, employment_type, shift_type, expiration_date, target_date, quantity, reason, status, created_by, created_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'PENDING', ?, NOW())";
+                + "(candidate_id, branch_id, position_id, department_id, employment_type, expiration_date, target_date, quantity, reason, status, created_by, created_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 'PENDING', ?, NOW())";
 
         Connection conn = null;
         try {
@@ -72,8 +72,19 @@ public class RecruitmentProposalDAO {
 
             PreparedStatement psProposal = conn.prepareStatement(sqlProposal);
             psProposal.setInt(1, candidateId);
-            psProposal.setInt(2, branchId);
-            psProposal.setInt(3, positionId);
+            
+            if (branchId > 0) {
+                psProposal.setInt(2, branchId);
+            } else {
+                psProposal.setNull(2, Types.INTEGER);
+            }
+
+            if (positionId > 0) {
+                psProposal.setInt(3, positionId);
+            } else {
+                conn.rollback();
+                return false;
+            }
 
             if (departmentId > 0) {
                 psProposal.setInt(4, departmentId);
@@ -83,15 +94,19 @@ public class RecruitmentProposalDAO {
 
             psProposal.setString(5, employmentType);
 
-            if ("PART_TIME".equalsIgnoreCase(employmentType) && shiftType != null && !shiftType.trim().isEmpty()) {
-                psProposal.setString(6, shiftType.trim());
+            if (expirationDate != null && !expirationDate.trim().isEmpty()) {
+                try {
+                    psProposal.setDate(6, java.sql.Date.valueOf(expirationDate.trim()));
+                } catch (IllegalArgumentException e) {
+                    psProposal.setNull(6, Types.DATE);
+                }
             } else {
-                psProposal.setNull(6, Types.VARCHAR);
+                psProposal.setNull(6, Types.DATE);
             }
 
-            if ("CASUAL".equalsIgnoreCase(employmentType) && expirationDate != null && !expirationDate.trim().isEmpty()) {
+            if (targetDate != null && !targetDate.trim().isEmpty()) {
                 try {
-                    psProposal.setDate(7, java.sql.Date.valueOf(expirationDate.trim()));
+                    psProposal.setDate(7, java.sql.Date.valueOf(targetDate.trim()));
                 } catch (IllegalArgumentException e) {
                     psProposal.setNull(7, Types.DATE);
                 }
@@ -99,28 +114,18 @@ public class RecruitmentProposalDAO {
                 psProposal.setNull(7, Types.DATE);
             }
 
-            if (targetDate != null && !targetDate.trim().isEmpty()) {
-                try {
-                    psProposal.setDate(8, java.sql.Date.valueOf(targetDate.trim()));
-                } catch (IllegalArgumentException e) {
-                    psProposal.setNull(8, Types.DATE);
-                }
-            } else {
-                psProposal.setNull(8, Types.DATE);
-            }
-
-            psProposal.setString(9, reason);
-            psProposal.setInt(10, createdBy);
+            psProposal.setString(8, reason);
+            psProposal.setInt(9, createdBy);
 
             psProposal.executeUpdate();
             conn.commit();
             return true;
 
         } catch (Exception e) {
+            e.printStackTrace();
             if (conn != null) {
                 try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
             }
-            e.printStackTrace();
             return false;
         } finally {
             if (conn != null) {
@@ -134,7 +139,7 @@ public class RecruitmentProposalDAO {
      */
     public boolean resubmitProposal(int proposalId, int positionId, String employmentType,
             String fullName, String email, String phone, String identityCard,
-            int departmentId, String shiftType, String expirationDate, String targetDate, String reason) {
+            int departmentId, String expirationDate, String targetDate, String reason) {
         
         RecruitmentProposal proposal = getProposalById(proposalId);
         if (proposal == null || !"REJECTED".equals(proposal.getStatus())) {
@@ -156,7 +161,7 @@ public class RecruitmentProposalDAO {
             psCandidate.executeUpdate();
 
             String sqlProposal = "UPDATE recruitment_proposals "
-                    + "SET position_id = ?, department_id = ?, employment_type = ?, shift_type = ?, "
+                    + "SET position_id = ?, department_id = ?, employment_type = ?, "
                     + "expiration_date = ?, target_date = ?, reason = ?, status = 'PENDING', hr_note = NULL, updated_at = NOW() "
                     + "WHERE id = ?";
             
@@ -171,36 +176,30 @@ public class RecruitmentProposalDAO {
             
             psProposal.setString(3, employmentType);
 
-            if ("PART_TIME".equalsIgnoreCase(employmentType) && shiftType != null && !shiftType.trim().isEmpty()) {
-                psProposal.setString(4, shiftType.trim());
+            if (expirationDate != null && !expirationDate.trim().isEmpty()) {
+                psProposal.setDate(4, java.sql.Date.valueOf(expirationDate.trim()));
             } else {
-                psProposal.setNull(4, Types.VARCHAR);
+                psProposal.setNull(4, Types.DATE);
             }
 
-            if ("CASUAL".equalsIgnoreCase(employmentType) && expirationDate != null && !expirationDate.trim().isEmpty()) {
-                psProposal.setDate(5, java.sql.Date.valueOf(expirationDate.trim()));
+            if (targetDate != null && !targetDate.trim().isEmpty()) {
+                psProposal.setDate(5, java.sql.Date.valueOf(targetDate.trim()));
             } else {
                 psProposal.setNull(5, Types.DATE);
             }
 
-            if (targetDate != null && !targetDate.trim().isEmpty()) {
-                psProposal.setDate(6, java.sql.Date.valueOf(targetDate.trim()));
-            } else {
-                psProposal.setNull(6, Types.DATE);
-            }
-
-            psProposal.setString(7, reason);
-            psProposal.setInt(8, proposalId);
+            psProposal.setString(6, reason);
+            psProposal.setInt(7, proposalId);
 
             psProposal.executeUpdate();
             conn.commit();
             return true;
 
         } catch (Exception e) {
+            e.printStackTrace();
             if (conn != null) {
                 try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
             }
-            e.printStackTrace();
             return false;
         } finally {
             if (conn != null) {
@@ -209,14 +208,14 @@ public class RecruitmentProposalDAO {
         }
     }
 
-    // =========================================================================
-    // TRANSACTION PHÊ DUYỆT ĐỀ XUẤT VÀ CẤP TÀI KHOẢN TRỌN GÓI
-    // =========================================================================
+    /**
+     * Transaction phê duyệt đề xuất và cấp tài khoản trọn gói
+     */
     public boolean approveProposalAndCreateUser(
             String username, String email, int roleId, String expirationDate,
             String fullName, String phone, String identityCard,
             int homeBranchId, int positionId, int departmentId,
-            String employeeType, String shiftType, int proposalId, int hrUserId, String customNote) {
+            String employeeType, int proposalId, int hrUserId, String customNote) {
 
         String sqlUser = "INSERT INTO users (username, password_hash, email, status, expiration_date, role_id, is_first_login, created_at, updated_at) "
                 + "VALUES (?, '123456', ?, 'ACTIVE', ?, ?, 1, NOW(), NOW())";
@@ -233,7 +232,6 @@ public class RecruitmentProposalDAO {
             conn = new DBContext().getConnection();
             conn.setAutoCommit(false);
 
-            // 1. Insert User
             PreparedStatement psUser = conn.prepareStatement(sqlUser, PreparedStatement.RETURN_GENERATED_KEYS);
             psUser.setString(1, username);
             psUser.setString(2, (email == null || email.trim().isEmpty()) ? null : email.trim());
@@ -264,7 +262,6 @@ public class RecruitmentProposalDAO {
                 }
             }
 
-            // 2. Insert Profile
             PreparedStatement psProfile = conn.prepareStatement(sqlProfile);
             psProfile.setInt(1, generatedUserId);
             psProfile.setString(2, fullName != null ? fullName.trim() : "");
@@ -278,18 +275,17 @@ public class RecruitmentProposalDAO {
                 psProfile.setNull(7, Types.INTEGER);
             }
             psProfile.setString(8, employeeType);
+            
             psProfile.executeUpdate();
 
-            // 3. Ủy quyền tạo Hợp đồng sang ContractDAO
             ContractDAO contractDAO = new ContractDAO();
-            String contractType = "Hợp đồng " + (employeeType != null ? employeeType : "CHÍNH THỨC");
+            String contractType = (expirationDate != null && !expirationDate.trim().isEmpty()) ? "Hợp đồng CASUAL" : "Hợp đồng CHÍNH THỨC";
             boolean contractCreated = contractDAO.addContractWithConn(conn, generatedUserId, contractType, null, expirationDate, "ACTIVE");
             if (!contractCreated) {
                 conn.rollback();
                 return false;
             }
 
-            // 4. Update Proposal Status
             if (proposalId > 0 && hrUserId > 0) {
                 PreparedStatement psProposal = conn.prepareStatement(sqlApproveProposal);
                 psProposal.setInt(1, hrUserId);
@@ -302,10 +298,10 @@ public class RecruitmentProposalDAO {
             return true;
 
         } catch (Exception e) {
+            e.printStackTrace();
             if (conn != null) {
                 try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
             }
-            e.printStackTrace();
             return false;
         } finally {
             if (conn != null) {
@@ -314,9 +310,6 @@ public class RecruitmentProposalDAO {
         }
     }
 
-    /**
-     * Lấy danh sách đề xuất theo chi nhánh
-     */
     public List<RecruitmentProposal> getProposalsByBranch(int branchId) {
         List<RecruitmentProposal> list = new ArrayList<>();
         String sql = BASE_SELECT + "WHERE rp.branch_id = ? ORDER BY rp.created_at DESC";
@@ -334,9 +327,6 @@ public class RecruitmentProposalDAO {
         return list;
     }
 
-    /**
-     * Lấy toàn bộ danh sách đề xuất
-     */
     public List<RecruitmentProposal> getAllProposals() {
         List<RecruitmentProposal> list = new ArrayList<>();
         String sql = BASE_SELECT + "ORDER BY rp.created_at DESC";
@@ -351,9 +341,6 @@ public class RecruitmentProposalDAO {
         return list;
     }
 
-    /**
-     * Lấy danh sách các đề xuất đang chờ duyệt (PENDING)
-     */
     public List<RecruitmentProposal> getPendingProposals() {
         List<RecruitmentProposal> list = new ArrayList<>();
         String sql = BASE_SELECT + "WHERE rp.status = 'PENDING' ORDER BY rp.created_at DESC";
@@ -368,9 +355,6 @@ public class RecruitmentProposalDAO {
         return list;
     }
 
-    /**
-     * Lấy chi tiết đề xuất theo ID
-     */
     public RecruitmentProposal getProposalById(int id) {
         String sql = BASE_SELECT + "WHERE rp.id = ?";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -386,9 +370,6 @@ public class RecruitmentProposalDAO {
         return null;
     }
 
-    /**
-     * Từ chối đề xuất tuyển dụng
-     */
     public boolean rejectProposal(int proposalId, int approvedBy, String hrNote) {
         String sql = "UPDATE recruitment_proposals "
                 + "SET status = 'REJECTED', approved_by = ?, hr_note = ?, updated_at = NOW() "
@@ -398,16 +379,13 @@ public class RecruitmentProposalDAO {
             ps.setInt(1, approvedBy);
             ps.setString(2, hrNote);
             ps.setInt(3, proposalId);
-            return ps.executeUpdate() > 0;
+            return ps.executeUpdate() >0;
         } catch (Exception e) {
             e.printStackTrace();
         }
         return false;
     }
 
-    /**
-     * Ánh xạ ResultSet sang Object RecruitmentProposal
-     */
     private RecruitmentProposal mapResultSetToProposal(ResultSet rs) throws Exception {
         RecruitmentProposal rp = new RecruitmentProposal();
         rp.setId(rs.getInt("id"));
@@ -421,7 +399,6 @@ public class RecruitmentProposalDAO {
         rp.setDepartmentId(rs.wasNull() ? null : deptId);
 
         rp.setEmploymentType(rs.getString("employment_type"));
-        rp.setShiftType(rs.getString("shift_type"));
         rp.setExpirationDate(rs.getDate("expiration_date"));
         rp.setQuantity(rs.getInt("quantity"));
         rp.setTargetDate(rs.getDate("target_date"));

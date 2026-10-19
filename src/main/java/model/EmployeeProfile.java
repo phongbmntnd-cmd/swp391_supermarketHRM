@@ -3,7 +3,7 @@ package model;
 import java.sql.Timestamp;
 
 public class EmployeeProfile {
-    
+
     private int userId;
     private String fullName;
     private String phone;
@@ -12,8 +12,9 @@ public class EmployeeProfile {
     private int positionId;
     private int departmentId;
     private String employeeType;
+    private String shiftType;
     private Timestamp createdAt;
-    
+
     // Thông tin bổ sung từ JOIN (không lưu DB)
     private String positionName;
     private String departmentName;
@@ -23,7 +24,7 @@ public class EmployeeProfile {
     private String status;
     private int roleId;
     private String roleName;
-    
+
     public EmployeeProfile() {
     }
 
@@ -89,6 +90,14 @@ public class EmployeeProfile {
 
     public void setEmployeeType(String employeeType) {
         this.employeeType = employeeType;
+    }
+
+    public String getShiftType() {
+        return shiftType;
+    }
+
+    public void setShiftType(String shiftType) {
+        this.shiftType = shiftType;
     }
 
     public Timestamp getCreatedAt() {

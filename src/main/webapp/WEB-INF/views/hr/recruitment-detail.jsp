@@ -129,22 +129,14 @@
                             </div>
 
                             <div class="field">
-                                <label>Ca làm việc / Hạn HĐ</label>
+                                <label>Hạn HĐ (Nếu có)</label>
                                 <div>
                                     <c:choose>
-                                        <c:when test="${proposal.employmentType == 'PART_TIME'}">
-                                            ${empty proposal.shiftType ? 'Theo phân công chi nhánh' : proposal.shiftType}
-                                        </c:when>
-                                        <c:when test="${proposal.employmentType == 'CASUAL'}">
-                                            <c:if test="${not empty proposal.expirationDate}">
-                                                Hạn HĐ: <strong style="color: #dc3545;"><fmt:formatDate value="${proposal.expirationDate}" pattern="dd/MM/yyyy"/></strong>
-                                            </c:if>
-                                            <c:if test="${empty proposal.expirationDate}">
-                                                Không xác định
-                                            </c:if>
+                                        <c:when test="${not empty proposal.expirationDate}">
+                                            <strong style="color: #dc3545;"><fmt:formatDate value="${proposal.expirationDate}" pattern="dd/MM/yyyy"/></strong>
                                         </c:when>
                                         <c:otherwise>
-                                            Theo phân công chi nhánh
+                                            Không thời hạn (Chính thức)
                                         </c:otherwise>
                                     </c:choose>
                                 </div>

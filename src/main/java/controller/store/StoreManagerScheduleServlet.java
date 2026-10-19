@@ -26,43 +26,65 @@ public class StoreManagerScheduleServlet extends BaseServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // --- BƯỚC 1: XÁC THỰC PHIÊN ĐĂNG NHẬP THÔNG QUA BASESERVLET ---
         User user = getCurrentUser(request);
         if (user == null) {
             redirectToLogin(request, response);
             return;
         }
 
-        // --- BƯỚC 2: KIỂM TRA PHÂN QUYỀN (CHỈ STORE_MANAGER HOẶC ADMIN) ---
         if (!isStoreManager(request) && user.getRoleId() != ROLE_ADMIN) {
             sendForbidden(request, response, "Bạn không có quyền truy cập trang quản lý lịch trực!");
             return;
         }
 
-        // --- BƯỚC 3: XÁC ĐỊNH CHI NHÁNH CỦA QUẢN LÝ ---
         int managerBranchId = getCurrentBranchId(request);
         if (managerBranchId == -1) {
-            managerBranchId = 1; // Mặc định nếu chưa gán cơ sở
+            managerBranchId = 1;
         }
 
-        // --- BƯỚC 4: TÍNH TOÁN THỜI GIAN TUẦN TỚI ---
-        LocalDate today = LocalDate.now();
-        LocalDate nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        // Nhận tham số startDate từ request để hỗ trợ xem lại các tuần cũ hoặc tuần khác
+        String startDateParam = request.getParameter("startDate");
+        LocalDate nextMonday;
+        try {
+            if (startDateParam != null && !startDateParam.trim().isEmpty()) {
+                nextMonday = LocalDate.parse(startDateParam);
+            } else {
+                LocalDate today = LocalDate.now();
+                nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+            }
+        } catch (Exception e) {
+            nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        }
+
         LocalDate nextSunday = nextMonday.plusDays(6);
+        
+        // Tính toán mốc tuần trước và tuần sau để phục vụ nút điều hướng trên giao diện
+        LocalDate prevMonday = nextMonday.minusWeeks(1);
+        LocalDate followingMonday = nextMonday.plusWeeks(1);
+
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         request.setAttribute("startDate", nextMonday.format(formatter));
         request.setAttribute("endDate", nextSunday.format(formatter));
+        request.setAttribute("startDateRaw", nextMonday.toString());
+        request.setAttribute("prevWeekDate", prevMonday.toString());
+        request.setAttribute("nextWeekDate", followingMonday.toString());
 
-        // --- BƯỚC 5: GỌI DAO ĐỂ LẤY DỮ LIỆU THÔ ---
         EmployeeAvailabilityDAO availabilityDAO = new EmployeeAvailabilityDAO();
         ShiftScheduleDAO scheduleDAO = new ShiftScheduleDAO();
 
         List<Shift> shifts = availabilityDAO.getAllShifts();
         List<Map<String, Object>> branchRegistrations = availabilityDAO.getRegistrationsByBranchId(managerBranchId);
+        
+        // Lấy danh sách nhân viên Full-time cố định của chi nhánh
+        List<Map<String, Object>> fullTimeEmployees = scheduleDAO.getFullTimeEmployeesByBranch(managerBranchId);
+        
         List<String> assignedList = scheduleDAO.getAssignedKeysByBranchId(managerBranchId);
 
-        // --- BƯỚC 6: LỌC DANH SÁCH VỊ TRÍ (LOẠI BỎ CẤP QUẢN LÝ) ---
+        // Kiểm tra xem lịch trong tuần này của chi nhánh đã được publish chưa
+        boolean isPublished = scheduleDAO.isWeekPublished(managerBranchId, nextMonday.toString(), nextSunday.toString());
+        request.setAttribute("isPublished", isPublished);
+
         String sqlPos = "SELECT id, title FROM positions "
                 + "WHERE title NOT LIKE '%Quản Lý%' "
                 + "AND title NOT LIKE '%Giám Đốc%' "
@@ -79,7 +101,6 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             e.printStackTrace();
         }
 
-        // --- BƯỚC 7: ÁNH XẠ NGÀY THÁNG CHO TỪNG THỨ TRONG TUẦN ---
         String[] days = {"MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"};
         String[] dayNames = {"Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"};
 
@@ -89,22 +110,27 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             dayDateMap.put(days[i], d.toString());
         }
 
-        // --- BƯỚC 8: TRUYỀN DỮ LIỆU RA GIAO DIỆN JSP ---
+        // Lấy định mức yêu cầu và số lượng thực tế đã xếp trong tuần theo từng ngày, vị trí, ca
+        Map<String, Map<String, Object>> weeklyRequirements = scheduleDAO.getWeeklyRequirementsMap(managerBranchId, nextMonday.toString(), nextSunday.toString());
+        Map<String, Integer> weeklyAssignedCounts = scheduleDAO.getWeeklyAssignedCountMap(managerBranchId, nextMonday.toString(), nextSunday.toString());
+
         request.setAttribute("days", days);
         request.setAttribute("dayNames", dayNames);
         request.setAttribute("dayDateMap", dayDateMap);
         request.setAttribute("shifts", shifts);
         request.setAttribute("positions", positions);
         request.setAttribute("branchRegistrations", branchRegistrations);
+        request.setAttribute("fullTimeEmployees", fullTimeEmployees);
         request.setAttribute("assignedList", assignedList);
         request.setAttribute("managerBranchId", managerBranchId);
+        request.setAttribute("weeklyRequirements", weeklyRequirements);
+        request.setAttribute("weeklyAssignedCounts", weeklyAssignedCounts);
 
         request.getRequestDispatcher("/WEB-INF/views/store-manager/schedule.jsp").forward(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // --- XÁC THỰC QUYỀN CHO YÊU CẦU POST ---
         User user = getCurrentUser(request);
         if (user == null || (!isStoreManager(request) && user.getRoleId() != ROLE_ADMIN)) {
             redirectToLogin(request, response);
@@ -112,10 +138,10 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         }
 
         String action = getStringParameter(request, "action");
+        String startDate = getStringParameter(request, "startDate"); // Giữ lại mốc tuần đang thao tác để redirect về đúng tuần
         ShiftScheduleDAO scheduleDAO = new ShiftScheduleDAO();
 
         if ("assign".equals(action)) {
-            // --- XỬ LÝ AJAX KHI QUẢN LÝ TÍCH CHỌN HOẶC HỦY CHỌN CA ---
             int userId = getIntParameter(request, "userId", -1);
             int shiftId = getIntParameter(request, "shiftId", -1);
             int branchId = getIntParameter(request, "branchId", -1);
@@ -124,23 +150,38 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             if (userId != -1 && shiftId != -1 && branchId != -1 && workDate != null) {
                 boolean exists = scheduleDAO.checkScheduleExists(branchId, userId, shiftId, workDate);
                 if (exists) {
-                    // Nếu đã tồn tại -> Xóa (Hủy chọn)
                     scheduleDAO.deleteSchedule(branchId, userId, shiftId, workDate);
                     response.getWriter().write("removed");
                 } else {
-                    // Nếu chưa tồn tại -> Thêm mới (Chọn)
                     scheduleDAO.insertSchedule(branchId, userId, shiftId, workDate);
                     response.getWriter().write("added");
                 }
             }
 
+        } else if ("updateRequirement".equals(action)) {
+            int branchId = getIntParameter(request, "branchId", -1);
+            int positionId = getIntParameter(request, "positionId", -1);
+            int shiftId = getIntParameter(request, "shiftId", -1);
+            String workDate = getStringParameter(request, "workDate");
+            int requiredCount = getIntParameter(request, "requiredCount", 1);
+            if (requiredCount < 1) requiredCount = 1;
+
+            if (branchId != -1 && positionId != -1 && shiftId != -1 && workDate != null) {
+                scheduleDAO.updateShiftRequirementByDate(branchId, positionId, shiftId, workDate, requiredCount);
+                response.getWriter().write("success");
+            }
+
         } else if ("publish".equals(action)) {
-            // --- XỬ LÝ NÚT PUBLISH: CHUYỂN TRẠNG THÁI LỊCH NHÁP SANG CHÍNH THỨC ---
             int branchId = getIntParameter(request, "branchId", -1);
             if (branchId != -1) {
                 scheduleDAO.publishSchedules(branchId);
             }
-            response.sendRedirect("schedule?success=published");
+            // Giữ nguyên tham số startDate trên URL khi redirect về để quản lý không bị nhảy mất tuần đang xem
+            String redirectUrl = "schedule?success=published";
+            if (startDate != null && !startDate.trim().isEmpty()) {
+                redirectUrl += "&startDate=" + startDate;
+            }
+            response.sendRedirect(redirectUrl);
         }
     }
 }

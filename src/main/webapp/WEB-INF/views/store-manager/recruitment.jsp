@@ -144,26 +144,21 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Hình thức <span class="text-danger">*</span></label>
-                                    <select id="employeeTypeSelect" name="employeeType" class="form-select" onchange="handleTypeChange('employeeTypeSelect', 'shiftContainer', 'expContainer')" required>
-                                        <option value="FULL_TIME">FULL_TIME (Chính thức)</option>
+                                    <label class="form-label">Hình thức làm việc <span class="text-danger">*</span></label>
+                                    <select name="employeeType" class="form-select" required>
+                                        <option value="FULL_TIME">FULL_TIME (Toàn thời gian)</option>
                                         <option value="PART_TIME">PART_TIME (Bán thời gian)</option>
-                                        <option value="CASUAL">CASUAL (Thời vụ)</option>
                                     </select>
                                 </div>
                             </div>
+
+                            <!-- LOẠI HỢP ĐỒNG VÀ NGÀY HẾT HẠN -->
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
-                                    <label class="form-label">Ngày mong muốn có nhân sự <span class="text-danger">*</span></label>
-                                    <input type="date" id="targetDateInput" name="targetDate" class="form-control" required>
-                                </div>
-                                <div class="col-md-6" id="shiftContainer" style="display: none;">
-                                    <label class="form-label">Ca làm việc cố định <span class="text-danger">*</span></label>
-                                    <select id="shiftSelect" name="shiftType" class="form-select">
-                                        <option value="">-- Chọn ca --</option>
-                                        <option value="SANG">Ca Sáng</option>
-                                        <option value="CHIEU">Ca Chiều</option>
-                                        <option value="TOI">Ca Tối</option>
+                                    <label class="form-label">Loại hợp đồng <span class="text-danger">*</span></label>
+                                    <select id="contractTypeSelect" name="contractType" class="form-select" onchange="handleContractTypeChange('contractTypeSelect', 'expContainer')" required>
+                                        <option value="CHINH_THUC">Hợp đồng chính thức</option>
+                                        <option value="THOI_VU">Hợp đồng thời vụ (Casual)</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6" id="expContainer" style="display: none;">
@@ -171,6 +166,14 @@
                                     <input type="date" id="expirationDateInput" name="expirationDate" class="form-control">
                                 </div>
                             </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-12">
+                                    <label class="form-label">Ngày mong muốn có nhân sự <span class="text-danger">*</span></label>
+                                    <input type="date" id="targetDateInput" name="targetDate" class="form-control" required>
+                                </div>
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label">Lý do đề xuất <span class="text-danger">*</span></label>
                                 <textarea name="reason" rows="2" class="form-control" required></textarea>
@@ -227,31 +230,32 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">Hình thức <span class="text-danger">*</span></label>
-                                    <select id="editEmployeeType" name="employeeType" class="form-select" onchange="handleTypeChange('editEmployeeType', 'editShiftContainer', 'editExpContainer')" required>
+                                    <label class="form-label">Hình thức làm việc <span class="text-danger">*</span></label>
+                                    <select id="editEmployeeType" name="employeeType" class="form-select" required>
                                         <option value="FULL_TIME">FULL_TIME</option>
                                         <option value="PART_TIME">PART_TIME</option>
-                                        <option value="CASUAL">CASUAL</option>
                                     </select>
                                 </div>
                             </div>
+
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
-                                    <label class="form-label">Ngày mong muốn có nhân sự <span class="text-danger">*</span></label>
-                                    <input type="date" id="editTargetDate" name="targetDate" class="form-control" required>
-                                </div>
-                                <div class="col-md-6" id="editShiftContainer" style="display: none;">
-                                    <label class="form-label">Ca làm việc cố định <span class="text-danger">*</span></label>
-                                    <select id="editShiftType" name="shiftType" class="form-select">
-                                        <option value="">-- Chọn ca --</option>
-                                        <option value="SANG">Ca Sáng</option>
-                                        <option value="CHIEU">Ca Chiều</option>
-                                        <option value="TOI">Ca Tối</option>
+                                    <label class="form-label">Loại hợp đồng <span class="text-danger">*</span></label>
+                                    <select id="editContractType" name="contractType" class="form-select" onchange="handleContractTypeChange('editContractType', 'editExpContainer')" required>
+                                        <option value="CHINH_THUC">Hợp đồng chính thức</option>
+                                        <option value="THOI_VU">Hợp đồng thời vụ (Casual)</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6" id="editExpContainer" style="display: none;">
                                     <label class="form-label">Ngày kết thúc HĐ <span class="text-danger">*</span></label>
                                     <input type="date" id="editExpirationDate" name="expirationDate" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-12">
+                                    <label class="form-label">Ngày mong muốn có nhân sự <span class="text-danger">*</span></label>
+                                    <input type="date" id="editTargetDate" name="targetDate" class="form-control" required>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -270,29 +274,15 @@
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            function handleTypeChange(selectId, shiftContId, expContId) {
-                const type = document.getElementById(selectId).value;
-                const shiftContainer = document.getElementById(shiftContId);
-                const shiftSelect = shiftContainer.querySelector('select');
+            function handleContractTypeChange(selectId, expContId) {
+                const contractType = document.getElementById(selectId).value;
                 const expContainer = document.getElementById(expContId);
                 const expInput = expContainer.querySelector('input');
 
-                if (type === 'PART_TIME') {
-                    shiftContainer.style.display = 'block';
-                    shiftSelect.required = true;
-                    expContainer.style.display = 'none';
-                    expInput.required = false;
-                    expInput.value = '';
-                } else if (type === 'CASUAL') {
-                    shiftContainer.style.display = 'none';
-                    shiftSelect.required = false;
-                    shiftSelect.value = '';
+                if (contractType === 'THOI_VU') {
                     expContainer.style.display = 'block';
                     expInput.required = true;
                 } else {
-                    shiftContainer.style.display = 'none';
-                    shiftSelect.required = false;
-                    shiftSelect.value = '';
                     expContainer.style.display = 'none';
                     expInput.required = false;
                     expInput.value = '';
@@ -314,7 +304,6 @@
                 const editExpirationDate = document.getElementById('editExpirationDate');
                 if (editExpirationDate) editExpirationDate.min = today;
 
-                // Tự động bật lại Modal tạo mới nếu server trả về lỗi
                 <c:if test="${not empty error}">
                     var createModal = new bootstrap.Modal(document.getElementById('createProposalModal'));
                     createModal.show();
@@ -331,8 +320,6 @@
                 document.getElementById('editEmployeeType').value = employmentType;
                 document.getElementById('editTargetDate').value = (targetDate !== 'null' && targetDate !== 'undefined') ? targetDate : '';
                 document.getElementById('editReason').value = reason;
-
-                handleTypeChange('editEmployeeType', 'editShiftContainer', 'editExpContainer');
 
                 var resubmitModal = new bootstrap.Modal(document.getElementById('resubmitModal'));
                 resubmitModal.show();

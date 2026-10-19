@@ -29,7 +29,7 @@ public class EmployeeProfileDAO {
      */
     public EmployeeProfile getProfileByUserId(int userId) {
         String sql = "SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, "
-                   + "ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.created_at, "
+                   + "ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, "
                    + "p.title AS position_name, d.name AS department_name, "
                    + "u.username, u.email, u.status, u.role_id, r.name AS role_name "
                    + "FROM employee_profiles ep "
@@ -211,12 +211,9 @@ public class EmployeeProfileDAO {
     }
 
     // =========================================================================
-    // CÁC HÀM KIỂM TRA TRÙNG LẶP THÔNG TIN (ĐÃ CHUYỂN TỪ USER_DAO SANG ĐÂY)
+    // CÁC HÀM KIỂM TRA TRÙNG LẶP THÔNG TIN
     // =========================================================================
 
-    /**
-     * Kiểm tra số điện thoại đã tồn tại trong bảng employee_profiles chưa
-     */
     public boolean isPhoneExists(String phone) {
         if (phone == null || phone.trim().isEmpty()) {
             return false;
@@ -233,9 +230,6 @@ public class EmployeeProfileDAO {
         return false;
     }
 
-    /**
-     * Kiểm tra số CCCD/CMND đã tồn tại trong bảng employee_profiles chưa
-     */
     public boolean isIdentityCardExists(String identityCard) {
         if (identityCard == null || identityCard.trim().isEmpty()) {
             return false;
@@ -301,6 +295,8 @@ public class EmployeeProfileDAO {
         profile.setPositionId(rs.getInt("position_id"));
         profile.setDepartmentId(rs.getInt("department_id"));
         profile.setEmployeeType(rs.getString("employee_type"));
+        
+        // Đã lược bỏ shift_type hoàn toàn theo cấu trúc database mới
         
         profile.setPositionName(rs.getString("position_name"));
         profile.setDepartmentName(rs.getString("department_name"));

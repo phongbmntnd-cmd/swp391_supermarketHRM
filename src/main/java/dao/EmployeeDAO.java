@@ -74,23 +74,51 @@ public class EmployeeDAO {
     /**
      * Xem chi tiết 1 nhân viên theo user_id.
      */
+    // Lấy thông tin chi tiết nhân viên theo ID, có JOIN bảng branches và positions để lấy tên cơ sở và vị trí
     public Employee getEmployeeById(int userId) {
-        // Cùng điều kiện role_id IN (4,5) như getAllEmployees(), để chặn truy cập trực tiếp
-        // qua URL (VD /hr/employee-detail?id=2 trỏ tới Director) nằm ngoài phạm vi HR quản lý.
-        String sql = BASE_SELECT + "WHERE u.id = ? AND u.role_id IN (4, 5)";
+        Employee emp = null;
+        String sql = "SELECT ep.*, u.username, u.email, u.status as user_status, "
+                + "b.name as branch_name, p.title as position_title, d.name as department_name, r.name as role_name "
+                + "FROM employee_profiles ep "
+                + "JOIN users u ON ep.user_id = u.id "
+                + "LEFT JOIN branches b ON ep.home_branch_id = b.id "
+                + "LEFT JOIN positions p ON ep.position_id = p.id "
+                + "LEFT JOIN departments d ON ep.department_id = d.id "
+                + "LEFT JOIN roles r ON u.role_id = r.id "
+                + "WHERE ep.user_id = ?";
 
-        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, userId);
-            try (ResultSet rs = ps.executeQuery()) {
+        try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
+            st.setInt(1, userId);
+            try (ResultSet rs = st.executeQuery()) {
                 if (rs.next()) {
-                    return mapRow(rs);
+                    emp = new Employee();
+                    emp.setUserId(rs.getInt("user_id"));
+                    emp.setUsername(rs.getString("username"));
+                    emp.setEmail(rs.getString("email"));
+                    emp.setUserStatus(rs.getString("user_status"));
+
+                    emp.setFullName(rs.getString("full_name"));
+                    emp.setPhone(rs.getString("phone"));
+                    emp.setIdentityCard(rs.getString("identity_card"));
+
+                    emp.setHomeBranchId(rs.getInt("home_branch_id"));
+                    emp.setBranchName(rs.getString("branch_name")); // Kéo tên chi nhánh lên
+
+                    emp.setPositionId(rs.getInt("position_id"));
+                    emp.setPositionTitle(rs.getString("position_title")); // Kéo tên vị trí lên
+
+                    emp.setDepartmentId(rs.getInt("department_id"));
+                    emp.setDepartmentName(rs.getString("department_name"));
+
+                    emp.setEmployeeType(rs.getString("employee_type"));
+                    emp.setRoleId(rs.getInt("role_id"));
+                    emp.setRoleName(rs.getString("role_name"));
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+        return emp;
     }
 
     /**
