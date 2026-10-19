@@ -119,13 +119,13 @@ DROP TABLE IF EXISTS `candidates`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `candidates` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `full_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `phone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `identity_card` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `full_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `identity_card` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -134,6 +134,7 @@ CREATE TABLE `candidates` (
 
 LOCK TABLES `candidates` WRITE;
 /*!40000 ALTER TABLE `candidates` DISABLE KEYS */;
+INSERT INTO `candidates` VALUES (1,'Nguyễn Tuấn Anh',NULL,'0389272886','038205002547','2026-10-19 00:37:02'),(2,'Nguyễn Tuấn Anh',NULL,'0389272886','038205002547','2026-10-19 00:37:02'),(3,'Nguyễn Tuấn Anh',NULL,'0389272886','038205002547','2026-10-19 00:37:18'),(4,'Trần Văn Phong',NULL,'0912345678','038305002857','2026-10-19 00:38:53'),(5,'Nguyễn Văn B1',NULL,'0936363636','038305007684','2026-10-19 00:40:06'),(6,'Nguyễn Văn B1',NULL,'0936363636','038305007684','2026-10-19 00:41:20'),(7,'Nguyễn Văn B2',NULL,'0959595959','038205002759','2026-10-19 00:50:05');
 /*!40000 ALTER TABLE `candidates` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -182,7 +183,7 @@ CREATE TABLE `contracts` (
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `contracts_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -191,6 +192,7 @@ CREATE TABLE `contracts` (
 
 LOCK TABLES `contracts` WRITE;
 /*!40000 ALTER TABLE `contracts` DISABLE KEYS */;
+INSERT INTO `contracts` VALUES (1,44,'Hợp đồng CHÍNH THỨC','2026-10-19',NULL,'ACTIVE'),(2,45,'Hợp đồng CHÍNH THỨC','2026-10-19',NULL,'ACTIVE'),(3,46,'Hợp đồng CHÍNH THỨC','2026-10-19',NULL,'ACTIVE'),(4,47,'Hợp đồng CHÍNH THỨC','2026-10-19',NULL,'ACTIVE');
 /*!40000 ALTER TABLE `contracts` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -261,7 +263,7 @@ CREATE TABLE `employee_locks` (
   `user_id` int NOT NULL,
   `locked_by` int NOT NULL,
   `unlocked_by` int DEFAULT NULL,
-  `reason` text COLLATE utf8mb4_unicode_ci,
+  `reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `locked_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `unlocked_at` timestamp NULL DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT '1',
@@ -302,8 +304,8 @@ CREATE TABLE `employee_profiles` (
   `home_branch_id` int NOT NULL COMMENT 'Cơ sở quản lý chính (Local Scope)',
   `position_id` int DEFAULT NULL,
   `department_id` int DEFAULT NULL,
-  `employee_type` enum('FULL_TIME','PART_TIME','CASUAL') COLLATE utf8mb4_unicode_ci NOT NULL,
-  `shift_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `employee_type` enum('FULL_TIME','PART_TIME','CASUAL') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `shift_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `identity_card` (`identity_card`),
   KEY `home_branch_id` (`home_branch_id`),
@@ -322,7 +324,7 @@ CREATE TABLE `employee_profiles` (
 
 LOCK TABLES `employee_profiles` WRITE;
 /*!40000 ALTER TABLE `employee_profiles` DISABLE KEYS */;
-INSERT INTO `employee_profiles` VALUES (1,'Quản Trị Viên Hệ Thống','0901111111','001090000001',1,3,3,'FULL_TIME',NULL),(2,'Giám Đốc Chuỗi','0902222222','001090000002',1,1,1,'FULL_TIME',NULL),(3,'Quản Lý Nhân Sự','0903333333','001090000003',1,2,2,'FULL_TIME',NULL),(4,'Quản Lý Cửa Hàng CS1','0904444444','001090000004',1,4,4,'FULL_TIME',NULL),(5,'Nhân Viên Bán Hàng CS1','0905555555','001090000005',1,6,5,'FULL_TIME',NULL),(6,'Quản Lý Cửa Hàng CS2','0906666666','001090000006',2,4,4,'FULL_TIME',NULL),(7,'Quản Lý Cửa Hàng CS3','0907777777','001090000007',3,4,4,'FULL_TIME',NULL);
+INSERT INTO `employee_profiles` VALUES (1,'Quản Trị Viên Hệ Thống','0901111111','001090000001',1,3,3,'FULL_TIME',NULL),(2,'Giám Đốc Chuỗi','0902222222','001090000002',1,1,1,'FULL_TIME',NULL),(3,'Quản Lý Nhân Sự','0903333333','001090000003',1,2,2,'FULL_TIME',NULL),(4,'Quản Lý Cửa Hàng CS1','0904444444','001090000004',1,4,4,'FULL_TIME',NULL),(5,'Nhân Viên Bán Hàng CS1','0905555555','001090000005',1,6,5,'FULL_TIME',NULL),(6,'Quản Lý Cửa Hàng CS2','0906666666','001090000006',2,4,4,'FULL_TIME',NULL),(7,'Quản Lý Cửa Hàng CS3','0907777777','001090000007',3,4,4,'FULL_TIME',NULL),(44,'Nguyễn Văn B1','0936363636','038305007684',1,9,4,'FULL_TIME','FT_ROTATING'),(45,'Trần Văn Phong','0912345678','038305002857',1,7,5,'FULL_TIME','FT_ROTATING'),(46,'Nguyễn Tuấn Anh','0389272886','038205002547',1,7,5,'PART_TIME','PT_FIXED_MORNING'),(47,'Nguyễn Văn B2','0959595959','038205002759',1,7,5,'FULL_TIME','FT_ROTATING');
 /*!40000 ALTER TABLE `employee_profiles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -402,8 +404,8 @@ CREATE TABLE `open_shift_applications` (
   `id` int NOT NULL AUTO_INCREMENT,
   `open_shift_id` int NOT NULL,
   `user_id` int NOT NULL,
-  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT 'Pending',
-  `reject_reason` text COLLATE utf8mb4_unicode_ci,
+  `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'Pending',
+  `reject_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `applied_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `open_shift_id` (`open_shift_id`),
@@ -581,7 +583,7 @@ CREATE TABLE `recruitment_proposals` (
   `candidate_id` int DEFAULT NULL,
   `branch_id` int NOT NULL,
   `position_id` int NOT NULL,
-  `employment_type` enum('FULL_TIME','PART_TIME') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `employment_type` enum('FULL_TIME','PART_TIME') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `department_id` int DEFAULT NULL,
   `expiration_date` date DEFAULT NULL,
   `target_date` date DEFAULT NULL,
@@ -592,7 +594,7 @@ CREATE TABLE `recruitment_proposals` (
   `hr_note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `shift_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `shift_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `branch_id` (`branch_id`),
   KEY `position_id` (`position_id`),
@@ -605,7 +607,7 @@ CREATE TABLE `recruitment_proposals` (
   CONSTRAINT `recruitment_proposals_ibfk_2` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`),
   CONSTRAINT `recruitment_proposals_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
   CONSTRAINT `recruitment_proposals_ibfk_4` FOREIGN KEY (`approved_by`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -614,7 +616,7 @@ CREATE TABLE `recruitment_proposals` (
 
 LOCK TABLES `recruitment_proposals` WRITE;
 /*!40000 ALTER TABLE `recruitment_proposals` DISABLE KEYS */;
-INSERT INTO `recruitment_proposals` VALUES (1,1,2,7,'FULL_TIME',5,NULL,'2026-10-14','ứdsd','PENDING',6,NULL,NULL,'2026-10-13 14:44:35','2026-10-13 14:44:35',NULL),(2,2,3,8,'PART_TIME',4,'2026-10-21','2026-10-14','fjh','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV002 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-13 14:52:00','2026-10-13 15:52:59',NULL),(3,3,3,9,'PART_TIME',4,NULL,'2026-10-14','fthg','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV001 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-13 14:52:20','2026-10-13 14:59:16',NULL),(4,4,3,7,'FULL_TIME',5,NULL,'2026-10-22','thiếu','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV003 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-21 05:16:16','2026-10-21 05:17:09',NULL),(5,5,1,7,'FULL_TIME',5,NULL,'2026-10-22','thiếu','APPROVED',4,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV004 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-21 05:23:38','2026-10-21 05:23:51',NULL),(6,6,3,7,'FULL_TIME',5,NULL,'2026-10-17','fsfd','PENDING',7,NULL,NULL,'2026-10-16 04:39:25','2026-10-16 04:39:25','FT_FIXED_EVENING'),(7,7,3,7,'PART_TIME',5,NULL,'2026-10-17','thử','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV005 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-16 06:59:59','2026-10-16 07:00:17','PT_FIXED_MORNING'),(8,8,3,9,'PART_TIME',4,NULL,'2026-10-21','thử','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV006 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-16 07:33:46','2026-10-16 07:34:57','PT_FLEXIBLE'),(9,9,3,9,'FULL_TIME',4,NULL,'2026-10-21','thử','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV007 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-16 07:34:17','2026-10-16 07:35:02','FT_FIXED_MORNING'),(10,10,3,9,'FULL_TIME',4,NULL,'2026-10-21','thử','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV008 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-16 07:34:40','2026-10-16 07:35:10','FT_ROTATING');
+INSERT INTO `recruitment_proposals` VALUES (1,1,2,7,'FULL_TIME',5,NULL,'2026-10-14','ứdsd','PENDING',6,NULL,NULL,'2026-10-13 14:44:35','2026-10-13 14:44:35',NULL),(2,2,3,8,'PART_TIME',4,'2026-10-21','2026-10-14','fjh','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV002 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-13 14:52:00','2026-10-13 15:52:59',NULL),(3,3,3,9,'PART_TIME',4,NULL,'2026-10-14','fthg','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV001 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-13 14:52:20','2026-10-13 14:59:16',NULL),(4,4,3,7,'FULL_TIME',5,NULL,'2026-10-22','thiếu','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV003 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-21 05:16:16','2026-10-21 05:17:09',NULL),(5,5,1,7,'FULL_TIME',5,NULL,'2026-10-22','thiếu','APPROVED',4,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV004 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-21 05:23:38','2026-10-21 05:23:51',NULL),(6,6,3,7,'FULL_TIME',5,NULL,'2026-10-17','fsfd','PENDING',7,NULL,NULL,'2026-10-16 04:39:25','2026-10-16 04:39:25','FT_FIXED_EVENING'),(7,7,3,7,'PART_TIME',5,NULL,'2026-10-17','thử','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV005 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-16 06:59:59','2026-10-16 07:00:17','PT_FIXED_MORNING'),(8,8,3,9,'PART_TIME',4,NULL,'2026-10-21','thử','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV006 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-16 07:33:46','2026-10-16 07:34:57','PT_FLEXIBLE'),(9,9,3,9,'FULL_TIME',4,NULL,'2026-10-21','thử','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV007 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-16 07:34:17','2026-10-16 07:35:02','FT_FIXED_MORNING'),(10,10,3,9,'FULL_TIME',4,NULL,'2026-10-21','thử','APPROVED',7,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV008 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-16 07:34:40','2026-10-16 07:35:10','FT_ROTATING'),(11,1,1,7,'PART_TIME',5,NULL,'2026-10-20','Thiếu nhân viên','PENDING',4,NULL,NULL,'2026-10-19 00:37:02','2026-10-19 00:37:02','PT_FIXED_MORNING'),(12,2,1,7,'PART_TIME',5,NULL,'2026-10-20','Thiếu nhân viên','PENDING',4,NULL,NULL,'2026-10-19 00:37:02','2026-10-19 00:37:02','PT_FIXED_MORNING'),(13,3,1,7,'PART_TIME',5,NULL,'2026-10-20','Thiếu nhân viên','APPROVED',4,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV003 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-19 00:37:18','2026-10-19 00:41:39','PT_FIXED_MORNING'),(14,4,1,7,'FULL_TIME',5,NULL,'2026-10-20','Thiếu nhân sự','APPROVED',4,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV002 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-19 00:38:53','2026-10-19 00:41:33','FT_ROTATING'),(15,5,1,9,'FULL_TIME',4,NULL,'2026-10-20','Thiếu nhân sự','APPROVED',4,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV001 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-19 00:40:06','2026-10-19 00:41:11','FT_ROTATING'),(16,6,1,9,'FULL_TIME',4,NULL,'2026-10-20','Thiếu nhân sự','PENDING',4,NULL,NULL,'2026-10-19 00:41:20','2026-10-19 00:41:20','FT_ROTATING'),(17,7,1,7,'FULL_TIME',5,NULL,'2026-10-20','Thiếu nhân sự','APPROVED',4,3,'Đã phê duyệt. Tài khoản cấp mới - Username: NV004 | Mật khẩu mặc định: 123456 (Yêu cầu đổi khi đăng nhập lần đầu)','2026-10-19 00:50:05','2026-10-19 00:50:33','FT_ROTATING');
 /*!40000 ALTER TABLE `recruitment_proposals` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -708,13 +710,18 @@ CREATE TABLE `shift_change_requests` (
   `requester_id` int NOT NULL,
   `target_user_id` int NOT NULL,
   `shift_schedule_id` int NOT NULL,
-  `status` enum('PENDING','APPROVED','REJECTED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'PENDING',
-  `reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `response` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `target_shift_schedule_id` int DEFAULT NULL,
+  `status` enum('WAITING_COLLEAGUE','PENDING','APPROVED','REJECTED','DECLINED','CANCELLED') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'WAITING_COLLEAGUE',
+  `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `response` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `colleague_responded_at` datetime DEFAULT NULL,
+  `colleague_response` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `requester_id` (`requester_id`),
   KEY `target_user_id` (`target_user_id`),
   KEY `shift_schedule_id` (`shift_schedule_id`),
+  KEY `idx_shift_change_target_schedule` (`target_shift_schedule_id`),
+  CONSTRAINT `fk_shift_change_target_schedule` FOREIGN KEY (`target_shift_schedule_id`) REFERENCES `shift_schedules` (`id`),
   CONSTRAINT `shift_change_requests_ibfk_1` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`),
   CONSTRAINT `shift_change_requests_ibfk_2` FOREIGN KEY (`target_user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `shift_change_requests_ibfk_3` FOREIGN KEY (`shift_schedule_id`) REFERENCES `shift_schedules` (`id`)
@@ -817,7 +824,7 @@ CREATE TABLE `shift_schedules` (
   CONSTRAINT `shift_schedules_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `shift_schedules_ibfk_3` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`id`),
   CONSTRAINT `shift_schedules_ibfk_4` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -826,6 +833,7 @@ CREATE TABLE `shift_schedules` (
 
 LOCK TABLES `shift_schedules` WRITE;
 /*!40000 ALTER TABLE `shift_schedules` DISABLE KEYS */;
+INSERT INTO `shift_schedules` VALUES (2,1,45,5,'2026-10-30',NULL,'PUBLISHED');
 /*!40000 ALTER TABLE `shift_schedules` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -878,7 +886,7 @@ CREATE TABLE `users` (
   UNIQUE KEY `email` (`email`),
   KEY `role_id` (`role_id`),
   CONSTRAINT `users_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `roles` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -887,7 +895,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin_user','123456','admin@supermarket.com',1,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(2,'director_user','123456','director@supermarket.com',2,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(3,'hrm_user','123456','hrm@supermarket.com',3,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(4,'sm_user','123456','sm1@supermarket.com',4,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(5,'emp_user','123456','emp1@supermarket.com',5,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-10-13 07:53:55',0),(6,'sm2_user','123456','sm2@supermarket.com',4,'ACTIVE',NULL,'2026-10-07 08:41:12','2026-10-07 08:41:12',0),(7,'sm3_user','123456','sm3@supermarket.com',4,'ACTIVE',NULL,'2026-10-07 08:41:12','2026-10-07 08:41:12',0);
+INSERT INTO `users` VALUES (1,'admin_user','123456','admin@supermarket.com',1,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(2,'director_user','123456','director@supermarket.com',2,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(3,'hrm_user','123456','hrm@supermarket.com',3,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(4,'sm_user','123456','sm1@supermarket.com',4,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-09-22 16:50:49',0),(5,'emp_user','123456','emp1@supermarket.com',5,'ACTIVE',NULL,'2026-09-22 16:50:49','2026-10-13 07:53:55',0),(6,'sm2_user','123456','sm2@supermarket.com',4,'ACTIVE',NULL,'2026-10-07 08:41:12','2026-10-07 08:41:12',0),(7,'sm3_user','123456','sm3@supermarket.com',4,'ACTIVE',NULL,'2026-10-07 08:41:12','2026-10-07 08:41:12',0),(44,'NV001','123456',NULL,5,'ACTIVE',NULL,'2026-10-19 00:41:11','2026-10-19 00:41:11',1),(45,'NV002','123456',NULL,5,'ACTIVE',NULL,'2026-10-19 00:41:33','2026-10-19 00:41:33',1),(46,'NV003','123456',NULL,5,'ACTIVE',NULL,'2026-10-19 00:41:39','2026-10-19 00:41:39',1),(47,'NV004','567899',NULL,5,'ACTIVE',NULL,'2026-10-19 00:50:33','2026-10-19 00:51:15',0);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -974,4 +982,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-16 15:46:36
+-- Dump completed on 2026-10-19  7:59:40

@@ -337,15 +337,6 @@
                     </a>
                 </div>
 
-                <!-- Tính năng 5: Quán lí đổi ca -->                
-                <div class="card" style="border-left-color: #2ecc71;">
-                    <div>
-                        <h3>Quản lí Đổi Ca</h3>
-                        <p>Xem xét, tiếp nhận và phê duyệt các đơn xin đổi ca làm việc do nhân viên gửi lên hệ thống.</p>
-                    </div>
-                    <a href="${pageContext.request.contextPath}/store-manager/shift-requests" class="card-link">Xem thông tin đổi ca →</a>
-                </div>
-                
             </div>
 
             <div class="container">
@@ -454,6 +445,31 @@
                             <p>Xem lịch rảnh đã đăng ký của nhân viên, tiến hành xếp lịch trực tuần tới và Publish (công bố) lịch cho toàn nhân viên theo dõi.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/store-manager/schedule" class="card-link">Quản lý lịch làm việc <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon"
+                                     style="background-color: #10b981;">
+                                    <i class="fa-solid fa-people-arrows-left-right"></i>
+                                </div>
+
+                                <h3>Quản Lý Đổi Ca</h3>
+                            </div>
+
+                            <p>
+                                Xem xét, tiếp nhận và phê duyệt
+                                các đơn đổi ca giữa nhân viên
+                                cùng chi nhánh.
+                            </p>
+                        </div>
+
+                        <a href="${pageContext.request.contextPath}/store-manager/shift-requests"
+                           class="card-link">
+                            Xem yêu cầu đổi ca
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
                     </div>
                 </div>
 
