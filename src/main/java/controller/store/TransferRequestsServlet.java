@@ -4,135 +4,68 @@ import controller.base.BaseServlet;
 import dao.TemporaryTransferDAO;
 import model.TemporaryTransfer;
 import model.User;
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.sql.Date;
+import java.util.*;
 
-@WebServlet(name = "TransferRequestsServlet", urlPatterns = {"/store-manager/transfer-requests"})
+@WebServlet(name="TransferRequestsServlet",urlPatterns="/store-manager/transfer-requests")
 public class TransferRequestsServlet extends BaseServlet {
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        User user = getCurrentUser(request);
-        if (user == null) {
-            redirectToLogin(request, response);
-            return;
-        }
-
-        if (!isStoreManager(request) && user.getRoleId() != ROLE_ADMIN) {
-            sendForbidden(request, response, "Bạn không có quyền truy cập trang quản lý đề xuất điều chuyển!");
-            return;
-        }
-
-        int managerBranchId = getCurrentBranchId(request);
-        if (managerBranchId == -1) {
-            managerBranchId = 1;
-        }
-
-        TemporaryTransferDAO transferDAO = new TemporaryTransferDAO();
-        
-        // 1. Đổi tên attribute thành outgoingRequests để khớp hoàn toàn với file transfer-requests.jsp
-        request.setAttribute("outgoingRequests", transferDAO.getTransfersByStore(managerBranchId, false));
-        
-        // 2. Đổi tên attribute thành incomingRequests để khớp hoàn toàn với file transfer-requests.jsp
-        request.setAttribute("incomingRequests", transferDAO.getTransfersByStore(managerBranchId, true));
-
-        // 3. Lấy danh sách nhân viên thuộc cơ sở này để đổ vào dropdown lựa chọn trong Modal Phê Duyệt
-        request.setAttribute("branchEmployees", transferDAO.getEmployeesByBranch(managerBranchId));
-
-        // Forward sang trang JSP hiển thị danh sách đề xuất
-        request.getRequestDispatcher("/WEB-INF/views/store-manager/transfer-requests.jsp").forward(request, response);
+    private boolean permitted(HttpServletRequest req){User u=getCurrentUser(req);return u!=null&&(isStoreManager(req)||u.getRoleId()==ROLE_ADMIN);}
+    private int branch(HttpServletRequest req){return getCurrentBranchId(req);}
+    @Override protected void doGet(HttpServletRequest req,HttpServletResponse resp)throws ServletException,IOException{
+        if(getCurrentUser(req)==null){redirectToLogin(req,resp);return;}
+        if(!permitted(req)||branch(req)<=0){sendForbidden(req,resp,"Bạn không có quyền xem đề xuất tại cơ sở này");return;}
+        TemporaryTransferDAO dao=new TemporaryTransferDAO();
+        try{
+            List<TemporaryTransfer> outgoing=dao.getTransfersByStore(branch(req),false);
+            List<TemporaryTransfer> incoming=dao.getTransfersByStore(branch(req),true);
+            Map<Integer,List<Map<String,Object>>> eligibles=new HashMap<>();
+            Map<Integer,List<Map<String,Object>>> selected=new HashMap<>();
+            for(TemporaryTransfer t:incoming){
+                if(TemporaryTransferDAO.PENDING_MANAGER.equals(t.getStatus()))eligibles.put(t.getId(),dao.getEligibleEmployees(t.getId(),branch(req)));
+                selected.put(t.getId(),dao.getSelectedEmployees(t.getId()));
+            }
+            for(TemporaryTransfer t:outgoing)selected.put(t.getId(),dao.getSelectedEmployees(t.getId()));
+            req.setAttribute("outgoingRequests",outgoing);req.setAttribute("incomingRequests",incoming);
+            req.setAttribute("eligibleByTransfer",eligibles);req.setAttribute("selectedByTransfer",selected);
+            req.setAttribute("message",req.getSession().getAttribute("transferMessage"));req.getSession().removeAttribute("transferMessage");
+            req.setAttribute("error",req.getSession().getAttribute("transferError"));req.getSession().removeAttribute("transferError");
+            req.getRequestDispatcher("/WEB-INF/views/store-manager/transfer-requests.jsp").forward(req,resp);
+        }catch(Exception ex){throw new ServletException("Không thể tải đề xuất",ex);}
     }
-
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        User user = getCurrentUser(request);
-        if (user == null || (!isStoreManager(request) && user.getRoleId() != ROLE_ADMIN)) {
-            redirectToLogin(request, response);
-            return;
-        }
-
-        int managerBranchId = getCurrentBranchId(request);
-        if (managerBranchId == -1) {
-            managerBranchId = 1;
-        }
-
-        String action = getStringParameter(request, "action");
-        TemporaryTransferDAO transferDAO = new TemporaryTransferDAO();
-
-        // Trường hợp 1: Tạo đề xuất mới từ modal trang lịch
-        if ("createTransferProposal".equals(action)) {
-            int sourceStoreId = getIntParameter(request, "sourceStoreId", -1);
-            int positionId = getIntParameter(request, "positionId", -1);
-            int shiftId = getIntParameter(request, "shiftId", -1);
-            String workDateStr = getStringParameter(request, "workDate");
-            int requiredCount = getIntParameter(request, "requiredCount", 0);
-            String reason = getStringParameter(request, "reason");
-            String startDate = getStringParameter(request, "startDate");
-
-            if (managerBranchId != -1 && sourceStoreId != -1 && positionId != -1 && shiftId != -1 && workDateStr != null) {
-                try {
-                    TemporaryTransfer transfer = new TemporaryTransfer();
-                    transfer.setRequesterId(user.getId());
-                    transfer.setDestinationStoreId(managerBranchId);
-                    transfer.setSourceStoreId(sourceStoreId);
-                    transfer.setPositionId(positionId);
-                    transfer.setShiftId(shiftId);
-                    transfer.setWorkDate(Date.valueOf(workDateStr));
-                    transfer.setRequiredCount(requiredCount);
-                    transfer.setReason(reason);
-
-                    transferDAO.insertTransferProposal(transfer);
-                    request.getSession().setAttribute("message", "Gửi đề xuất mượn nhân sự thành công!");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    request.getSession().setAttribute("error", "Lỗi khi tạo đề xuất mượn nhân sự.");
-                }
-            }
-
-            // Redirect ngược lại trang lịch và giữ nguyên tuần đang xem
-            String redirectUrl = "schedule?success=transfer_created";
-            if (startDate != null && !startDate.trim().isEmpty()) {
-                redirectUrl += "&startDate=" + startDate;
-            }
-            response.sendRedirect(redirectUrl);
-            return;
-        }
-
-        // Trường hợp 2: Cơ sở cho mượn bấm Phê duyệt và chọn nhân sự cử đi
-        else if ("approveTransfer".equals(action)) {
-            int requestId = getIntParameter(request, "requestId", -1);
-            int selectedUserId = getIntParameter(request, "selectedUserId", -1);
-
-            if (requestId != -1 && selectedUserId != -1) {
-                boolean success = transferDAO.approveTransfer(requestId, selectedUserId);
-                if (success) {
-                    request.getSession().setAttribute("message", "Đã phê duyệt và cử nhân viên sang hỗ trợ thành công!");
-                } else {
-                    request.getSession().setAttribute("error", "Phê duyệt thất bại!");
-                }
-            }
-        }
-
-        // Trường hợp 3: Cơ sở cho mượn bấm Từ chối yêu cầu
-        else if ("rejectTransfer".equals(action)) {
-            int requestId = getIntParameter(request, "requestId", -1);
-
-            if (requestId != -1) {
-                boolean success = transferDAO.rejectTransfer(requestId);
-                if (success) {
-                    request.getSession().setAttribute("message", "Đã từ chối yêu cầu mượn nhân sự.");
-                } else {
-                    request.getSession().setAttribute("error", "Thao tác từ chối thất bại!");
-                }
-            }
-        }
-
-        // Điều hướng PRG về trang quản lý điều chuyển sau khi thực hiện xong hành động
-        response.sendRedirect(request.getContextPath() + "/store-manager/transfer-requests");
+    @Override protected void doPost(HttpServletRequest req,HttpServletResponse resp)throws ServletException,IOException{
+        if(getCurrentUser(req)==null){redirectToLogin(req,resp);return;}
+        if(!permitted(req)||branch(req)<=0){sendForbidden(req,resp,"Không có quyền thao tác tại cơ sở này");return;}
+        String action=getStringParameter(req,"action");
+        TemporaryTransferDAO dao=new TemporaryTransferDAO();boolean ok=false;
+        try{
+            if("createTransferProposal".equals(action)){
+                TemporaryTransfer t=new TemporaryTransfer();
+                t.setRequesterId(getCurrentUser(req).getId());t.setDestinationStoreId(branch(req));
+                t.setSourceStoreId(getIntParameter(req,"sourceStoreId",-1));
+                t.setPositionId(getIntParameter(req,"positionId",-1));t.setShiftId(getIntParameter(req,"shiftId",-1));
+                t.setWorkDate(Date.valueOf(getStringParameter(req,"workDate")));
+                t.setRequestedCount(getIntParameter(req,"requestedCount",-1));
+                t.setReason(getStringParameter(req,"reason"));
+                ok=t.getWorkDate().toLocalDate().isAfter(java.time.LocalDate.now()) && t.getSourceStoreId()>0 && t.getPositionId()>0 && t.getShiftId()>0 && dao.insertTransferProposal(t);
+                req.getSession().setAttribute(ok?"transferMessage":"transferError",ok?"Đã gửi đề xuất.":"Đề xuất không hợp lệ, trùng hoặc vượt số người thiếu.");
+                String startDate=getStringParameter(req,"startDate");
+                String url=req.getContextPath()+"/store-manager/schedule"+(startDate!=null&&startDate.matches("\\d{4}-\\d{2}-\\d{2}")?"?startDate="+startDate:"");
+                resp.sendRedirect(url);return;
+            }else if("approveTransfer".equals(action)){
+                int id=getIntParameter(req,"requestId",-1);
+                String[] values=req.getParameterValues("selectedUserId");List<Integer> people=new ArrayList<>();
+                if(values!=null)for(String v:values)people.add(Integer.parseInt(v));
+                ok=dao.approveTransfer(id,people,branch(req));
+            }else if("rejectTransfer".equals(action)){
+                ok=dao.rejectTransfer(getIntParameter(req,"requestId",-1),branch(req),getStringParameter(req,"rejectReason"));
+            }else {resp.sendError(400,"Action không hợp lệ");return;}
+        }catch(Exception ex){ex.printStackTrace();ok=false;}
+        req.getSession().setAttribute(ok?"transferMessage":"transferError",ok?"Đã cập nhật đề xuất thành công (có thể hỗ trợ một phần).":"Không thể xử lý. Kiểm tra số người dư: số đã xếp trừ người cho mượn phải >= định mức; đồng thời kiểm tra lịch và trạng thái đơn.");
+        resp.sendRedirect(req.getContextPath()+"/store-manager/transfer-requests");
     }
 }

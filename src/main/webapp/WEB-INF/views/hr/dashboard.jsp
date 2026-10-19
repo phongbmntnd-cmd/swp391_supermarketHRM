@@ -5,7 +5,7 @@
 --%>
 
 <%@page contentType="text/html;charset=UTF-8" language="java" %>
-<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@taglib prefix="c" uri="jakarta.tags.core"%>
 <!DOCTYPE html>
 <html lang="vi">
     <head>
@@ -13,6 +13,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Trang Quản Trị Nhân Sự (HR) - Supermarket HRM</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <!-- Bootstrap 5 cho bảng và giao diện điều chuyển -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
         <!-- FontAwesome cho các icon sinh động -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
@@ -151,7 +153,7 @@
             }
 
             /* --- CONTAINER --- */
-            .container {
+            .container-dashboard {
                 max-width: 1400px;
                 margin: 30px;
                 padding: 0;
@@ -233,8 +235,9 @@
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
                 gap: 25px;
+                margin-bottom: 40px;
             }
-            .card {
+            .card-custom {
                 background: white;
                 padding: 30px;
                 border-radius: 12px;
@@ -246,7 +249,7 @@
                 justify-content: space-between;
                 position: relative;
             }
-            .card:hover {
+            .card-custom:hover {
                 transform: translateY(-5px);
                 box-shadow: 0 12px 20px -3px rgba(0,0,0,0.08);
             }
@@ -266,12 +269,12 @@
                 font-size: 18px;
                 color: white;
             }
-            .card h3 {
+            .card-custom h3 {
                 font-size: 18px;
                 color: #1e293b;
                 font-weight: 600;
             }
-            .card p {
+            .card-custom p {
                 font-size: 14px;
                 color: #64748b;
                 margin-bottom: 25px;
@@ -291,6 +294,27 @@
                 gap: 12px;
                 color: #0369a1;
             }
+
+            /* --- SECTION PHÊ DUYỆT ĐIỀU CHUYỂN --- */
+            .section-transfer {
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                border: 1px solid #f1f5f9;
+            }
+            .section-transfer h3 {
+                font-size: 20px;
+                font-weight: 600;
+                color: #1e293b;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .section-transfer h3 i {
+                color: #0284c7;
+            }
         </style>
     </head>
     <body>
@@ -304,6 +328,7 @@
             <ul class="sidebar-menu">
                 <li class="active"><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/employee-management"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
             </ul>
@@ -329,7 +354,7 @@
                 </div>
             </div>
 
-            <div class="container">
+            <div class="container-dashboard">
 
                 <!-- Banner chào mừng -->
                 <div class="welcome-banner">
@@ -381,7 +406,7 @@
                 <div class="menu-grid">
 
                     <!-- Tính năng 1: Phê duyệt đề xuất & cấp tài khoản -->
-                    <div class="card">
+                    <div class="card-custom">
                         <div>
                             <div class="card-icon-title">
                                 <div class="card-icon" style="background-color: #0284c7;">
@@ -394,8 +419,22 @@
                         <a href="${pageContext.request.contextPath}/hr/recruitment" class="card-link">Phê duyệt đề xuất <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng mới: Phê duyệt điều chuyển nhân sự -->
+                    <div class="card-custom">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #f59e0b;">
+                                    <i class="fa-solid fa-right-left"></i>
+                                </div>
+                                <h3>Phê Duyệt Điều Chuyển</h3>
+                            </div>
+                            <p>Xử lý các yêu cầu điều chuyển nhân sự giữa các cơ sở/chi nhánh, xem xét nhân viên đề cử và cập nhật lịch phân công ca làm việc.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/hr/transfer-requests" class="card-link">Xem đơn điều chuyển <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
                     <!-- Tính năng 2: Quản lý hồ sơ nhân sự -->
-                    <div class="card">
+                    <div class="card-custom">
                         <div>
                             <div class="card-icon-title">
                                 <div class="card-icon" style="background-color: #8b5cf6;">
@@ -409,7 +448,7 @@
                     </div>
 
                     <!-- Tính năng 3: Quản lý chấm công & ca làm -->
-                    <div class="card">
+                    <div class="card-custom">
                         <div>
                             <div class="card-icon-title">
                                 <div class="card-icon" style="background-color: #10b981;">
@@ -422,6 +461,59 @@
                         <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                </div>
+
+                <!-- Section Tích hợp Bảng Phê Duyệt Điều Chuyển Nhân Sự Ngay Trên Dashboard -->
+                <div class="section-transfer">
+                    <h3><i class="fa-solid fa-list-check"></i> Đơn Đề Xuất Điều Chuyển Chờ Xử Lý</h3>
+                    
+                    <!-- Thông báo thành công / lỗi nếu có -->
+                    <c:if test="${not empty message}"><div class="alert alert-success mt-3"><c:out value="${message}"/></div></c:if>
+                    <c:if test="${not empty error}"><div class="alert alert-danger mt-3"><c:out value="${error}"/></div></c:if>
+
+                    <div class="table-responsive mt-3">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Đơn</th>
+                                    <th>Từ → Đến</th>
+                                    <th>Ngày / Ca / Vị trí</th>
+                                    <th>Nhân viên đề cử</th>
+                                    <th>Xử lý</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <c:forEach var="t" items="${requests}">
+                                    <tr>
+                                        <td><strong>#${t.id}</strong> (${t.requestedCount} người)<div class="text-muted small"><c:out value="${t.reason}"/></div></td>
+                                        <td><span class="badge bg-secondary"><c:out value="${t.sourceStoreName}"/></span> → <span class="badge bg-primary"><c:out value="${t.destinationStoreName}"/></span></td>
+                                        <td>${t.workDate} / <c:out value="${t.shiftName}"/> / <span class="fw-semibold"><c:out value="${t.positionName}"/></span></td>
+                                        <td>
+                                            <c:forEach var="e" items="${selectedByTransfer[t.id]}">
+                                                <div><i class="fa-solid fa-user text-secondary me-1"></i> <c:out value="${e.fullName}"/></div>
+                                            </c:forEach>
+                                        </td>
+                                        <td>
+                                            <form method="POST" action="${pageContext.request.contextPath}/hr/transfer-requests" class="mb-2" onsubmit="return confirm('Duyệt và chuyển phân công ca?')">
+                                                <input type="hidden" name="action" value="approve">
+                                                <input type="hidden" name="requestId" value="${t.id}">
+                                                <button class="btn btn-success btn-sm w-100"><i class="fa-solid fa-check me-1"></i> Duyệt</button>
+                                            </form>
+                                            <form method="POST" action="${pageContext.request.contextPath}/hr/transfer-requests">
+                                                <input type="hidden" name="action" value="reject">
+                                                <input type="hidden" name="requestId" value="${t.id}">
+                                                <textarea class="form-control form-control-sm mb-2" name="rejectReason" placeholder="Lý do từ chối" required maxlength="500" rows="1"></textarea>
+                                                <button class="btn btn-danger btn-sm w-100"><i class="fa-solid fa-xmark me-1"></i> Từ chối</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                </c:forEach>
+                                <c:if test="${empty requests}">
+                                    <tr><td colspan="5" class="text-center text-muted py-4">Không có đề xuất điều chuyển nào đang chờ HR xử lý</td></tr>
+                                </c:if>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
             </div>

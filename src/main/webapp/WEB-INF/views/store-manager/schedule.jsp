@@ -4,8 +4,8 @@
 --%>
 
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ taglib uri="jakarta.tags.core" prefix="c" %>
+<%@ taglib uri="jakarta.tags.functions" prefix="fn" %>
 <%@ page import="java.util.Map" %>
 <%@ page import="model.Shift" %>
 <%@ page import="dao.ShiftScheduleDAO" %>
@@ -364,7 +364,7 @@
                                                                         </c:forEach>
 
                                                                         <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
-                                                                             onclick="toggleAssignment(this, '${ft.userId}', '${shift.id}', '${managerBranchId}', '${workDate}')">
+                                                                             onclick="toggleAssignment(this, '${ft.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
                                                                             <div>
                                                                                 <strong>${ft.fullName}</strong> <span class="badge bg-info text-dark" style="font-size: 9px;">FT</span>
                                                                             </div>
@@ -390,7 +390,7 @@
                                                                     </c:forEach>
 
                                                                     <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
-                                                                         onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}')">
+                                                                         onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
                                                                         <div>
                                                                             <strong>${reg.fullName}</strong> <span class="badge bg-light text-dark" style="font-size: 9px;">PT</span>
                                                                         </div>
@@ -404,6 +404,13 @@
                                                         </c:otherwise>
                                                     </c:choose>
 
+                                                    <c:forEach var="borrowed" items="${borrowedAssignments[reqKey]}">
+                                                        <div class="employee-tag assigned" style="border:2px solid #0d6efd;background:#e7f1ff;cursor:default">
+                                                            <span><strong><c:out value="${borrowed.fullName}"/></strong><small class="d-block text-primary">Điều chuyển · <c:out value="${borrowed.sourceBranchName}"/></small></span>
+                                                            <i class="fa-solid fa-arrow-right-arrow-left text-primary"></i>
+                                                        </div>
+                                                        <c:set var="hasEmployee" value="true" />
+                                                    </c:forEach>
                                                     <c:if test="${!hasEmployee}">
                                                         <div class="text-muted small fst-italic py-2">Không có nhân sự</div>
                                                     </c:if>
@@ -504,6 +511,7 @@
                             <input type="hidden" name="shiftId" id="transferShiftId">
                             <input type="hidden" name="workDate" id="transferWorkDate">
                             <input type="hidden" name="requiredCount" id="transferRequiredCount">
+                            <input type="hidden" name="startDate" value="${startDateRaw}">
 
                             <div class="alert alert-danger">
                                 Ca chưa có nhân sự được xếp. Tạo đề xuất để xin điều chuyển nhân viên từ một cơ sở khác.
@@ -529,6 +537,7 @@
                                     <label class="form-label">Số lượng cần</label>
                                     <input type="text" class="form-control" id="transferRequiredDisplay" readonly>
                                 </div>
+                                <div class="col-md-6"><label for="requestedCount" class="form-label">Số nhân viên muốn mượn</label><input type="number" min="1" value="1" id="requestedCount" name="requestedCount" class="form-control" required></div>
                                 <div class="col-12">
                                     <label for="sourceStoreId" class="form-label">Cơ sở đề nghị cho mượn</label>
                                     <select class="form-select" id="sourceStoreId" name="sourceStoreId" required>
@@ -588,6 +597,8 @@
                                                                                      document.getElementById('transferDateDisplay').value = dateText;
                                                                                      document.getElementById('transferAssignedDisplay').value = assigned;
                                                                                      document.getElementById('transferRequiredDisplay').value = required;
+                                                                                     document.getElementById('requestedCount').max = Math.max(1, required - assigned);
+                                                                                     document.getElementById('requestedCount').value = 1;
                                                                                      bootstrap.Modal.getOrCreateInstance(document.getElementById('transferProposalModal')).show();
                                                                                  } else {
                                                                                      document.getElementById('suppBranchId').value = branchId;
@@ -628,7 +639,7 @@
                                                                                  }
                                                                              });
 
-                                                                             function toggleAssignment(element, userId, shiftId, branchId, workDate) {
+                                                                             function toggleAssignment(element, userId, shiftId, branchId, workDate, positionId) {
                                                                                  // Nếu lịch đã được Publish, chặn tuyệt đối không cho thao tác click phân công
                                                                                  if (isPublished) {
                                                                                      alert('Lịch làm việc tuần này đã được Publish. Không thể thay đổi phân công ca!');
@@ -638,6 +649,7 @@
                                                                                  const formData = new URLSearchParams();
                                                                                  formData.append('action', 'assign');
                                                                                  formData.append('userId', userId);
+                                                                                 formData.append('positionId', positionId);
                                                                                  formData.append('shiftId', shiftId);
                                                                                  formData.append('branchId', branchId);
                                                                                  formData.append('workDate', workDate);
@@ -659,6 +671,11 @@
                                                                                                  return;
                                                                                              }
                                                                                              const icon = element.querySelector('.check-icon');
+                                                                                             if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
+                                                                                                 alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
+                                                                                                 location.reload();
+                                                                                                 return;
+                                                                                             }
                                                                                              if (result.trim() === 'added') {
                                                                                                  element.classList.add('assigned');
                                                                                                  icon.className = 'fa-solid fa-check-circle text-success check-icon';

@@ -323,7 +323,7 @@
             <ul class="sidebar-menu">
                 <li class="active"><a href="${pageContext.request.contextPath}/employee/dashboard"><i class="fa-solid fa-house"></i> Trang chủ</a></li>
                 <li><a href="${pageContext.request.contextPath}/employee/availability"><i class="fa-solid fa-calendar-plus"></i> Khai báo lịch rảnh</a></li>
-                <li><a href="${pageContext.request.contextPath}/employee/schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/my-schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
                 <li><a href="#"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
                 <li><a href="#"><i class="fa-solid fa-file-lines"></i> Đơn từ & Khiếu nại</a></li>
             </ul>
@@ -442,7 +442,7 @@
                             </div>
                             <p>Xem tổng thể lịch trình các ca làm việc của bạn sau khi quản lý đã hoàn tất sắp xếp và chính thức công bố (Publish).</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/employee/schedule" class="card-link">Xem lịch làm việc ngay <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/employee/my-schedule" class="card-link">Xem lịch làm việc ngay <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
                     <!-- Tính năng 3: Chấm công Check-in / Check-out -->
