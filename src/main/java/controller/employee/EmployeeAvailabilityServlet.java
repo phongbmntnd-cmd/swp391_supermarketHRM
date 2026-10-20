@@ -40,20 +40,20 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         LocalDate today = LocalDate.now();
         LocalDate nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         LocalDate nextSunday = nextMonday.plusDays(6);
-        
+
         DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter isoFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
         request.setAttribute("startDate", nextMonday.format(displayFormatter));
         request.setAttribute("endDate", nextSunday.format(displayFormatter));
-        request.setAttribute("weekStartDate", nextMonday.format(isoFormatter)); 
+        request.setAttribute("weekStartDate", nextMonday.format(isoFormatter));
 
         // Kiểm tra thời gian mở cổng: Chỉ mở từ Thứ Hai đến hết Thứ Tư
         LocalDateTime now = LocalDateTime.now();
         DayOfWeek currentDay = now.getDayOfWeek();
-        boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY || 
-                                      currentDay == DayOfWeek.TUESDAY || 
-                                      currentDay == DayOfWeek.WEDNESDAY);
+        boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY
+                || currentDay == DayOfWeek.TUESDAY
+                || currentDay == DayOfWeek.WEDNESDAY);
         request.setAttribute("isRegistrationOpen", isRegistrationOpen);
 
         EmployeeAvailabilityDAO dao = new EmployeeAvailabilityDAO();
@@ -64,7 +64,7 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         String shiftType = (profile != null && profile.getShiftType() != null) ? profile.getShiftType().trim().toUpperCase() : "";
 
         List<Shift> shifts = dao.getShiftsByEmployeeType(employeeType);
-        
+
         // Lấy lịch rảnh theo đúng user và đúng mốc tuần
         List<EmployeeAvailability> currentAvailabilities = dao.getAvailabilitiesByUserIdAndWeek(user.getId(), nextMonday.format(isoFormatter));
 
@@ -95,9 +95,9 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         // Chặn bảo mật phía server: Nếu quá thời hạn (sau ngày Thứ Tư) mà cố tình gửi request lưu
         LocalDateTime now = LocalDateTime.now();
         DayOfWeek currentDay = now.getDayOfWeek();
-        boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY || 
-                                      currentDay == DayOfWeek.TUESDAY || 
-                                      currentDay == DayOfWeek.WEDNESDAY);
+        boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY
+                || currentDay == DayOfWeek.TUESDAY
+                || currentDay == DayOfWeek.WEDNESDAY);
         if (!isRegistrationOpen) {
             response.sendRedirect("availability?error=closed");
             return;
@@ -125,7 +125,7 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
 
         if (selectedAvailabilities != null) {
             EmployeeAvailabilityDAO dao = new EmployeeAvailabilityDAO();
-            List<Shift> shifts = dao.getAllShifts(); 
+            List<Shift> shifts = dao.getAllShifts();
 
             for (String item : selectedAvailabilities) {
                 String[] parts = item.split("_");
@@ -152,7 +152,7 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
                         continue;
                     }
 
-                    newAvailabilities.add(new EmployeeAvailability(0, user.getId(), weekStartDate, dayOfWeek, shiftId));
+                    newAvailabilities.add(new EmployeeAvailability(0, user.getId(), dayOfWeek, weekStartDate, shiftId));
                 }
             }
         }

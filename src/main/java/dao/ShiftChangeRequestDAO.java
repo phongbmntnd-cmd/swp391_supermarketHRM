@@ -58,7 +58,7 @@ public class ShiftChangeRequestDAO {
                 + "JOIN shifts s ON s.id = ss.shift_id "
                 + "WHERE ss.user_id = ? "
                 + "AND ss.status = 'PUBLISHED' "
-                + "AND ss.work_date >= CURRENT_DATE() "
+                + "AND ss.work_date >= DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "ORDER BY ss.work_date, s.start_time";
 
         return query(sql, userId);
@@ -68,7 +68,10 @@ public class ShiftChangeRequestDAO {
     public List<Map<String, Object>> getColleagueSchedules(int userId) {
 
         String sql
-                = "SELECT ss.id, ss.user_id AS colleagueId, "
+                = "SELECT ss.id, "
+                + "ss.user_id AS colleagueId, "
+                + "ss.shift_id AS shiftId, "
+                + "ss.position_id AS positionId, "
                 + "ep.full_name AS colleagueName, "
                 + "ss.work_date AS workDate, "
                 + "s.name AS shiftName, "
@@ -76,18 +79,21 @@ public class ShiftChangeRequestDAO {
                 + "s.end_time AS endTime "
                 + "FROM shift_schedules ss "
                 + "JOIN users u ON u.id = ss.user_id "
-                + "JOIN employee_profiles ep ON ep.user_id = ss.user_id "
+                + "JOIN employee_profiles ep "
+                + "ON ep.user_id = ss.user_id "
+                + "JOIN employee_profiles current_ep "
+                + "ON current_ep.user_id = ? "
                 + "JOIN shifts s ON s.id = ss.shift_id "
-                + "WHERE ss.branch_id IN ( "
-                + "SELECT home_branch_id FROM employee_profiles "
-                + "WHERE user_id = ?) "
-                + "AND ss.user_id <> ? "
+                + "WHERE ss.branch_id = current_ep.home_branch_id "
+                + "AND ss.position_id = current_ep.position_id "
+                + "AND ss.user_id <> current_ep.user_id "
                 + "AND u.role_id = 5 "
+                + "AND u.status = 'ACTIVE' "
                 + "AND ss.status = 'PUBLISHED' "
-                + "AND ss.work_date >= CURRENT_DATE() "
-                + "ORDER BY ss.work_date, s.start_time";
+                + "AND ss.work_date >= DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "ORDER BY ss.work_date, s.start_time, ep.full_name";
 
-        return queryTwo(sql, userId, userId);
+        return query(sql, userId);
     }
 
     private List<Map<String, Object>> queryTwo(
@@ -148,45 +154,66 @@ public class ShiftChangeRequestDAO {
         return query(sql, userId);
     }
 
-    // 4. Tạo đơn đổi với đồng nghiệp
     public boolean createSwap(
             int userId,
             int myScheduleId,
             int targetScheduleId,
             String reason) throws Exception {
 
+        if (myScheduleId == targetScheduleId
+                || reason == null
+                || reason.trim().isEmpty()
+                || reason.trim().length() > 255) {
+            return false;
+        }
+
         String sql
                 = "INSERT INTO shift_change_requests "
-                + "(requester_id, shift_schedule_id, "
-                + "request_type, target_user_id, "
-                + "target_shift_schedule_id, reason, status) "
-                + "SELECT ?, mine.id, 'SWAP', theirs.user_id, "
-                + "theirs.id, ?, 'PENDING' "
+                + "(requester_id, target_user_id, "
+                + "shift_schedule_id, target_shift_schedule_id, "
+                + "reason, status) "
+                + "SELECT ?, theirs.user_id, mine.id, "
+                + "theirs.id, ?, 'WAITING_COLLEAGUE' "
                 + "FROM shift_schedules mine "
                 + "JOIN shift_schedules theirs "
                 + "ON mine.branch_id = theirs.branch_id "
-                + "WHERE mine.id = ? AND theirs.id = ? "
+                + "JOIN users requester "
+                + "ON requester.id = mine.user_id "
+                + "JOIN users colleague "
+                + "ON colleague.id = theirs.user_id "
+                + "WHERE mine.id = ? "
+                + "AND theirs.id = ? "
                 + "AND mine.user_id = ? "
                 + "AND theirs.user_id <> mine.user_id "
+                + "AND requester.role_id = 5 "
+                + "AND colleague.role_id = 5 "
+                + "AND requester.status = 'ACTIVE' "
+                + "AND colleague.status = 'ACTIVE' "
                 + "AND mine.status = 'PUBLISHED' "
                 + "AND theirs.status = 'PUBLISHED' "
-                + "AND mine.work_date >= CURRENT_DATE() "
-                + "AND theirs.work_date >= CURRENT_DATE() "
+                + "AND mine.work_date >= "
+                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "AND theirs.work_date >= "
+                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "AND NOT EXISTS ("
                 + "SELECT 1 FROM shift_change_requests r "
-                + "WHERE r.status = 'PENDING' "
-                + "AND (r.shift_schedule_id IN (mine.id, theirs.id) "
-                + "OR r.target_shift_schedule_id IN (mine.id, theirs.id)))";
+                + "WHERE r.status IN "
+                + "('WAITING_COLLEAGUE', 'PENDING') "
+                + "AND ("
+                + "r.shift_schedule_id IN (mine.id, theirs.id) "
+                + "OR r.target_shift_schedule_id "
+                + "IN (mine.id, theirs.id)"
+                + "))";
 
-        try (Connection c = connect(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, userId);
-            ps.setString(2, reason);
+            ps.setString(2, reason.trim());
             ps.setInt(3, myScheduleId);
             ps.setInt(4, targetScheduleId);
             ps.setInt(5, userId);
 
-            return ps.executeUpdate() > 0;
+            return ps.executeUpdate() == 1;
         }
     }
 
@@ -630,6 +657,228 @@ public class ShiftChangeRequestDAO {
         } catch (Exception e) {
             throw new IllegalStateException(
                     "Cannot load shifts", e
+            );
+        }
+
+        return result;
+    }
+
+    public List<Map<String, Object>> getEmployeesInShift(
+            int shiftId,
+            java.sql.Date workDate,
+            int currentUserId) {
+
+        List<Map<String, Object>> employees = new ArrayList<>();
+
+        String sql
+                = "SELECT ss.id AS scheduleId, "
+                + "u.id AS userId, "
+                + "ep.full_name AS fullName, "
+                + "p.title AS positionName "
+                + "FROM shift_schedules ss "
+                + "JOIN users u ON u.id = ss.user_id "
+                + "JOIN employee_profiles ep ON ep.user_id = u.id "
+                + "LEFT JOIN positions p ON p.id = ss.position_id "
+                + "WHERE ss.shift_id = ? "
+                + "AND ss.work_date = ? "
+                + "AND ss.branch_id IN ("
+                + "SELECT home_branch_id "
+                + "FROM employee_profiles "
+                + "WHERE user_id = ?) "
+                + "AND ss.user_id <> ? "
+                + "AND u.role_id = 5 "
+                + "AND u.status = 'ACTIVE' "
+                + "AND ss.status = 'PUBLISHED' "
+                + "AND ss.work_date >= "
+                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "ORDER BY ep.full_name";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, shiftId);
+            ps.setDate(2, workDate);
+            ps.setInt(3, currentUserId);
+            ps.setInt(4, currentUserId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+
+                    Map<String, Object> employee
+                            = new LinkedHashMap<>();
+
+                    employee.put(
+                            "scheduleId",
+                            rs.getInt("scheduleId")
+                    );
+
+                    employee.put(
+                            "userId",
+                            rs.getInt("userId")
+                    );
+
+                    employee.put(
+                            "fullName",
+                            rs.getString("fullName")
+                    );
+
+                    employee.put(
+                            "positionName",
+                            rs.getString("positionName")
+                    );
+
+                    employees.add(employee);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot load employees in shift", e
+            );
+        }
+
+        return employees;
+    }
+
+    public List<Map<String, Object>> getIncomingRequests(int userId) {
+
+        String sql
+                = "SELECT r.id, "
+                + "r.requester_id AS requesterId, "
+                + "ep.full_name AS requesterName, "
+                + "r.reason, "
+                + "r.status, "
+                + "mine.work_date AS requesterDate, "
+                + "ms.name AS requesterShift, "
+                + "theirs.work_date AS myDate, "
+                + "ts.name AS myShift "
+                + "FROM shift_change_requests r "
+                + "JOIN shift_schedules mine "
+                + "ON mine.id = r.shift_schedule_id "
+                + "JOIN shift_schedules theirs "
+                + "ON theirs.id = r.target_shift_schedule_id "
+                + "JOIN shifts ms "
+                + "ON ms.id = mine.shift_id "
+                + "JOIN shifts ts "
+                + "ON ts.id = theirs.shift_id "
+                + "JOIN employee_profiles ep "
+                + "ON ep.user_id = r.requester_id "
+                + "WHERE r.target_user_id = ? "
+                + "AND r.status = 'WAITING_COLLEAGUE' "
+                + "ORDER BY r.id DESC";
+
+        return query(sql, userId);
+    }
+
+    public boolean respondToSwap(
+            int requestId,
+            int colleagueId,
+            boolean accepted,
+            String message) throws Exception {
+
+        if (message != null && message.length() > 255) {
+            return false;
+        }
+
+        String newStatus = accepted ? "PENDING" : "DECLINED";
+
+        String sql
+                = "UPDATE shift_change_requests r "
+                + "JOIN shift_schedules mine "
+                + "ON mine.id = r.shift_schedule_id "
+                + "JOIN shift_schedules theirs "
+                + "ON theirs.id = r.target_shift_schedule_id "
+                + "JOIN users requester "
+                + "ON requester.id = r.requester_id "
+                + "JOIN users colleague "
+                + "ON colleague.id = r.target_user_id "
+                + "SET r.status = ?, "
+                + "r.colleague_response = ?, "
+                + "r.colleague_responded_at = NOW() "
+                + "WHERE r.id = ? "
+                + "AND r.target_user_id = ? "
+                + "AND r.status = 'WAITING_COLLEAGUE' "
+                + "AND mine.user_id = r.requester_id "
+                + "AND theirs.user_id = r.target_user_id "
+                + "AND mine.branch_id = theirs.branch_id "
+                + "AND mine.status = 'PUBLISHED' "
+                + "AND theirs.status = 'PUBLISHED' "
+                + "AND requester.role_id = 5 "
+                + "AND colleague.role_id = 5 "
+                + "AND requester.status = 'ACTIVE' "
+                + "AND colleague.status = 'ACTIVE' "
+                + "AND mine.work_date >= "
+                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "AND theirs.work_date >= "
+                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY)";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, newStatus);
+            ps.setString(2, message);
+            ps.setInt(3, requestId);
+            ps.setInt(4, colleagueId);
+
+            return ps.executeUpdate() == 1;
+        }
+    }
+
+    public List<Map<String, Object>> getDepartmentSchedules(
+            int userId,
+            java.time.LocalDate weekStart) {
+
+        String sql
+                = "SELECT ss.id, "
+                + "ss.user_id AS employeeId, "
+                + "ep.full_name AS employeeName, "
+                + "ss.shift_id AS shiftId, "
+                + "ss.work_date AS workDate, "
+                + "ss.position_id AS positionId, "
+                + "s.name AS shiftName, "
+                + "s.start_time AS startTime, "
+                + "s.end_time AS endTime "
+                + "FROM shift_schedules ss "
+                + "JOIN employee_profiles current_ep "
+                + "ON current_ep.user_id = ? "
+                + "JOIN employee_profiles ep "
+                + "ON ep.user_id = ss.user_id "
+                + "JOIN users u ON u.id = ss.user_id "
+                + "JOIN shifts s ON s.id = ss.shift_id "
+                + "WHERE ss.branch_id = current_ep.home_branch_id "
+                + "AND ss.position_id = current_ep.position_id "
+                + "AND ss.status = 'PUBLISHED' "
+                + "AND u.role_id = 5 "
+                + "AND ss.work_date BETWEEN ? AND ? "
+                + "ORDER BY ss.work_date, s.start_time, ep.full_name";
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        try (Connection c = connect(); PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+            ps.setDate(2, java.sql.Date.valueOf(weekStart));
+            ps.setDate(3, java.sql.Date.valueOf(
+                    weekStart.plusDays(6)));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData md = rs.getMetaData();
+
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+
+                    for (int i = 1; i <= md.getColumnCount(); i++) {
+                        row.put(
+                                md.getColumnLabel(i),
+                                rs.getObject(i)
+                        );
+                    }
+
+                    result.add(row);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot load department schedules", e
             );
         }
 

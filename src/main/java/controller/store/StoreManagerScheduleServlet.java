@@ -39,7 +39,8 @@ public class StoreManagerScheduleServlet extends BaseServlet {
 
         int managerBranchId = getCurrentBranchId(request);
         if (managerBranchId == -1) {
-            managerBranchId = 1;
+            sendForbidden(request, response, "Không xác định được cơ sở.");
+            return;
         }
 
         // Nhận tham số startDate từ request để hỗ trợ xem lại các tuần cũ hoặc tuần khác
@@ -57,7 +58,7 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         }
 
         LocalDate nextSunday = nextMonday.plusDays(6);
-        
+
         // Tính toán mốc tuần trước và tuần sau để phục vụ nút điều hướng trên giao diện
         LocalDate prevMonday = nextMonday.minusWeeks(1);
         LocalDate followingMonday = nextMonday.plusWeeks(1);
@@ -73,12 +74,17 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         EmployeeAvailabilityDAO availabilityDAO = new EmployeeAvailabilityDAO();
         ShiftScheduleDAO scheduleDAO = new ShiftScheduleDAO();
 
+        // --- BỔ SUNG ĐOẠN NÀY ĐỂ LẤY DANH SÁCH CƠ SỞ KHÁC ---
+        dao.BranchDAO branchDAO = new dao.BranchDAO();
+        List<model.Branch> otherBranches = branchDAO.getOtherBranches(managerBranchId);
+        request.setAttribute("allBranches", otherBranches);
+
         List<Shift> shifts = availabilityDAO.getAllShifts();
         List<Map<String, Object>> branchRegistrations = availabilityDAO.getRegistrationsByBranchId(managerBranchId);
-        
+
         // Lấy danh sách nhân viên Full-time cố định của chi nhánh
         List<Map<String, Object>> fullTimeEmployees = scheduleDAO.getFullTimeEmployeesByBranch(managerBranchId);
-        
+
         List<String> assignedList = scheduleDAO.getAssignedKeysByBranchId(managerBranchId);
 
         // Kiểm tra xem lịch trong tuần này của chi nhánh đã được publish chưa
@@ -125,6 +131,7 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         request.setAttribute("managerBranchId", managerBranchId);
         request.setAttribute("weeklyRequirements", weeklyRequirements);
         request.setAttribute("weeklyAssignedCounts", weeklyAssignedCounts);
+        request.setAttribute("borrowedAssignments", scheduleDAO.getBorrowedAssignments(managerBranchId,nextMonday.toString(),nextSunday.toString()));
 
         request.getRequestDispatcher("/WEB-INF/views/store-manager/schedule.jsp").forward(request, response);
     }
@@ -140,36 +147,37 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         String action = getStringParameter(request, "action");
         String startDate = getStringParameter(request, "startDate"); // Mốc ngày bắt đầu tuần (Thứ Hai)
         int branchId = getIntParameter(request, "branchId", -1);
+        int currentBranch = getCurrentBranchId(request);
+        if(currentBranch<=0 || branchId!=currentBranch){sendForbidden(request,response,"Không có quyền sửa lịch cơ sở này");return;}
 
         ShiftScheduleDAO scheduleDAO = new ShiftScheduleDAO();
 
-        // 1. Kiểm tra an toàn: Nếu tuần này đã Publish, tuyệt đối chặn mọi thao tác assign hoặc updateRequirement
-        if (startDate != null && !startDate.trim().isEmpty() && branchId != -1) {
-            try {
-                LocalDate startDt = LocalDate.parse(startDate);
-                LocalDate endDt = startDt.plusDays(6);
-                boolean isAlreadyPublished = scheduleDAO.isWeekPublished(branchId, startDt.toString(), endDt.toString());
-                if (isAlreadyPublished && ("assign".equals(action) || "updateRequirement".equals(action))) {
-                    response.getWriter().write("published_locked");
-                    return;
+        // Check publish based on actual workDate, never depend on an optional startDate parameter.
+        if("assign".equals(action)||"updateRequirement".equals(action)){
+            try{
+                LocalDate d=LocalDate.parse(getStringParameter(request,"workDate"));
+                LocalDate monday=d.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+                if(scheduleDAO.isWeekPublished(branchId,monday.toString(),monday.plusDays(6).toString())){
+                    response.getWriter().write("published_locked");return;
                 }
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
+            }catch(Exception e){response.sendError(400,"Ngày không hợp lệ");return;}
         }
 
         if ("assign".equals(action)) {
             int userId = getIntParameter(request, "userId", -1);
+            int positionId = getIntParameter(request,"positionId",-1);
             int shiftId = getIntParameter(request, "shiftId", -1);
             String workDate = getStringParameter(request, "workDate");
 
-            if (userId != -1 && shiftId != -1 && branchId != -1 && workDate != null) {
+            if (userId != -1 && shiftId != -1 && positionId>0 && branchId != -1 && workDate != null) {
                 boolean exists = scheduleDAO.checkScheduleExists(branchId, userId, shiftId, workDate);
                 if (exists) {
+                    if(scheduleDAO.isLockedForTransfer(branchId,userId,shiftId,workDate)){response.getWriter().write("transfer_locked");return;}
                     scheduleDAO.deleteSchedule(branchId, userId, shiftId, workDate);
                     response.getWriter().write("removed");
                 } else {
-                    scheduleDAO.insertSchedule(branchId, userId, shiftId, workDate);
+                    if(!scheduleDAO.canAssign(branchId,userId,positionId,shiftId,workDate)){response.getWriter().write("assignment_invalid");return;}
+                    scheduleDAO.insertSchedule(branchId, userId, shiftId, workDate,positionId);
                     response.getWriter().write("added");
                 }
             }
@@ -179,7 +187,9 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             int shiftId = getIntParameter(request, "shiftId", -1);
             String workDate = getStringParameter(request, "workDate");
             int requiredCount = getIntParameter(request, "requiredCount", 1);
-            if (requiredCount < 1) requiredCount = 1;
+            if (requiredCount < 1) {
+                requiredCount = 1;
+            }
 
             if (branchId != -1 && positionId != -1 && shiftId != -1 && workDate != null) {
                 scheduleDAO.updateShiftRequirementByDate(branchId, positionId, shiftId, workDate, requiredCount);
@@ -188,10 +198,29 @@ public class StoreManagerScheduleServlet extends BaseServlet {
 
         } else if ("publish".equals(action)) {
             if (branchId != -1) {
-                scheduleDAO.publishSchedules(branchId);
+                if(startDate == null){response.sendError(400,"Thiếu tuần cần Publish");return;}
+                LocalDate monday=LocalDate.parse(startDate);
+                scheduleDAO.publishSchedules(branchId,monday.toString(),monday.plusDays(6).toString());
             }
             // Giữ nguyên tham số startDate trên URL khi redirect về để quản lý không bị nhảy mất tuần đang xem
             String redirectUrl = "schedule?success=published";
+            if (startDate != null && !startDate.trim().isEmpty()) {
+                redirectUrl += "&startDate=" + startDate;
+            }
+            response.sendRedirect(redirectUrl);
+        } else if ("createTransferProposal".equals(action)) {
+            // Xử lý lưu đề xuất điều chuyển nhân sự giữa các cơ sở ở đây
+            int sourceStoreId = getIntParameter(request, "sourceStoreId", -1);
+            int positionId = getIntParameter(request, "positionId", -1);
+            int shiftId = getIntParameter(request, "shiftId", -1);
+            String workDate = getStringParameter(request, "workDate");
+            int requiredCount = getIntParameter(request, "requiredCount", 0);
+            String reason = getStringParameter(request, "reason");
+
+            // TODO: Gọi hàm DAO tương ứng để lưu thông tin đề xuất mượn nhân sự vào database tại đây
+            // Ví dụ: scheduleDAO.createTransferProposal(branchId, sourceStoreId, positionId, shiftId, workDate, requiredCount, reason);
+            // Redirect lại trang kèm theo mốc startDate cũ để giữ nguyên tuần đang xem
+            String redirectUrl = "schedule?success=transfer_created";
             if (startDate != null && !startDate.trim().isEmpty()) {
                 redirectUrl += "&startDate=" + startDate;
             }
