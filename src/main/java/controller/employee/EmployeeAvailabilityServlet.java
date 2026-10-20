@@ -3,6 +3,7 @@ package controller.employee;
 import controller.base.BaseServlet;
 import dao.EmployeeAvailabilityDAO;
 import dao.EmployeeProfileDAO;
+import dao.SupplementaryShiftDAO;
 import model.EmployeeAvailability;
 import model.EmployeeProfile;
 import model.Shift;
@@ -63,6 +64,12 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         String employeeType = (profile != null && profile.getEmployeeType() != null) ? profile.getEmployeeType().trim().toUpperCase() : "FULL_TIME";
         String shiftType = (profile != null && profile.getShiftType() != null) ? profile.getShiftType().trim().toUpperCase() : "";
 
+        if (profile != null && !"FULL_TIME".equals(employeeType)) {
+            request.setAttribute("supplementaryRegistrations",
+                new SupplementaryShiftDAO().getOpenRegistrationsForEmployee(
+                    user.getId(), profile.getHomeBranchId(), profile.getPositionId()));
+        }
+
         List<Shift> shifts = dao.getShiftsByEmployeeType(employeeType);
 
         // Lấy lịch rảnh theo đúng user và đúng mốc tuần
@@ -89,6 +96,14 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
 
         if (!hasRole(request, ROLE_EMPLOYEE) && user.getRoleId() != ROLE_ADMIN) {
             sendForbidden(request, response, "Bạn không có quyền thực hiện thao tác này!");
+            return;
+        }
+
+        if ("applySupplementary".equals(getStringParameter(request, "action"))) {
+            int registrationId = getIntParameter(request, "registrationId", -1);
+            boolean applied = registrationId > 0 && new SupplementaryShiftDAO().apply(registrationId, user.getId());
+            response.sendRedirect(request.getContextPath() + "/employee/availability?"
+                    + (applied ? "success=supplementary" : "error=supplementary"));
             return;
         }
 

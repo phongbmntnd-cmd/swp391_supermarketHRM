@@ -192,6 +192,12 @@
             <c:if test="${param.success eq 'published'}">
                 <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã công bố (Publish) lịch làm việc tuần này thành công! Nhân viên đã có thể xem lịch trên hệ thống.</div>
             </c:if>
+            <c:if test="${param.success eq 'supplementary_opened'}">
+                <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã mở đăng ký bổ sung. Nhân viên phù hợp có thể đăng ký tại trang lịch rảnh.</div>
+            </c:if>
+            <c:if test="${param.error eq 'supplementary_open_failed'}">
+                <div class="alert alert-danger shadow-sm mb-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Không thể mở đăng ký. Hãy kiểm tra ca còn thiếu nhân sự, chưa publish và hạn đăng ký hợp lệ.</div>
+            </c:if>
 
             <div class="card card-custom">
                 <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -392,7 +398,11 @@
                                                                     <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
                                                                          onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
                                                                         <div>
-                                                                            <strong>${reg.fullName}</strong> <span class="badge bg-light text-dark" style="font-size: 9px;">PT</span>
+                                                                            <strong>${reg.fullName}</strong>
+                                                                            <c:choose>
+                                                                                <c:when test="${reg.registrationType eq 'SUPPLEMENTARY'}"><span class="badge bg-warning text-dark" style="font-size: 9px;">Đăng ký bổ sung</span></c:when>
+                                                                                <c:otherwise><span class="badge bg-light text-dark" style="font-size: 9px;">PT</span></c:otherwise>
+                                                                            </c:choose>
                                                                         </div>
                                                                         <div>
                                                                             <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
@@ -450,6 +460,7 @@
                             <input type="hidden" name="positionId" id="suppPositionId">
                             <input type="hidden" name="shiftId" id="suppShiftId">
                             <input type="hidden" name="workDate" id="suppWorkDate">
+                            <input type="hidden" name="startDate" value="${startDateRaw}">
                             <input type="hidden" name="requiredCount" id="suppRequiredCount">
                             <input type="hidden" name="assignedCount" id="suppAssignedCount">
 
