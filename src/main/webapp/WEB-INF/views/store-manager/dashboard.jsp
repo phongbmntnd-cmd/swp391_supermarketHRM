@@ -338,6 +338,7 @@
                         <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
                     </a>
                 </div>
+                        
             </div>
 
             <div class="container">
@@ -462,18 +463,29 @@
                         <a href="${pageContext.request.contextPath}/store-manager/schedule" class="card-link">Quản lý lịch làm việc <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Thẻ Quản Lí Đổi Ca -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
-                                <div class="card-icon" style="background-color: #2ecc71;">
-                                    <i class="fa-solid fa-exchange-alt"></i>
+                                <div class="card-icon"
+                                     style="background-color: #10b981;">
+                                    <i class="fa-solid fa-people-arrows-left-right"></i>
                                 </div>
-                                <h3>Quản Lí Đổi Ca</h3>
+
+                                <h3>Quản Lý Đổi Ca</h3>
                             </div>
-                            <p>Xem xét, tiếp nhận và phê duyệt các đơn xin đổi ca làm việc do nhân viên gửi lên hệ thống.</p>
+
+                            <p>
+                                Xem xét, tiếp nhận và phê duyệt
+                                các đơn đổi ca giữa nhân viên
+                                cùng chi nhánh.
+                            </p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/store-manager/shift-requests" class="card-link">Xem thông tin đổi ca <i class="fa-solid fa-arrow-right"></i></a>
+
+                        <a href="${pageContext.request.contextPath}/store-manager/shift-requests"
+                           class="card-link">
+                            Xem yêu cầu đổi ca
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
                     </div>
                 </div>
 

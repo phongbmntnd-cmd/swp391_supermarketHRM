@@ -45,20 +45,6 @@ public class StoreManagerRequestController extends HttpServlet {
                     "requestList",
                     dao.getBranchRequests(user.getHomeBranchId())
             );
-
-            req.setAttribute(
-                    "openShifts",
-                    dao.getBranchOpenShifts(user.getHomeBranchId())
-            );
-            req.setAttribute(
-                    "shifts",
-                    dao.getAllShifts()
-            );
-
-            req.setAttribute(
-                    "positions",
-                    dao.getPositions()
-            );
             req.getRequestDispatcher(
                     "/WEB-INF/views/store-manager/shift-requests.jsp"
             ).forward(req, resp);
@@ -90,61 +76,32 @@ public class StoreManagerRequestController extends HttpServlet {
 
         try {
             String action = req.getParameter("action");
-            ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
-            boolean success;
 
-            if ("createOpen".equals(action)) {
-
-                int shiftId = Integer.parseInt(
-                        req.getParameter("shiftId")
-                );
-
-                int positionId = Integer.parseInt(
-                        req.getParameter("positionId")
-                );
-
-                java.time.LocalDate date
-                        = java.time.LocalDate.parse(
-                                req.getParameter("workDate")
-                        );
-
-                success = dao.createOpenShift(
-                        user.getHomeBranchId(),
-                        shiftId,
-                        positionId,
-                        date
-                );
-
-            } else if ("approve".equals(action)
-                    || "reject".equals(action)) {
-
-                int requestId = Integer.parseInt(
-                        req.getParameter("requestId")
-                );
-
-                String responseText = req.getParameter("response");
-
-                if (responseText != null && responseText.length() > 255) {
-                    resp.sendError(400, "Response too long");
-                    return;
-                }
-
-                success = dao.review(
-                        requestId,
-                        user.getHomeBranchId(),
-                        "approve".equals(action),
-                        responseText
-                );
-
-            } else {
+            if (!"approve".equals(action)
+                    && !"reject".equals(action)) {
                 resp.sendError(400, "Invalid action");
                 return;
             }
 
-            resp.sendRedirect(
-                    req.getContextPath()
-                    + "/store-manager/shift-requests?"
-                    + (success ? "success=1" : "invalid=1")
+            int requestId = Integer.parseInt(
+                    req.getParameter("requestId")
+            );
+
+            String responseText = req.getParameter("response");
+
+            if (responseText != null
+                    && responseText.length() > 255) {
+                resp.sendError(400, "Response too long");
+                return;
+            }
+
+            ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
+
+            boolean success = dao.review(
+                    requestId,
+                    user.getHomeBranchId(),
+                    "approve".equals(action),
+                    responseText == null ? null : responseText.trim()
             );
 
         } catch (IllegalArgumentException e) {

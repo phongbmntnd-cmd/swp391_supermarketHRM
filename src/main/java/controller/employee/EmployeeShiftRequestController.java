@@ -1,4 +1,3 @@
-
 package controller.employee;
 
 import dao.ShiftChangeRequestDAO;
@@ -10,8 +9,8 @@ import jakarta.servlet.http.*;
 import java.io.IOException;
 
 @WebServlet(
-    name = "EmployeeShiftRequestController",
-    urlPatterns = {"/employee/request-shift"}
+        name = "EmployeeShiftRequestController",
+        urlPatterns = {"/employee/request-shift"}
 )
 public class EmployeeShiftRequestController extends HttpServlet {
 
@@ -28,34 +27,47 @@ public class EmployeeShiftRequestController extends HttpServlet {
             throws ServletException, IOException {
 
         try {
-            ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
+            ShiftChangeRequestDAO dao
+                    = new ShiftChangeRequestDAO();
 
+            // Lịch của nhân viên đang đăng nhập
             req.setAttribute(
-                "mySchedules",
-                dao.getMySchedules(user.getId())
+                    "mySchedules",
+                    dao.getMySchedules(user.getId())
             );
 
+            // Dữ liệu phân công để dựng bảng tuần
             req.setAttribute(
-                "colleagueSchedules",
-                dao.getColleagueSchedules(user.getId())
+                    "colleagueSchedules",
+                    dao.getColleagueSchedules(user.getId())
             );
 
+            // Tên và thời gian của các loại ca
             req.setAttribute(
-                "openShifts",
-                dao.getOpenShifts(user.getId())
+                    "allShifts",
+                    dao.getAllShifts()
             );
 
+            // Đơn nhân viên đã gửi
             req.setAttribute(
-                "myRequests",
-                dao.getMyRequests(user.getId())
+                    "myRequests",
+                    dao.getMyRequests(user.getId())
+            );
+
+            // Chỉ các đơn gửi đến chính tài khoản này
+            req.setAttribute(
+                    "incomingRequests",
+                    dao.getIncomingRequests(user.getId())
             );
 
             req.getRequestDispatcher(
-                "/WEB-INF/views/employee/request-shift.jsp"
+                    "/WEB-INF/views/employee/request-shift.jsp"
             ).forward(req, resp);
 
         } catch (IllegalStateException e) {
-            throw new ServletException(e);
+            throw new ServletException(
+                    "Cannot load shift request page", e
+            );
         }
     }
 
@@ -91,85 +103,116 @@ public class EmployeeShiftRequestController extends HttpServlet {
         User user = currentUser(req);
 
         if (user == null) {
-            resp.sendRedirect(req.getContextPath() + "/login.jsp");
+            resp.sendRedirect(
+                    req.getContextPath() + "/login.jsp"
+            );
             return;
         }
 
+        // Chỉ role Employee được đổi ca
         if (user.getRoleId() != 5) {
             resp.sendError(403);
             return;
         }
 
         try {
-            String type = req.getParameter("requestType");
+            ShiftChangeRequestDAO dao
+                    = new ShiftChangeRequestDAO();
+
+            String action = req.getParameter("action");
+
+            // NHÂN VIÊN B XÁC NHẬN / TỪ CHỐI
+            if ("respond".equals(action)) {
+
+                int requestId = Integer.parseInt(
+                        req.getParameter("requestId")
+                );
+
+                String decision
+                        = req.getParameter("decision");
+
+                if (!"accept".equals(decision)
+                        && !"decline".equals(decision)) {
+
+                    resp.sendError(400, "Invalid decision");
+                    return;
+                }
+
+                boolean accepted
+                        = "accept".equals(decision);
+
+                boolean success = dao.respondToSwap(
+                        requestId,
+                        user.getId(),
+                        accepted,
+                        null
+                );
+
+                resp.sendRedirect(
+                        req.getContextPath()
+                        + "/employee/request-shift?"
+                        + (success ? "responded=1" : "invalid=1")
+                );
+                return;
+            }
+
+            // NHÂN VIÊN A GỬI ĐƠN
+            if (action != null && !"create".equals(action)) {
+                resp.sendError(400, "Invalid action");
+                return;
+            }
 
             int myScheduleId = Integer.parseInt(
-                req.getParameter("myScheduleId")
+                    req.getParameter("myScheduleId")
+            );
+
+            int targetScheduleId = Integer.parseInt(
+                    req.getParameter("targetScheduleId")
             );
 
             String reason = req.getParameter("reason");
 
-            if (reason == null ||
-                reason.trim().isEmpty() ||
-                reason.trim().length() > 255) {
+            if (reason == null
+                    || reason.trim().isEmpty()
+                    || reason.trim().length() > 255) {
 
                 req.setAttribute(
-                    "error", "Lý do không hợp lệ."
+                        "error",
+                        "Vui lòng nhập lý do đổi ca (tối đa 255 ký tự)."
                 );
+
                 showPage(req, resp, user);
                 return;
             }
 
-            ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
-            boolean success;
-
-            if ("SWAP".equals(type)) {
-
-                int targetScheduleId = Integer.parseInt(
-                    req.getParameter("targetScheduleId")
-                );
-
-                success = dao.createSwap(
+            boolean success = dao.createSwap(
                     user.getId(),
                     myScheduleId,
                     targetScheduleId,
                     reason.trim()
-                );
-
-            } else if ("OPEN".equals(type)) {
-
-                int openShiftId = Integer.parseInt(
-                    req.getParameter("openShiftId")
-                );
-
-                success = dao.createOpenChange(
-                    user.getId(),
-                    myScheduleId,
-                    openShiftId,
-                    reason.trim()
-                );
-
-            } else {
-                resp.sendError(400, "Invalid request type");
-                return;
-            }
+            );
 
             resp.sendRedirect(
-                req.getContextPath()
-                + "/employee/request-shift?"
-                + (success ? "success=1" : "invalid=1")
+                    req.getContextPath()
+                    + "/employee/request-shift?"
+                    + (success ? "success=1" : "invalid=1")
             );
 
         } catch (NumberFormatException e) {
+
             req.setAttribute(
-                "error", "Vui lòng chọn đầy đủ thông tin."
+                    "error",
+                    "Vui lòng chọn đầy đủ thông tin đổi ca."
             );
+
             showPage(req, resp, user);
 
         } catch (Exception e) {
+
             throw new ServletException(
-                "Cannot create shift change request", e
+                    "Cannot process shift swap", e
             );
         }
     }
+
 }
