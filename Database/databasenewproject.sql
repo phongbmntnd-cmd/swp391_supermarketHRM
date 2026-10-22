@@ -869,6 +869,42 @@ INSERT INTO `shifts` VALUES (1,'Ca Sáng','07:00:00','12:00:00'),(2,'Ca Chiều'
 UNLOCK TABLES;
 
 --
+-- Table structure for supplementary shift registrations
+--
+
+DROP TABLE IF EXISTS `supplementary_shift_applications`;
+DROP TABLE IF EXISTS `supplementary_shift_opportunities`;
+CREATE TABLE `supplementary_shift_opportunities` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `branch_id` int NOT NULL,
+  `position_id` int NOT NULL,
+  `shift_id` int NOT NULL,
+  `work_date` date NOT NULL,
+  `registration_deadline` datetime NOT NULL,
+  `opened_by` int NOT NULL,
+  `status` enum('OPEN','CLOSED') NOT NULL DEFAULT 'OPEN',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_supplementary_opportunity` (`branch_id`,`position_id`,`shift_id`,`work_date`),
+  KEY `idx_supplementary_deadline` (`status`,`registration_deadline`),
+  CONSTRAINT `fk_supplementary_branch` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
+  CONSTRAINT `fk_supplementary_position` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`),
+  CONSTRAINT `fk_supplementary_shift` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`id`),
+  CONSTRAINT `fk_supplementary_opened_by` FOREIGN KEY (`opened_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `supplementary_shift_applications` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `opportunity_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_supplementary_application` (`opportunity_id`,`user_id`),
+  CONSTRAINT `fk_supplementary_application_opportunity` FOREIGN KEY (`opportunity_id`) REFERENCES `supplementary_shift_opportunities` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_supplementary_application_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
 -- Table structure for table `temporary_transfer_employees`
 --
 

@@ -100,8 +100,9 @@ public class EmployeeDAO {
 
     /**
      * Xem chi tiết 1 nhân viên theo user_id.
+     * SỬA: thêm u.role_id vào SELECT - trước đây thiếu cột này nên
+     * rs.getInt("role_id") ném SQLException "Column 'role_id' not found".
      */
-    // Lấy thông tin chi tiết nhân viên theo ID, có JOIN bảng branches và positions để lấy tên cơ sở và vị trí
     public Employee getEmployeeById(int userId) {
         Employee emp = null;
         String sql = "SELECT ep.*, u.username, u.email, u.status as user_status, u.role_id, "
@@ -204,7 +205,14 @@ public class EmployeeDAO {
         String sql = "SELECT id, code, name FROM branches ORDER BY name";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Branch(rs.getInt("id"), rs.getString("code"), rs.getString("name")));
+                // SỬA: dùng constructor rỗng + setter thay vì Branch(int, String, String),
+                // vì constructor 3 tham số trong model.Branch của project đang là code mẫu
+                // NetBeans tự sinh (throw UnsupportedOperationException), chưa được cài đặt thật.
+                Branch b = new Branch();
+                b.setId(rs.getInt("id"));
+                b.setCode(rs.getString("code"));
+                b.setName(rs.getString("name"));
+                list.add(b);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -217,7 +225,10 @@ public class EmployeeDAO {
         String sql = "SELECT id, name FROM departments ORDER BY name";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Department(rs.getInt("id"), rs.getString("name")));
+                Department d = new Department();
+                d.setId(rs.getInt("id"));
+                d.setName(rs.getString("name"));
+                list.add(d);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -230,7 +241,11 @@ public class EmployeeDAO {
         String sql = "SELECT id, title, department_id FROM positions ORDER BY title";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                list.add(new Position(rs.getInt("id"), rs.getString("title"), rs.getInt("department_id")));
+                Position p = new Position();
+                p.setId(rs.getInt("id"));
+                p.setTitle(rs.getString("title"));
+                p.setDepartmentId(rs.getInt("department_id"));
+                list.add(p);
             }
         } catch (Exception e) {
             e.printStackTrace();

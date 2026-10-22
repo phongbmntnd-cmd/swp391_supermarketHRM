@@ -3,6 +3,7 @@ package controller.store;
 import controller.base.BaseServlet;
 import dao.EmployeeAvailabilityDAO;
 import dao.ShiftScheduleDAO;
+import dao.SupplementaryShiftDAO;
 import model.Shift;
 import model.User;
 
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.sql.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -81,6 +83,24 @@ public class StoreManagerScheduleServlet extends BaseServlet {
 
         List<Shift> shifts = availabilityDAO.getAllShifts();
         List<Map<String, Object>> branchRegistrations = availabilityDAO.getRegistrationsByBranchId(managerBranchId);
+        List<Map<String, Object>> supplementaryApplicants = new SupplementaryShiftDAO()
+                .getApplicants(managerBranchId, nextMonday.toString(), nextSunday.toString());
+        for (Map<String, Object> applicant : supplementaryApplicants) {
+            boolean alreadyListed = false;
+            for (Map<String, Object> registration : branchRegistrations) {
+                if (registration.get("userId").equals(applicant.get("userId"))
+                        && registration.get("dayOfWeek").equals(applicant.get("dayOfWeek"))
+                        && registration.get("shiftName").equals(applicant.get("shiftName"))) {
+                    alreadyListed = true;
+                    break;
+                }
+            }
+            if (!alreadyListed) {
+                Map<String, Object> registration = new HashMap<>(applicant);
+                registration.put("registrationType", "SUPPLEMENTARY");
+                branchRegistrations.add(registration);
+            }
+        }
 
         // Lấy danh sách nhân viên Full-time cố định của chi nhánh
         List<Map<String, Object>> fullTimeEmployees = scheduleDAO.getFullTimeEmployeesByBranch(managerBranchId);
@@ -201,9 +221,37 @@ public class StoreManagerScheduleServlet extends BaseServlet {
                 if(startDate == null){response.sendError(400,"Thiếu tuần cần Publish");return;}
                 LocalDate monday=LocalDate.parse(startDate);
                 scheduleDAO.publishSchedules(branchId,monday.toString(),monday.plusDays(6).toString());
+                new SupplementaryShiftDAO().closeRegistrationsForWeek(branchId, monday.toString(), monday.plusDays(6).toString());
             }
             // Giữ nguyên tham số startDate trên URL khi redirect về để quản lý không bị nhảy mất tuần đang xem
             String redirectUrl = "schedule?success=published";
+            if (startDate != null && !startDate.trim().isEmpty()) {
+                redirectUrl += "&startDate=" + startDate;
+            }
+            response.sendRedirect(redirectUrl);
+        } else if ("openSupplementaryRegistration".equals(action)) {
+            int positionId = getIntParameter(request, "positionId", -1);
+            int shiftId = getIntParameter(request, "shiftId", -1);
+            String workDate = getStringParameter(request, "workDate");
+            String deadlineValue = getStringParameter(request, "registrationDeadline");
+            boolean opened = false;
+            try {
+                if (positionId > 0 && shiftId > 0 && workDate != null && deadlineValue != null) {
+                    LocalDate selectedDate = LocalDate.parse(workDate);
+                    LocalDate selectedWeek = LocalDate.parse(startDate);
+                    if (selectedWeek.getDayOfWeek() != DayOfWeek.MONDAY
+                            || selectedDate.isBefore(selectedWeek)
+                            || selectedDate.isAfter(selectedWeek.plusDays(6))) {
+                        throw new IllegalArgumentException("Ngày đăng ký không thuộc tuần đang xem");
+                    }
+                    LocalDateTime deadline = LocalDateTime.parse(deadlineValue);
+                    opened = new SupplementaryShiftDAO().openRegistration(
+                            branchId, positionId, shiftId, workDate, Timestamp.valueOf(deadline), user.getId());
+                }
+            } catch (Exception e) {
+                opened = false;
+            }
+            String redirectUrl = "schedule?" + (opened ? "success=supplementary_opened" : "error=supplementary_open_failed");
             if (startDate != null && !startDate.trim().isEmpty()) {
                 redirectUrl += "&startDate=" + startDate;
             }

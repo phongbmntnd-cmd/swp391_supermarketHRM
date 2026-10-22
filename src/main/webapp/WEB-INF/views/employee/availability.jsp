@@ -45,6 +45,13 @@
 
         <div class="main-container">
 
+            <c:if test="${param.success eq 'supplementary'}">
+                <div class="alert alert-success"><i class="fa-solid fa-circle-check me-2"></i>Đăng ký ca bổ sung thành công. Quản lý sẽ xem xét và phân công.</div>
+            </c:if>
+            <c:if test="${param.error eq 'supplementary'}">
+                <div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation me-2"></i>Không thể đăng ký ca này. Có thể hạn đăng ký đã hết, ca bị trùng hoặc bạn đã đăng ký trước đó.</div>
+            </c:if>
+
             <c:if test="${param.error eq 'min_shifts'}">
                 <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
                     <i class="fa-solid fa-triangle-exclamation me-2"></i> Bạn phải đăng ký tối thiểu <strong>${param.min} ca làm việc</strong> trong tuần!
@@ -99,6 +106,47 @@
                             </c:choose>
                         </div>
                     </div>
+
+                    <c:if test="${not empty supplementaryRegistrations}">
+                        <section class="mb-4">
+                            <h5><i class="fa-solid fa-user-plus me-2 text-warning"></i>Ca đang mở đăng ký bổ sung</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Ngày</th>
+                                            <th>Vị trí</th>
+                                            <th>Ca</th>
+                                            <th>Hạn đăng ký</th>
+                                            <th>Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <c:forEach var="registration" items="${supplementaryRegistrations}">
+                                            <tr>
+                                                <td><c:out value="${registration.workDate}"/></td>
+                                                <td><c:out value="${registration.positionTitle}"/></td>
+                                                <td><c:out value="${registration.shiftName}"/> <small class="text-muted">${registration.startTime} - ${registration.endTime}</small></td>
+                                                <td><c:out value="${registration.deadline}"/></td>
+                                                <td>
+                                                    <c:choose>
+                                                        <c:when test="${registration.applied}"><span class="badge bg-success">Đã đăng ký</span></c:when>
+                                                        <c:otherwise>
+                                                            <form action="availability" method="POST" class="m-0">
+                                                                <input type="hidden" name="action" value="applySupplementary">
+                                                                <input type="hidden" name="registrationId" value="${registration.registrationId}">
+                                                                <button type="submit" class="btn btn-sm btn-warning"><i class="fa-solid fa-plus me-1"></i>Đăng ký ca</button>
+                                                            </form>
+                                                        </c:otherwise>
+                                                    </c:choose>
+                                                </td>
+                                            </tr>
+                                        </c:forEach>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </c:if>
 
                     <c:choose>
                         <%-- NẾU LÀ FULL-TIME: TUYỆT ĐỐI KHÔNG HIỆN BẢNG ĐĂNG KÝ, CHỈ HIỆN THÔNG BÁO --%>
