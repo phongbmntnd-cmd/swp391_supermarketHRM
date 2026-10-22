@@ -15,25 +15,110 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            body { font-family: 'Roboto', sans-serif; background-color: #f4f7f6; color: #333; }
-            .top-navbar { background-color: #2c3e50; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-            .top-navbar h1 { font-size: 20px; font-weight: 500; margin: 0; }
-            .main-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
-            .card-custom { background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: none; overflow: hidden; }
-            .card-header-custom { background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 25px 30px; }
-            .card-header-custom h2 { font-size: 22px; font-weight: 500; margin: 0 0 8px 0; }
-            .badge-status { font-size: 13px; padding: 6px 12px; border-radius: 20px; font-weight: 500; }
-            .table-container { padding: 25px; }
-            .table > thead > tr > th { background-color: #f8f9fa; color: #2c3e50; font-weight: 600; text-transform: uppercase; font-size: 13px; padding: 15px 10px; border-bottom: 2px solid #e9ecef; }
-            .table tbody td { padding: 18px 10px; vertical-align: middle; }
-            .shift-info { font-weight: 600; color: #2c3e50; }
-            .shift-time { font-size: 12px; color: #7f8c8d; display: block; margin-top: 3px; }
-            .form-check-input { width: 22px; height: 22px; cursor: pointer; border: 2px solid #cbd5e1; }
-            .form-check-input:checked { background-color: #27ae60; border-color: #27ae60; }
-            .checkbox-cell { text-align: center; }
-            .btn-save { background-color: #27ae60; border: none; padding: 12px 30px; font-weight: 500; border-radius: 6px; }
-            .btn-save:hover { background-color: #219653; }
-            .btn-back { color: white; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
+            body {
+                font-family: 'Roboto', sans-serif;
+                background-color: #f4f7f6;
+                color: #333;
+            }
+            .top-navbar {
+                background-color: #2c3e50;
+                color: white;
+                padding: 15px 30px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            .top-navbar h1 {
+                font-size: 20px;
+                font-weight: 500;
+                margin: 0;
+            }
+            .main-container {
+                max-width: 1200px;
+                margin: 40px auto;
+                padding: 0 20px;
+            }
+            .card-custom {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+                border: none;
+                overflow: hidden;
+            }
+            .card-header-custom {
+                background: linear-gradient(135deg, #27ae60, #2ecc71);
+                color: white;
+                padding: 25px 30px;
+            }
+            .card-header-custom h2 {
+                font-size: 22px;
+                font-weight: 500;
+                margin: 0 0 8px 0;
+            }
+            .badge-status {
+                font-size: 13px;
+                padding: 6px 12px;
+                border-radius: 20px;
+                font-weight: 500;
+            }
+            .table-container {
+                padding: 25px;
+            }
+            .table > thead > tr > th {
+                background-color: #f8f9fa;
+                color: #2c3e50;
+                font-weight: 600;
+                text-transform: uppercase;
+                font-size: 13px;
+                padding: 15px 10px;
+                border-bottom: 2px solid #e9ecef;
+            }
+            .table tbody td {
+                padding: 18px 10px;
+                vertical-align: middle;
+            }
+            .shift-info {
+                font-weight: 600;
+                color: #2c3e50;
+            }
+            .shift-time {
+                font-size: 12px;
+                color: #7f8c8d;
+                display: block;
+                margin-top: 3px;
+            }
+            .form-check-input {
+                width: 22px;
+                height: 22px;
+                cursor: pointer;
+                border: 2px solid #cbd5e1;
+            }
+            .form-check-input:checked {
+                background-color: #27ae60;
+                border-color: #27ae60;
+            }
+            .checkbox-cell {
+                text-align: center;
+            }
+            .btn-save {
+                background-color: #27ae60;
+                border: none;
+                padding: 12px 30px;
+                font-weight: 500;
+                border-radius: 6px;
+            }
+            .btn-save:hover {
+                background-color: #219653;
+            }
+            .btn-back {
+                color: white;
+                text-decoration: none;
+                font-weight: 500;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
         </style>
     </head>
     <body>
@@ -131,6 +216,7 @@
                                                 <td>
                                                     <c:choose>
                                                         <c:when test="${registration.applied}"><span class="badge bg-success">Đã đăng ký</span></c:when>
+                                                        <c:when test="${registration.hasConflict}"><span class="badge bg-secondary">Đã bận / Trùng lịch rảnh</span></c:when>
                                                         <c:otherwise>
                                                             <form action="availability" method="POST" class="m-0">
                                                                 <input type="hidden" name="action" value="applySupplementary">
@@ -169,9 +255,9 @@
                                         <thead>
                                             <tr>
                                                 <th style="width: 22%; text-align: left; padding-left: 20px;">Ca Làm Việc</th>
-                                                <c:forEach var="dName" items="${dayNames}">
+                                                    <c:forEach var="dName" items="${dayNames}">
                                                     <th>${dName}</th>
-                                                </c:forEach>
+                                                    </c:forEach>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -184,7 +270,7 @@
 
                                                     <c:forEach var="day" items="${days}">
                                                         <c:set var="isDisabled" value="false" />
-                                                        
+
                                                         <%-- RÀNG BUỘC KHÓA MỜ THÔNG MINH DỰA TRÊN TÊN CA VÀ SHIFT_TYPE --%>
                                                         <c:if test="${not empty shiftType}">
                                                             <c:choose>
@@ -203,12 +289,10 @@
                                                         <td class="checkbox-cell ${isDisabled ? 'bg-light opacity-50' : ''}">
                                                             <input class="form-check-input" type="checkbox" name="availabilities" value="${day}_${shift.id}"
                                                                    <c:if test="${isDisabled}">disabled style="pointer-events: none; background-color: #e9ecef;"</c:if>
-                                                                   <c:forEach var="ca" items="${currentAvailabilities}">
-                                                                       <c:if test="${ca.dayOfWeek eq day and ca.shiftId eq shift.id}">checked</c:if>
-                                                                   </c:forEach>
+                                                                   <c:if test="${registeredKeySet.contains(day.concat('_').concat(shift.id))}">checked</c:if>
                                                                    <c:if test="${!isRegistrationOpen}">disabled</c:if>
-                                                                   >
-                                                        </td>
+                                                                       >
+                                                            </td>
                                                     </c:forEach>
                                                 </tr>
                                             </c:forEach>

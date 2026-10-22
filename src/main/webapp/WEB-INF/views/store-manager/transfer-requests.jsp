@@ -246,11 +246,26 @@
             <div class="container-dashboard">
 
                 <!-- Page Header -->
-                <div class="page-header-card">
-                    <h2><i class="fa-solid fa-right-left"></i> Quản Lý Điều Chuyển Nhân Sự</h2>
-                    <a href="${pageContext.request.contextPath}/store-manager/schedule" class="btn btn-outline-secondary btn-sm">
-                        <i class="fa-solid fa-arrow-left me-1"></i> Quay về xếp lịch
-                    </a>
+                <div class="card card-custom border-0 shadow-sm mb-4">
+                    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <!-- Tiêu đề và mô tả ngắn -->
+                        <div>
+                            <h2 class="h4 fw-bold text-dark mb-1">
+                                <i class="fa-solid fa-right-left text-primary me-2"></i>Quản Lý Điều Chuyển Nhân Sự
+                            </h2>
+                            <p class="text-muted small mb-0">Theo dõi và thực hiện các yêu cầu điều chuyển nhân sự giữa các cơ sở.</p>
+                        </div>
+
+                        <!-- Nhóm các nút điều hướng -->
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="${pageContext.request.contextPath}/store-manager/schedule" class="btn btn-outline-primary btn-sm px-3 py-2">
+                                <i class="fa-solid fa-arrow-left me-1"></i> Quay về xếp lịch
+                            </a>
+                            <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-secondary btn-sm px-3 py-2">
+                                <i class="fa-solid fa-house me-1"></i> Dashboard
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Thông báo Thành công / Lỗi chung -->
@@ -304,8 +319,8 @@
                                         <td>
                                             <c:if test="${not empty t.rejectReason}">
                                                 <div class="text-danger small mb-1"><i class="fa-solid fa-circle-exclamation me-1"></i><c:out value="${t.rejectReason}"/></div>
-                                            </c:if>
-                                            <c:forEach var="e" items="${selectedByTransfer[t.id]}">
+                                                </c:if>
+                                                <c:forEach var="e" items="${selectedByTransfer[t.id]}">
                                                 <div class="small"><i class="fa-solid fa-user text-secondary me-1"></i> <c:out value="${e.fullName}"/></div>
                                             </c:forEach>
                                         </td>
@@ -360,7 +375,7 @@
                                             </c:choose>
                                             <c:if test="${not empty t.rejectReason}">
                                                 <div class="text-danger small mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i><c:out value="${t.rejectReason}"/></div>
-                                            </c:if>
+                                                </c:if>
                                         </td>
                                         <td>
                                             <c:choose>
@@ -369,11 +384,11 @@
                                                     <form action="${pageContext.request.contextPath}/store-manager/transfer-requests" method="POST" class="mb-2">
                                                         <input type="hidden" name="action" value="approveTransfer">
                                                         <input type="hidden" name="requestId" value="${t.id}">
-                                                        
+
                                                         <label class="form-label small fw-semibold text-secondary mb-1">
                                                             Chọn từ 1 đến ${t.requestedCount} nhân sự hỗ trợ:
                                                         </label>
-                                                        
+
                                                         <div class="border rounded p-2 mb-2 bg-white" style="max-height:180px; overflow-y:auto; font-size: 13px;">
                                                             <c:forEach var="e" items="${eligibleByTransfer[t.id]}">
                                                                 <div class="form-check py-1 border-bottom border-light">
@@ -390,10 +405,10 @@
                                                                 <div class="text-muted small text-center py-2">Không có nhân viên có lịch nháp phù hợp và không xung đột.</div>
                                                             </c:if>
                                                         </div>
-                                                        
+
                                                         <div class="small text-secondary mb-1" id="transfer_count_${t.id}">Đã chọn 0 / <c:out value="${t.requestedCount}"/> người được yêu cầu.</div>
                                                         <div class="small text-danger mb-1" id="transfer_error_${t.id}" aria-live="polite"></div>
-                                                        
+
                                                         <button class="btn btn-success btn-sm w-100 shadow-sm" id="transfer_submit_${t.id}" type="submit" disabled>
                                                             <i class="fa-solid fa-check me-1"></i> Xác nhận và gửi HR
                                                         </button>
@@ -434,17 +449,17 @@
 
         <!-- Bootstrap JS Bundle -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-        
+
         <script>
-            function updateTransferSelection(id, max) {
-                const boxes = document.querySelectorAll('input.transfer-person[data-transfer="' + id + '"]');
-                const count = Array.from(boxes).filter(box => box.checked).length;
-                document.getElementById('transfer_count_' + id).textContent =
-                        'Đã chọn ' + count + ' / ' + max + ' người được yêu cầu.';
-                document.getElementById('transfer_error_' + id).textContent =
-                        count > max ? 'Không được chọn nhiều hơn số người cơ sở yêu cầu.' : '';
-                document.getElementById('transfer_submit_' + id).disabled = !(count >= 1 && count <= max);
-            }
+                                                                               function updateTransferSelection(id, max) {
+                                                                                   const boxes = document.querySelectorAll('input.transfer-person[data-transfer="' + id + '"]');
+                                                                                   const count = Array.from(boxes).filter(box => box.checked).length;
+                                                                                   document.getElementById('transfer_count_' + id).textContent =
+                                                                                           'Đã chọn ' + count + ' / ' + max + ' người được yêu cầu.';
+                                                                                   document.getElementById('transfer_error_' + id).textContent =
+                                                                                           count > max ? 'Không được chọn nhiều hơn số người cơ sở yêu cầu.' : '';
+                                                                                   document.getElementById('transfer_submit_' + id).disabled = !(count >= 1 && count <= max);
+                                                                               }
         </script>
     </body>
 </html>

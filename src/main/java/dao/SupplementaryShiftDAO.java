@@ -89,8 +89,11 @@ public class SupplementaryShiftDAO {
 
     public List<Map<String, Object>> getOpenRegistrationsForEmployee(int userId, int branchId, int positionId) {
         List<Map<String, Object>> registrations = new ArrayList<>();
+        // Bổ sung kiểm tra xem nhân viên đã có lịch trực hoặc đã khai báo lịch rảnh cho ca/ngày đó chưa
         String sql = "SELECT o.id, o.work_date, o.registration_deadline, p.title AS position_title, "
-                + "s.name AS shift_name, s.start_time, s.end_time, a.id AS application_id "
+                + "s.name AS shift_name, s.start_time, s.end_time, a.id AS application_id, "
+                + "(SELECT COUNT(*) FROM shift_schedules ss WHERE ss.user_id = ? AND ss.work_date = o.work_date AND ss.shift_id = o.shift_id) AS has_scheduled, "
+                + "(SELECT COUNT(*) FROM employee_availabilities ea WHERE ea.user_id = ? AND ea.week_start_date <= o.work_date AND ea.day_of_week = UPPER(DAYNAME(o.work_date)) AND ea.shift_id = o.shift_id) AS has_availability "
                 + "FROM supplementary_shift_opportunities o "
                 + "JOIN positions p ON p.id = o.position_id JOIN shifts s ON s.id = o.shift_id "
                 + "LEFT JOIN supplementary_shift_applications a ON a.opportunity_id = o.id AND a.user_id = ? "
@@ -99,8 +102,10 @@ public class SupplementaryShiftDAO {
                 + "ORDER BY o.work_date, s.start_time";
         try (Connection connection = DBContext.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, userId);
-            statement.setInt(2, branchId);
-            statement.setInt(3, positionId);
+            statement.setInt(2, userId);
+            statement.setInt(3, userId);
+            statement.setInt(4, branchId);
+            statement.setInt(5, positionId);
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
                     Map<String, Object> row = new HashMap<>();
@@ -111,7 +116,15 @@ public class SupplementaryShiftDAO {
                     row.put("shiftName", result.getString("shift_name"));
                     row.put("startTime", result.getTime("start_time"));
                     row.put("endTime", result.getTime("end_time"));
-                    row.put("applied", result.getObject("application_id") != null);
+                    
+                    boolean isApplied = result.getObject("application_id") != null;
+                    boolean hasScheduled = result.getInt("has_scheduled") > 0;
+                    boolean hasAvailability = result.getInt("has_availability") > 0;
+
+                    row.put("applied", isApplied);
+                    // Đánh dấu cờ conflict nếu đã đăng ký, đã có lịch hoặc đã khai báo lịch rảnh trùng ca đó
+                    row.put("hasConflict", isApplied || hasScheduled || hasAvailability);
+                    
                     registrations.add(row);
                 }
             }
@@ -137,12 +150,16 @@ public class SupplementaryShiftDAO {
                 + "JOIN shifts existing_shift ON existing_shift.id = t.shift_id "
                 + "WHERE e.employee_id = ? AND t.work_date = ? AND t.status = 'PENDING_HR' AND e.status = 'RESERVED' "
                 + "AND existing_shift.start_time < ? AND existing_shift.end_time > ?";
+        // Thêm câu lệnh kiểm tra trùng lịch rảnh đã khai báo
+        String availabilityConflictSql = "SELECT COUNT(*) FROM employee_availabilities WHERE user_id = ? AND week_start_date <= ? AND day_of_week = UPPER(DAYNAME(?)) AND shift_id = ?";
+        
         String insertSql = "INSERT INTO supplementary_shift_applications (opportunity_id, user_id) VALUES (?, ?)";
 
         try (Connection connection = DBContext.getConnection()) {
             java.sql.Date workDate;
             java.sql.Time startTime;
             java.sql.Time endTime;
+            int shiftId;
             String shiftName;
             String shiftType;
             try (PreparedStatement statement = connection.prepareStatement(eligibilitySql)) {
@@ -155,12 +172,28 @@ public class SupplementaryShiftDAO {
                     workDate = result.getDate("work_date");
                     startTime = result.getTime("start_time");
                     endTime = result.getTime("end_time");
+                    shiftId = result.getInt("shift_id");
                     shiftName = result.getString("shift_name");
                     shiftType = result.getString("shift_type");
                 }
             }
 
-            if (!isAllowedFixedShift(shiftType, shiftName)
+            // Kiểm tra xem đã có khai báo lịch rảnh cho ca này chưa
+            boolean hasAvailabilityConflict = false;
+            try (PreparedStatement statement = connection.prepareStatement(availabilityConflictSql)) {
+                statement.setInt(1, userId);
+                statement.setDate(2, workDate);
+                statement.setDate(3, workDate);
+                statement.setInt(4, shiftId);
+                try (ResultSet result = statement.executeQuery()) {
+                    if (result.next() && result.getInt(1) > 0) {
+                        hasAvailabilityConflict = true;
+                    }
+                }
+            }
+
+            if (hasAvailabilityConflict
+                    || !isAllowedFixedShift(shiftType, shiftName)
                     || hasOverlap(connection, conflictSql, userId, workDate, startTime, endTime)
                     || hasOverlap(connection, heldSql, userId, workDate, startTime, endTime)) {
                 return false;
@@ -255,5 +288,27 @@ public class SupplementaryShiftDAO {
             return name.contains("tối");
         }
         return true;
+    }
+    
+    /**
+     * Kiểm tra xem ca làm việc này đã được mở đăng ký bổ sung và đang trong trạng thái OPEN hay chưa.
+     */
+    public boolean isSupplementaryOpened(int branchId, int positionId, int shiftId, String workDate) {
+        String sql = "SELECT COUNT(*) FROM supplementary_shift_opportunities "
+                + "WHERE branch_id = ? AND position_id = ? AND shift_id = ? AND work_date = ? AND status = 'OPEN'";
+        try (Connection connection = DBContext.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, branchId);
+            statement.setInt(2, positionId);
+            statement.setInt(3, shiftId);
+            statement.setDate(4, java.sql.Date.valueOf(workDate));
+            try (ResultSet result = statement.executeQuery()) {
+                if (result.next()) {
+                    return result.getInt(1) > 0;
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Không thể kiểm tra trạng thái mở đăng ký bổ sung", e);
+        }
+        return false;
     }
 }
