@@ -5,9 +5,51 @@
 --   reviewed_by, reviewed_at, created_at
 -- và status có thêm giá trị 'CANCELLED'
 --
+-- DAO LeaveTypeDAO / LeaveBalanceDAO cần 2 bảng:
+--   leave_types, leave_balances
+-- (được tạo ở phần 0 bên dưới nếu chưa tồn tại)
+--
 -- MySQL 8.0 không hỗ trợ "ADD COLUMN IF NOT EXISTS" nên
 -- dùng procedure trợ giúp. Migration idempotent.
 -- ============================================================
+
+-- ------------------------------------------------------------
+-- 0. Tạo bảng leave_types và leave_balances nếu chưa có
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `leave_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `default_days` int NOT NULL DEFAULT 0,
+  `paid_leave` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_leave_types_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `leave_balances` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `leave_type_id` int NOT NULL,
+  `year` int NOT NULL,
+  `total_days` int NOT NULL DEFAULT 0,
+  `used_days` int NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_leave_balances` (`user_id`,`leave_type_id`,`year`),
+  KEY `leave_balances_leave_type_id` (`leave_type_id`),
+  CONSTRAINT `leave_balances_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `leave_balances_ibfk_2` FOREIGN KEY (`leave_type_id`) REFERENCES `leave_types` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Dữ liệu loại nghỉ phép mặc định
+INSERT IGNORE INTO `leave_types`
+  (`code`, `name`, `description`, `default_days`, `paid_leave`)
+VALUES
+  ('ANNUAL',   'Nghỉ phép năm',       'Nghỉ phép hằng năm theo chính sách công ty', 12, 1),
+  ('SICK',     'Nghỉ ốm',            'Nghỉ do bệnh, có giấy từ bác sĩ',              8,  1),
+  ('UNPAID',   'Nghỉ không phép lương','Nghỉ việc riêng không hưởng lương',            0,  0),
+  ('BEREAVEMENT','Nghỉ tang',         'Nghỉ tang gia đình',                            5,  1),
+  ('MATERNITY','Nghỉ thai sản',      'Nghỉ thai sản theo quy định',                    0,  1);
 
 DROP PROCEDURE IF EXISTS `sp_leave_requests_migration`;
 

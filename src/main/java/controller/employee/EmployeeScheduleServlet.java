@@ -19,11 +19,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@WebServlet(name = "EmployeeScheduleServlet", urlPatterns = {"/employee/schedule"})
+@WebServlet(name = "EmployeeScheduleServlet", urlPatterns = {"/employee/my-schedule"})
 public class EmployeeScheduleServlet extends BaseServlet {
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
         User account = getCurrentUser(request);
         if (account == null) {
             redirectToLogin(request, response);
@@ -37,26 +38,23 @@ public class EmployeeScheduleServlet extends BaseServlet {
 
         int userId = account.getId();
 
-        // Nhận tham số startDate từ request để đồng bộ tuần với bên Store Manager hoặc khi nhân viên đổi tuần xem
+        // Giữ nguyên chức năng chọn và chuyển tuần.
         String startDateParam = request.getParameter("startDate");
         LocalDate nextMonday;
         try {
             if (startDateParam != null && !startDateParam.trim().isEmpty()) {
-                nextMonday = LocalDate.parse(startDateParam);
+                nextMonday = LocalDate.parse(startDateParam)
+                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
             } else {
-                LocalDate today = LocalDate.now();
-                nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+                nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
             }
         } catch (Exception e) {
             nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         }
 
         LocalDate nextSunday = nextMonday.plusDays(6);
-        
-        // Tính toán tuần trước và tuần sau phục vụ nút điều hướng
         LocalDate prevMonday = nextMonday.minusWeeks(1);
         LocalDate followingMonday = nextMonday.plusWeeks(1);
-
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
         request.setAttribute("startDate", nextMonday.format(formatter));
@@ -64,12 +62,9 @@ public class EmployeeScheduleServlet extends BaseServlet {
         request.setAttribute("prevWeekDate", prevMonday.toString());
         request.setAttribute("nextWeekDate", followingMonday.toString());
 
-        // Lấy danh sách ca làm việc từ bảng shifts
         List<Map<String, Object>> shifts = new ArrayList<>();
-        String sqlShifts = "SELECT id, name, start_time, end_time FROM shifts";
-        try (Connection conn = DBContext.getConnection();
-             PreparedStatement st = conn.prepareStatement(sqlShifts);
-             ResultSet rs = st.executeQuery()) {
+        String sqlShifts = "SELECT id, name, start_time, end_time FROM shifts ORDER BY start_time";
+        try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sqlShifts); ResultSet rs = st.executeQuery()) {
             while (rs.next()) {
                 Map<String, Object> s = new HashMap<>();
                 s.put("id", rs.getInt("id"));
@@ -79,59 +74,72 @@ public class EmployeeScheduleServlet extends BaseServlet {
                 shifts.add(s);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new ServletException("Không thể lấy danh sách ca làm việc", e);
         }
+        // Lấy tất cả ca đã Published của nhân viên, kể cả ca ở cơ sở mượn.
+        // Chỉ đưa tên cơ sở vào map khi ca có temporary_transfer_id.
+        String sqlSchedules
+                = "SELECT ss.shift_id, ss.work_date, ss.temporary_transfer_id, "
+                + "b.name AS working_branch_name "
+                + "FROM shift_schedules ss "
+                + "JOIN branches b ON b.id = ss.branch_id "
+                + "WHERE ss.user_id = ? AND ss.status = 'PUBLISHED' "
+                + "AND ss.work_date BETWEEN ? AND ? "
+                + "ORDER BY ss.work_date, ss.shift_id";
 
-        // Lấy lịch làm việc CHÍNH THỨC (đã Publish) của nhân viên này trong tuần tương ứng
-        String sqlSchedules = "SELECT ss.shift_id, ss.work_date, b.name AS branch_name " +
-                            "FROM shift_schedules ss " +
-                            "JOIN branches b ON ss.branch_id = b.id " +
-                            "WHERE ss.user_id = ? AND ss.status = 'Published' AND ss.work_date BETWEEN ? AND ?";
-        
         List<String> mySchedules = new ArrayList<>();
+        Map<String, String> transferredBranches = new HashMap<>();
         String branchName = "Chưa cập nhật";
         String positionTitle = "Chưa cập nhật";
 
-        try (Connection conn = DBContext.getConnection();
-             PreparedStatement st = conn.prepareStatement(sqlSchedules)) {
+        try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sqlSchedules)) {
             st.setInt(1, userId);
             st.setDate(2, Date.valueOf(nextMonday));
             st.setDate(3, Date.valueOf(nextSunday));
-            
+
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     int shiftId = rs.getInt("shift_id");
-                    String workDate = rs.getString("work_date");
-                    
-                    mySchedules.add(shiftId + "_" + workDate);
-                    branchName = rs.getString("branch_name");
+                    String workDate = rs.getDate("work_date").toString();
+                    String currentKey = shiftId + "_" + workDate;
+
+                    if (!mySchedules.contains(currentKey)) {
+                        mySchedules.add(currentKey);
+                    }
+                    int transferId = rs.getInt("temporary_transfer_id");
+                    if (!rs.wasNull()) {
+                        transferredBranches.put(currentKey, rs.getString("working_branch_name"));
+                    }
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new ServletException("Không thể lấy lịch đã công bố", e);
         }
 
-        // Lấy thông tin vị trí của nhân viên từ bảng employee_profiles
-        String sqlProfile = "SELECT pos.title FROM employee_profiles ep JOIN positions pos ON ep.position_id = pos.id WHERE ep.user_id = ?";
-        try (Connection conn = DBContext.getConnection();
-             PreparedStatement st = conn.prepareStatement(sqlProfile)) {
+        // Lấy cơ sở chính độc lập với lịch điều chuyển.
+        String sqlProfile
+                = "SELECT pos.title, b.name AS home_branch_name "
+                + "FROM employee_profiles ep "
+                + "LEFT JOIN positions pos ON pos.id = ep.position_id "
+                + "JOIN branches b ON b.id = ep.home_branch_id "
+                + "WHERE ep.user_id = ?";
+        try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sqlProfile)) {
             st.setInt(1, userId);
             try (ResultSet rs = st.executeQuery()) {
                 if (rs.next()) {
-                    positionTitle = rs.getString("title");
+                    positionTitle = rs.getString("title") != null ? rs.getString("title") : "Chưa cập nhật";
+                    branchName = rs.getString("home_branch_name");
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            throw new ServletException("Không thể lấy thông tin cơ sở chính", e);
         }
 
         String[] days = {"MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"};
         String[] dayNames = {"Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"};
-
         Map<String, String> dayDateMap = new HashMap<>();
         for (int i = 0; i < days.length; i++) {
-            LocalDate d = nextMonday.plusDays(i);
-            dayDateMap.put(days[i], d.toString());
+            dayDateMap.put(days[i], nextMonday.plusDays(i).toString());
         }
 
         request.setAttribute("days", days);
@@ -141,7 +149,9 @@ public class EmployeeScheduleServlet extends BaseServlet {
         request.setAttribute("mySchedules", mySchedules);
         request.setAttribute("branchName", branchName);
         request.setAttribute("positionTitle", positionTitle);
+        request.setAttribute("transferredBranches", transferredBranches);
 
-        request.getRequestDispatcher("/WEB-INF/views/employee/my-schedule.jsp").forward(request, response);
+        request.getRequestDispatcher("/WEB-INF/views/employee/my-schedule.jsp")
+                .forward(request, response);
     }
 }

@@ -379,7 +379,7 @@
                             </div>
                             <p>Xem tổng thể lịch trình các ca làm việc của bạn sau khi quản lý đã hoàn tất sắp xếp và chính thức công bố (Publish).</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/employee/schedule" class="card-link">Xem lịch làm việc ngay <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/employee/my-schedule" class="card-link">Xem lịch làm việc ngay <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
                     <!-- Tính năng 3: Chấm công Check-in / Check-out -->

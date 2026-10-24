@@ -19,7 +19,7 @@
         </li>
 
         <li>
-            <a href="${pageContext.request.contextPath}/employee/schedule">
+            <a href="${pageContext.request.contextPath}/employee/my-schedule">
                 <i class="fa-solid fa-calendar-check"></i> Lịch làm việc
             </a>
         </li>

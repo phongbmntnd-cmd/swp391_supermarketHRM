@@ -17,30 +17,30 @@ public class EmployeeProfileDAO {
 
     // Các cột được phép sort (whitelist để tránh SQL injection)
     private static final List<String> ALLOWED_SORT_COLUMNS = List.of(
-        "full_name", "username", "email", "phone", 
-        "position_name", "department_name", "employee_type", "status", 
-        "created_at"
+            "full_name", "username", "email", "phone",
+            "position_name", "department_name", "employee_type", "status",
+            "created_at"
     );
 
     /**
      * Lấy EmployeeProfile theo User ID
+     *
      * @param userId User ID
      * @return EmployeeProfile object hoặc null nếu không tìm thấy
      */
     public EmployeeProfile getProfileByUserId(int userId) {
         String sql = "SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, "
-                   + "ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.shift_type, "
-                   + "p.title AS position_name, d.name AS department_name, "
-                   + "u.username, u.email, u.status, u.role_id, r.name AS role_name "
-                   + "FROM employee_profiles ep "
-                   + "JOIN users u ON ep.user_id = u.id "
-                   + "JOIN roles r ON u.role_id = r.id "
-                   + "LEFT JOIN positions p ON ep.position_id = p.id "
-                   + "LEFT JOIN departments d ON ep.department_id = d.id "
-                   + "WHERE ep.user_id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            
+                + "ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.shift_type, "
+                + "p.title AS position_name, d.name AS department_name, "
+                + "u.username, u.email, u.status, u.role_id, r.name AS role_name "
+                + "FROM employee_profiles ep "
+                + "JOIN users u ON ep.user_id = u.id "
+                + "JOIN roles r ON u.role_id = r.id "
+                + "LEFT JOIN positions p ON ep.position_id = p.id "
+                + "LEFT JOIN departments d ON ep.department_id = d.id "
+                + "WHERE ep.user_id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -54,19 +54,20 @@ public class EmployeeProfileDAO {
     }
 
     /**
-     * Lấy danh sách nhân viên thuộc branch của Store Manager với Search/Filter/Sort/Pagination
+     * Lấy danh sách nhân viên thuộc branch của Store Manager với
+     * Search/Filter/Sort/Pagination
      */
     public List<EmployeeProfile> getEmployeesPaginated(
-            int branchId, String search, Integer positionId, 
+            int branchId, String search, Integer positionId,
             Integer departmentId, String employeeType, String status,
             String sortColumn, String sortDirection,
             int offset, int limit) {
-        
+
         List<EmployeeProfile> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder();
-        
+
         sql.append("SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, ");
-        sql.append("ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ");
+        sql.append("ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.shift_type, "); // <-- Thêm ep.shift_type vào đây
         sql.append("p.title AS position_name, d.name AS department_name, ");
         sql.append("u.username, u.email, u.status, u.role_id, r.name AS role_name ");
         sql.append("FROM employee_profiles ep ");
@@ -75,10 +76,10 @@ public class EmployeeProfileDAO {
         sql.append("LEFT JOIN positions p ON ep.position_id = p.id ");
         sql.append("LEFT JOIN departments d ON ep.department_id = d.id ");
         sql.append("WHERE ep.home_branch_id = ? AND u.role_id = 5 ");  // Chỉ Employee
-        
+
         List<Object> params = new ArrayList<>();
         params.add(branchId);
-        
+
         // Search
         if (search != null && !search.trim().isEmpty()) {
             sql.append("AND (ep.full_name LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR ep.phone LIKE ?) ");
@@ -88,49 +89,48 @@ public class EmployeeProfileDAO {
             params.add(searchPattern);
             params.add(searchPattern);
         }
-        
+
         // Position filter
         if (positionId != null && positionId > 0) {
             sql.append("AND ep.position_id = ? ");
             params.add(positionId);
         }
-        
+
         // Department filter
         if (departmentId != null && departmentId > 0) {
             sql.append("AND ep.department_id = ? ");
             params.add(departmentId);
         }
-        
+
         // Employee type filter
         if (employeeType != null && !employeeType.trim().isEmpty()) {
             String normalizedType = normalizeForQuery(employeeType.trim());
             sql.append("AND UPPER(REPLACE(REPLACE(ep.employee_type, '-', '_'), ' ', '_')) = ? ");
             params.add(normalizedType);
         }
-        
+
         // Status filter
         if (status != null && !status.trim().isEmpty()) {
             sql.append("AND u.status = ? ");
             params.add(status.trim());
         }
-        
+
         // Sort - whitelist validation
         String validatedSortColumn = validateSortColumn(sortColumn);
         String validatedSortDirection = validateSortDirection(sortDirection);
         sql.append("ORDER BY ").append(validatedSortColumn).append(" ").append(validatedSortDirection);
-        
+
         // Pagination
         sql.append(" LIMIT ? OFFSET ?");
         params.add(limit);
         params.add(offset);
-        
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-            
+
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
             for (int i = 0; i < params.size(); i++) {
                 ps.setObject(i + 1, params.get(i));
             }
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     list.add(mapResultSetToProfile(rs));
@@ -148,15 +148,15 @@ public class EmployeeProfileDAO {
     public int countEmployees(
             int branchId, String search, Integer positionId,
             Integer departmentId, String employeeType, String status) {
-        
+
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT COUNT(*) FROM employee_profiles ep ");
         sql.append("JOIN users u ON ep.user_id = u.id ");
         sql.append("WHERE ep.home_branch_id = ? AND u.role_id = 5 ");
-        
+
         List<Object> params = new ArrayList<>();
         params.add(branchId);
-        
+
         // Search
         if (search != null && !search.trim().isEmpty()) {
             sql.append("AND (ep.full_name LIKE ? OR u.username LIKE ? OR u.email LIKE ? OR ep.phone LIKE ?) ");
@@ -166,39 +166,38 @@ public class EmployeeProfileDAO {
             params.add(searchPattern);
             params.add(searchPattern);
         }
-        
+
         // Position filter
         if (positionId != null && positionId > 0) {
             sql.append("AND ep.position_id = ? ");
             params.add(positionId);
         }
-        
+
         // Department filter
         if (departmentId != null && departmentId > 0) {
             sql.append("AND ep.department_id = ? ");
             params.add(departmentId);
         }
-        
+
         // Employee type filter
         if (employeeType != null && !employeeType.trim().isEmpty()) {
             String normalizedType = normalizeForQuery(employeeType.trim());
             sql.append("AND UPPER(REPLACE(REPLACE(ep.employee_type, '-', '_'), ' ', '_')) = ? ");
             params.add(normalizedType);
         }
-        
+
         // Status filter
         if (status != null && !status.trim().isEmpty()) {
             sql.append("AND u.status = ? ");
             params.add(status.trim());
         }
-        
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
-            
+
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+
             for (int i = 0; i < params.size(); i++) {
                 ps.setObject(i + 1, params.get(i));
             }
-            
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1);
@@ -213,7 +212,6 @@ public class EmployeeProfileDAO {
     // =========================================================================
     // CÁC HÀM KIỂM TRA TRÙNG LẶP THÔNG TIN
     // =========================================================================
-
     public boolean isPhoneExists(String phone) {
         if (phone == null || phone.trim().isEmpty()) {
             return false;
@@ -249,7 +247,6 @@ public class EmployeeProfileDAO {
     // =========================================================================
     // CÁC HÀM TIỆN ÍCH & DROPDOWN
     // =========================================================================
-
     private String validateSortColumn(String sortColumn) {
         if (sortColumn == null || sortColumn.trim().isEmpty()) {
             return "ep.full_name";
@@ -285,7 +282,7 @@ public class EmployeeProfileDAO {
         return "ASC";
     }
 
-   private EmployeeProfile mapResultSetToProfile(ResultSet rs) throws Exception {
+    private EmployeeProfile mapResultSetToProfile(ResultSet rs) throws Exception {
         EmployeeProfile profile = new EmployeeProfile();
         profile.setUserId(rs.getInt("user_id"));
         profile.setFullName(rs.getString("full_name"));
@@ -295,29 +292,27 @@ public class EmployeeProfileDAO {
         profile.setPositionId(rs.getInt("position_id"));
         profile.setDepartmentId(rs.getInt("department_id"));
         profile.setEmployeeType(rs.getString("employee_type"));
-        
+
         // Đọc giá trị shift_type từ database lên model
         profile.setShiftType(rs.getString("shift_type"));
-        
+
         profile.setPositionName(rs.getString("position_name"));
         profile.setDepartmentName(rs.getString("department_name"));
-        
+
         profile.setUsername(rs.getString("username"));
         profile.setEmail(rs.getString("email"));
         profile.setStatus(rs.getString("status"));
         profile.setRoleId(rs.getInt("role_id"));
         profile.setRoleName(rs.getString("role_name"));
-        
+
         return profile;
     }
 
     public List<model.Position> getAllPositions() {
         List<model.Position> list = new ArrayList<>();
         String sql = "SELECT id, title, department_id FROM positions WHERE department_id IN (4, 5) ORDER BY title";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 model.Position p = new model.Position();
                 p.setId(rs.getInt("id"));
@@ -334,10 +329,8 @@ public class EmployeeProfileDAO {
     public List<model.Department> getAllDepartments() {
         List<model.Department> list = new ArrayList<>();
         String sql = "SELECT id, name FROM departments WHERE id IN (4, 5) ORDER BY name";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 model.Department d = new model.Department();
                 d.setId(rs.getInt("id"));
@@ -353,10 +346,8 @@ public class EmployeeProfileDAO {
     public List<String> getDistinctEmployeeTypes() {
         Set<String> uniqueTypes = new LinkedHashSet<>();
         String sql = "SELECT DISTINCT employee_type FROM employee_profiles WHERE employee_type IS NOT NULL AND employee_type != '' ORDER BY employee_type";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 String type = rs.getString("employee_type").trim();
                 String normalized = normalizeEmployeeType(type);
@@ -369,9 +360,11 @@ public class EmployeeProfileDAO {
         }
         return new ArrayList<>(uniqueTypes);
     }
-    
+
     private String normalizeEmployeeType(String type) {
-        if (type == null) return "";
+        if (type == null) {
+            return "";
+        }
         String upper = type.toUpperCase().replace("-", "_").replace(" ", "_");
         switch (upper) {
             case "FULL_TIME":
@@ -393,9 +386,11 @@ public class EmployeeProfileDAO {
                 return type;
         }
     }
-    
+
     private String normalizeForQuery(String type) {
-        if (type == null) return "";
+        if (type == null) {
+            return "";
+        }
         String upper = type.toUpperCase().replace("-", "_").replace(" ", "_");
         switch (upper) {
             case "FULL_TIME":

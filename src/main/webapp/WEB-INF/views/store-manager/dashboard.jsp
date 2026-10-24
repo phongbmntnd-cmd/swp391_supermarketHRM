@@ -1,4 +1,4 @@
-<%--
+<%-- 
     Document   : dashboard
     Created on : 23 thg 9, 2026, 00:06:33
     Author     : phong
@@ -90,7 +90,7 @@
                 padding: 0;
             }
 
-            /* --- THANH HIỂN THỊ CƠ SỞ HIỆN TẠI (Giống trang Nhân Sự) --- */
+            /* --- THANH HIỂN THỊ CƠ SỞ HIỆN TẠI --- */
             .branch-info-bar {
                 background-color: #eef2ff;
                 border: 1px solid #c7d2fe;
@@ -264,21 +264,12 @@
                         <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
                     </a>
                 </div>
-
-                <!-- Tính năng 5: Quán lí đổi ca -->                
-                <div class="card" style="border-left-color: #2ecc71;">
-                    <div>
-                        <h3>Quản lí Đổi Ca</h3>
-                        <p>Xem xét, tiếp nhận và phê duyệt các đơn xin đổi ca làm việc do nhân viên gửi lên hệ thống.</p>
-                    </div>
-                    <a href="${pageContext.request.contextPath}/store-manager/shift-requests" class="card-link">Xem thông tin đổi ca →</a>
-                </div>
-                
+                        
             </div>
 
             <div class="container">
 
-                <!-- Thanh hiển thị Cơ sở hiện tại (Giống trang Quản lý nhân sự) -->
+                <!-- Thanh hiển thị Cơ sở hiện tại -->
                 <div class="branch-info-bar">
                     <i class="fa-solid fa-location-dot"></i>
                     <span>Cơ sở hiện tại: <b>${currentBranch != null ? currentBranch.name : 'Đang cập nhật'} (${currentBranch != null ? currentBranch.code : 'N/A'})</b></span>
@@ -367,6 +358,20 @@
                         <a href="${pageContext.request.contextPath}/store-manager/recruitment" class="card-link">Thông tin chi tiết <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Thẻ Quản Lý Điều Chuyển -->
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #0ea5e9;">
+                                    <i class="fa-solid fa-right-left"></i>
+                                </div>
+                                <h3>Quản Lý Điều Chuyển</h3>
+                            </div>
+                            <p>Theo dõi các yêu cầu mượn nhân sự gửi đi và tiếp nhận, xem xét phê duyệt hoặc từ chối các yêu cầu điều chuyển từ các cơ sở khác gửi đến.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/store-manager/transfer-requests" class="card-link">Quản lý điều chuyển <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -391,6 +396,31 @@
                             <p>Xem lịch rảnh đã đăng ký của nhân viên, tiến hành xếp lịch trực tuần tới và Publish (công bố) lịch cho toàn nhân viên theo dõi.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/store-manager/schedule" class="card-link">Quản lý lịch làm việc <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon"
+                                     style="background-color: #10b981;">
+                                    <i class="fa-solid fa-people-arrows-left-right"></i>
+                                </div>
+
+                                <h3>Quản Lý Đổi Ca</h3>
+                            </div>
+
+                            <p>
+                                Xem xét, tiếp nhận và phê duyệt
+                                các đơn đổi ca giữa nhân viên
+                                cùng chi nhánh.
+                            </p>
+                        </div>
+
+                        <a href="${pageContext.request.contextPath}/store-manager/shift-requests"
+                           class="card-link">
+                            Xem yêu cầu đổi ca
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
                     </div>
                 </div>
 
