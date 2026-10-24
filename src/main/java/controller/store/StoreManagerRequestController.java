@@ -104,6 +104,12 @@ public class StoreManagerRequestController extends HttpServlet {
                     responseText == null ? null : responseText.trim()
             );
 
+            resp.sendRedirect(
+                    req.getContextPath()
+                    + "/store-manager/shift-requests?"
+                    + (success ? "success=1" : "invalid=1")
+            );
+
         } catch (IllegalArgumentException e) {
             resp.sendError(400, "Invalid submitted data");
 

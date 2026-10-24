@@ -366,6 +366,70 @@ LOCK TABLES `employee_transfers` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `leave_types`
+--
+
+DROP TABLE IF EXISTS `leave_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `leave_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `default_days` int NOT NULL DEFAULT 0,
+  `paid_leave` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_leave_types_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `leave_types`
+--
+
+LOCK TABLES `leave_types` WRITE;
+/*!40000 ALTER TABLE `leave_types` DISABLE KEYS */;
+INSERT INTO `leave_types` VALUES (1,'ANNUAL','Nghỉ phép năm','Nghỉ phép hằng năm theo chính sách công ty',12,1),(2,'SICK','Nghỉ ốm','Nghỉ do bệnh, có giấy từ bác sĩ',8,1),(3,'UNPAID','Nghỉ không phép lương','Nghỉ việc riêng không hưởng lương',0,0),(4,'BEREAVEMENT','Nghỉ tang','Nghỉ tang gia đình',5,1),(5,'MATERNITY','Nghỉ thai sản','Nghỉ thai sản theo quy định',0,1);
+/*!40000 ALTER TABLE `leave_types` ENABLE KEYS */;
+UNLOCK TABLES;
+
+
+
+--
+-- Table structure for table `leave_balances`
+--
+
+DROP TABLE IF EXISTS `leave_balances`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `leave_balances` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `leave_type_id` int NOT NULL,
+  `year` int NOT NULL,
+  `total_days` int NOT NULL DEFAULT 0,
+  `used_days` int NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_leave_balances` (`user_id`,`leave_type_id`,`year`),
+  KEY `leave_balances_leave_type_id` (`leave_type_id`),
+  CONSTRAINT `leave_balances_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `leave_balances_ibfk_2` FOREIGN KEY (`leave_type_id`) REFERENCES `leave_types` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `leave_balances`
+--
+
+LOCK TABLES `leave_balances` WRITE;
+/*!40000 ALTER TABLE `leave_balances` DISABLE KEYS */;
+/*!40000 ALTER TABLE `leave_balances` ENABLE KEYS */;
+UNLOCK TABLES;
+
+
+
+--
 -- Table structure for table `leave_requests`
 --
 
@@ -375,13 +439,23 @@ DROP TABLE IF EXISTS `leave_requests`;
 CREATE TABLE `leave_requests` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,
+  `leave_type_id` int NOT NULL,
   `reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `start_date` date NOT NULL,
   `end_date` date NOT NULL,
-  `status` enum('PENDING','APPROVED','REJECTED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'PENDING',
+  `total_days` int NOT NULL DEFAULT 0,
+  `status` enum('PENDING','APPROVED','REJECTED','CANCELLED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'PENDING',
+  `manager_response` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reviewed_by` int DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
-  CONSTRAINT `leave_requests_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  KEY `leave_type_id` (`leave_type_id`),
+  KEY `reviewed_by` (`reviewed_by`),
+  CONSTRAINT `leave_requests_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `leave_requests_ibfk_2` FOREIGN KEY (`leave_type_id`) REFERENCES `leave_types` (`id`),
+  CONSTRAINT `leave_requests_ibfk_3` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -709,23 +783,27 @@ DROP TABLE IF EXISTS `shift_change_requests`;
 CREATE TABLE `shift_change_requests` (
   `id` int NOT NULL AUTO_INCREMENT,
   `requester_id` int NOT NULL,
-  `target_user_id` int NOT NULL,
+  `target_user_id` int DEFAULT NULL,
   `shift_schedule_id` int NOT NULL,
+  `request_type` enum('SWAP','OPEN') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'SWAP',
   `target_shift_schedule_id` int DEFAULT NULL,
+  `open_shift_id` int DEFAULT NULL,
   `status` enum('WAITING_COLLEAGUE','PENDING','APPROVED','REJECTED','DECLINED','CANCELLED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'WAITING_COLLEAGUE',
-  `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `response` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reason` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `response` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `colleague_responded_at` datetime DEFAULT NULL,
-  `colleague_response` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `colleague_response` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `requester_id` (`requester_id`),
   KEY `target_user_id` (`target_user_id`),
   KEY `shift_schedule_id` (`shift_schedule_id`),
-  KEY `idx_shift_change_target_schedule` (`target_shift_schedule_id`),
-  CONSTRAINT `fk_shift_change_target_schedule` FOREIGN KEY (`target_shift_schedule_id`) REFERENCES `shift_schedules` (`id`),
+  KEY `target_shift_schedule_id` (`target_shift_schedule_id`),
+  KEY `open_shift_id` (`open_shift_id`),
   CONSTRAINT `shift_change_requests_ibfk_1` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`),
   CONSTRAINT `shift_change_requests_ibfk_2` FOREIGN KEY (`target_user_id`) REFERENCES `users` (`id`),
-  CONSTRAINT `shift_change_requests_ibfk_3` FOREIGN KEY (`shift_schedule_id`) REFERENCES `shift_schedules` (`id`)
+  CONSTRAINT `shift_change_requests_ibfk_3` FOREIGN KEY (`shift_schedule_id`) REFERENCES `shift_schedules` (`id`),
+  CONSTRAINT `shift_change_requests_ibfk_4` FOREIGN KEY (`target_shift_schedule_id`) REFERENCES `shift_schedules` (`id`),
+  CONSTRAINT `shift_change_requests_ibfk_5` FOREIGN KEY (`open_shift_id`) REFERENCES `open_shifts` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

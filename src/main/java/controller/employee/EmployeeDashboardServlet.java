@@ -4,6 +4,8 @@ import controller.base.BaseServlet;
 import model.User;
 import model.Employee;
 import dao.EmployeeDAO;
+import dao.LeaveRequestDAO;
+import dao.ShiftChangeRequestDAO;
 import dao.ShiftScheduleDAO;
 import java.io.IOException;
 import java.util.List;
@@ -44,11 +46,41 @@ public class EmployeeDashboardServlet extends BaseServlet {
             request.setAttribute("emp", emp);
             request.setAttribute("todayShifts", todayShifts);
 
+            // 4b. Đếm số đơn (nghỉ phép + đổi ca) đang chờ duyệt
+            request.setAttribute(
+                    "pendingRequestCount",
+                    countPendingRequests(currentUser.getId())
+            );
+
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         // 5. Forward ra view dashboard.jsp
         request.getRequestDispatcher("/WEB-INF/views/employee/dashboard.jsp").forward(request, response);
+    }
+
+    /**
+     * Tổng số đơn (nghỉ phép + đổi ca) của nhân viên đang chờ duyệt.
+     * Nếu lỗi truy vấn thì trả 0 để trang vẫn hiển thị bình thường.
+     */
+    private int countPendingRequests(int userId) {
+        int total = 0;
+
+        try {
+            total += new LeaveRequestDAO()
+                    .countMyPendingRequests(userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
+            total += new ShiftChangeRequestDAO()
+                    .countMyPendingShiftRequests(userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return total;
     }
 }
