@@ -231,16 +231,114 @@ public class ShiftChangeRequestDAO {
 
     // 6. Xem lịch sử của Employee
     public List<Map<String, Object>> getMyRequests(int userId) {
-        // Tạm thời chưa tải lịch sử đơn vì database
-        // chưa được cập nhật các cột mới.
-        return new ArrayList<>();
+        String sql
+                = "SELECT r.id, r.request_type AS requestType, "
+                + "mine.work_date AS myDate, "
+                + "ms.name AS myShift, "
+                + "COALESCE(target.work_date, os.work_date) AS targetDate, "
+                + "COALESCE(ts.name, os2.name) AS targetShift, "
+                + "ep.full_name AS colleagueName, "
+                + "r.reason, r.status, r.response "
+                + "FROM shift_change_requests r "
+                + "JOIN shift_schedules mine "
+                + "ON mine.id = r.shift_schedule_id "
+                + "JOIN shifts ms ON ms.id = mine.shift_id "
+                + "LEFT JOIN shift_schedules target "
+                + "ON target.id = r.target_shift_schedule_id "
+                + "LEFT JOIN shifts ts ON ts.id = target.shift_id "
+                + "LEFT JOIN open_shifts os "
+                + "ON os.id = r.open_shift_id "
+                + "LEFT JOIN shifts os2 ON os2.id = os.shift_id "
+                + "LEFT JOIN users u ON u.id = r.target_user_id "
+                + "LEFT JOIN employee_profiles ep "
+                + "ON ep.user_id = r.target_user_id "
+                + "WHERE r.requester_id = ? "
+                + "ORDER BY r.id DESC";
+
+        return query(sql, userId);
+    }
+
+    // 6b. Employee: Đếm số đơn đổi ca đang chờ duyệt của tôi
+    public int countMyPendingShiftRequests(int userId) {
+        String sql
+                = "SELECT COUNT(*) FROM shift_change_requests "
+                + "WHERE requester_id = ? AND status = 'PENDING'";
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot count shift requests", e);
+        }
+
+        return 0;
     }
 
     // 7. Store Manager xem các đơn trong chi nhánh
     public List<Map<String, Object>> getBranchRequests(int branchId) {
-        // Tạm thời chưa tải danh sách đơn
-        // trong khi chờ cập nhật database.
-        return new ArrayList<>();
+        String sql
+                = "SELECT r.id, r.request_type AS requestType, "
+                + "req_ep.full_name AS employeeName, "
+                + "mine.work_date AS myDate, "
+                + "ms.name AS myShift, "
+                + "COALESCE(target.work_date, os.work_date) AS targetDate, "
+                + "COALESCE(ts.name, os2.name) AS targetShift, "
+                + "tgt_ep.full_name AS colleagueName, "
+                + "r.reason, r.status, r.response "
+                + "FROM shift_change_requests r "
+                + "JOIN shift_schedules mine "
+                + "ON mine.id = r.shift_schedule_id "
+                + "JOIN shifts ms ON ms.id = mine.shift_id "
+                + "LEFT JOIN shift_schedules target "
+                + "ON target.id = r.target_shift_schedule_id "
+                + "LEFT JOIN shifts ts ON ts.id = target.shift_id "
+                + "LEFT JOIN open_shifts os "
+                + "ON os.id = r.open_shift_id "
+                + "LEFT JOIN shifts os2 ON os2.id = os.shift_id "
+                + "LEFT JOIN employee_profiles req_ep "
+                + "ON req_ep.user_id = r.requester_id "
+                + "LEFT JOIN employee_profiles tgt_ep "
+                + "ON tgt_ep.user_id = r.target_user_id "
+                + "WHERE mine.branch_id = ? "
+                + "ORDER BY r.id DESC";
+
+        return query(sql, branchId);
+    }
+
+    // 7b. Store Manager: Đếm số đơn đổi ca đang chờ duyệt của chi nhánh
+    public int countBranchPendingShiftRequests(int branchId) {
+        String sql
+                = "SELECT COUNT(*) FROM shift_change_requests r "
+                + "JOIN shift_schedules ss "
+                + "ON ss.id = r.shift_schedule_id "
+                + "WHERE ss.branch_id = ? AND r.status = 'PENDING'";
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, branchId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot count shift requests", e);
+        }
+
+        return 0;
     }
 
     // 8. Store Manager tạo ca trống

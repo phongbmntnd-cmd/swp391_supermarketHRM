@@ -6,20 +6,88 @@
 <html lang="vi">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Quản lý đổi ca</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
               rel="stylesheet">
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/sidebar.css">
+        <style>
+            body {
+                font-family: 'Roboto', sans-serif;
+                background-color: #f4f7f6;
+            }
+
+            .page-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 12px;
+                margin-bottom: 25px;
+            }
+
+            .page-header h2 {
+                font-size: 24px;
+                font-weight: 600;
+                color: #1e293b;
+                margin: 0;
+            }
+
+            .page-actions {
+                display: flex;
+                gap: 10px;
+            }
+
+            .btn-soft {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                text-decoration: none;
+                font-size: 13px;
+                font-weight: 500;
+                padding: 8px 16px;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                background: #ffffff;
+                color: #475569;
+                transition: all 0.2s;
+            }
+
+            .btn-soft:hover {
+                border-color: #2563eb;
+                color: #2563eb;
+            }
+
+            .card {
+                border: none;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            }
+        </style>
     </head>
 
-    <body class="bg-light">
+    <body>
+
+    <%-- Sidebar dùng chung --%>
+    <jsp:include page="/WEB-INF/views/fragments/store-manager-sidebar.jsp"/>
+
+    <div class="main-wrapper">
         <div class="container py-4">
 
-            <div class="d-flex justify-content-between mb-4">
+            <div class="page-header">
                 <h2>Quản lý yêu cầu đổi ca</h2>
-                <a class="btn btn-secondary"
-                   href="${pageContext.request.contextPath}/store-manager/schedule">
-                    Quản lý lịch làm việc
-                </a>
+                <div class="page-actions">
+                    <a class="btn-soft"
+                       href="${pageContext.request.contextPath}/store-manager/forms">
+                        <i class="fa-solid fa-arrow-left"></i> Đơn từ &amp; Khiếu nại
+                    </a>
+                    <a class="btn-soft"
+                       href="${pageContext.request.contextPath}/store-manager/schedule">
+                        <i class="fa-solid fa-calendar-days"></i> Lịch làm việc
+                    </a>
+                </div>
             </div>
 
             <c:if test="${param.success eq '1'}">
@@ -236,5 +304,8 @@
             </div>
 
         </div>
+    </div>
+
+    <script src="${pageContext.request.contextPath}/js/sidebar.js"></script>
     </body>
 </html>

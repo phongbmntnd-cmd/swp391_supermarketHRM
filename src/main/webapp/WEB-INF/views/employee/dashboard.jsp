@@ -15,6 +15,8 @@
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
         <!-- FontAwesome cho các icon sinh động -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <!-- Sidebar dùng chung (Employee / Store Manager) -->
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/sidebar.css">
         <style>
             * {
                 box-sizing: border-box;
@@ -29,69 +31,7 @@
                 min-height: 100vh;
             }
 
-            /* --- SIDEBAR --- */
-            .sidebar {
-                width: 260px;
-                background-color: #1e293b;
-                color: #94a3b8;
-                display: flex;
-                flex-direction: column;
-                position: fixed;
-                top: 0;
-                bottom: 0;
-                left: 0;
-                z-index: 100;
-                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            }
-            .sidebar-brand {
-                padding: 25px 20px;
-                font-size: 18px;
-                font-weight: 700;
-                color: #ffffff;
-                background-color: #0f172a;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            .sidebar-brand i {
-                color: #22c55e;
-                font-size: 22px;
-            }
-            .sidebar-menu {
-                list-style: none;
-                padding: 20px 0;
-                flex-grow: 1;
-            }
-            .sidebar-menu li a {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                padding: 14px 25px;
-                color: #94a3b8;
-                text-decoration: none;
-                font-size: 14px;
-                font-weight: 500;
-                transition: all 0.3s ease;
-                border-left: 4px solid transparent;
-            }
-            .sidebar-menu li a:hover, .sidebar-menu li.active a {
-                color: #ffffff;
-                background-color: rgba(255, 255, 255, 0.05);
-                border-left-color: #22c55e;
-            }
-            .sidebar-menu li a i {
-                font-size: 16px;
-                width: 20px;
-                text-align: center;
-            }
-
-            /* --- MAIN CONTENT WRAPPER --- */
-            .main-wrapper {
-                margin-left: 260px;
-                flex-grow: 1;
-                display: flex;
-                flex-direction: column;
-            }
+            /* --- SIDEBAR: dùng chung tại css/sidebar.css --- */
 
             /* --- TOP NAVBAR --- */
             .top-navbar {
@@ -315,19 +255,7 @@
     <body>
 
         <!-- Sidebar Điều Hướng Trái (Nhân viên) -->
-        <div class="sidebar">
-            <div class="sidebar-brand">
-                <i class="fa-solid fa-id-badge"></i>
-                <span>Employee Portal</span>
-            </div>
-            <ul class="sidebar-menu">
-                <li class="active"><a href="${pageContext.request.contextPath}/employee/dashboard"><i class="fa-solid fa-house"></i> Trang chủ</a></li>
-                <li><a href="${pageContext.request.contextPath}/employee/availability"><i class="fa-solid fa-calendar-plus"></i> Khai báo lịch rảnh</a></li>
-                <li><a href="${pageContext.request.contextPath}/employee/schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
-                <li><a href="#"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
-                <li><a href="#"><i class="fa-solid fa-file-lines"></i> Đơn từ & Khiếu nại</a></li>
-            </ul>
-        </div>
+        <jsp:include page="/WEB-INF/views/fragments/employee-sidebar.jsp"/>
 
         <!-- Main Content Wrapper -->
         <div class="main-wrapper">
@@ -400,7 +328,16 @@
                         </div>
                         <div class="stat-info">
                             <h4>Đơn Từ / Khiếu Nại</h4>
-                            <span>0 Đơn chờ duyệt</span>
+                            <span>
+                                <c:choose>
+                                    <c:when test="${pendingRequestCount > 0}">
+                                        ${pendingRequestCount} Đơn chờ duyệt
+                                    </c:when>
+                                    <c:otherwise>
+                                        0 Đơn chờ duyệt
+                                    </c:otherwise>
+                                </c:choose>
+                            </span>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -470,12 +407,14 @@
                             </div>
                             <p>Gửi các yêu cầu xin nghỉ phép, đổi ca làm việc hoặc phản hồi về lịch trực lên cấp trên xét duyệt.</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/employee/request-shift" class="card-link">Quản lý đơn từ →</a>
+                        <a href="${pageContext.request.contextPath}/employee/forms" class="card-link">Quản lý đơn từ →</a>
                     </div>
                 </div>
 
             </div>
         </div>
+
+    <script src="${pageContext.request.contextPath}/js/sidebar.js"></script>
 
     </body>
 </html>
