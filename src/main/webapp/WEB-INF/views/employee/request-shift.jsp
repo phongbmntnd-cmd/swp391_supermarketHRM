@@ -144,9 +144,9 @@
                 <i class="fa-solid fa-arrow-left"></i> Đơn từ &amp; Khiếu nại
             </a>
             <a class="btn-soft"
-               href="${pageContext.request.contextPath}/employee/dashboard">
+           href="${pageContext.request.contextPath}/employee/dashboard">
                 <i class="fa-solid fa-house"></i> Dashboard
-            </a>
+        </a>
         </div>
     </div>
 
@@ -244,8 +244,8 @@
                         <div class="card-body">
                             <h5>Chọn nhân viên muốn đổi ca</h5>
                             <div id="employeeList"></div>
-                        </div>
                     </div>
+                </div>
 
                     <input type="hidden"
                            id="targetScheduleId"

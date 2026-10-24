@@ -196,11 +196,12 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Loại nghỉ phép</label>
-                        <select name="leaveTypeId"
+                        <select name="leaveTypeId" id="leaveTypeId"
                                 class="form-select" required>
                             <option value="">-- Chọn loại nghỉ --</option>
                             <c:forEach var="t" items="${leaveTypes}">
-                                <option value="${t.id}">
+                                <option value="${t.id}"
+                                        data-notice="${t.noticeHours}">
                                     <c:out value="${t.name}"/>
                                     (<c:out value="${t.code}"/>)
                                     - <c:out value="${t.defaultDays}"/> ngày/năm
@@ -211,17 +212,31 @@
 
                     <div class="col-md-3 mb-3">
                         <label class="form-label">Từ ngày</label>
-                        <input type="date" name="startDate"
+                        <input type="date" name="startDate" id="startDate"
                                class="form-control" required
                                min="<%= java.time.LocalDate.now() %>">
                     </div>
 
                     <div class="col-md-3 mb-3">
                         <label class="form-label">Đến ngày</label>
-                        <input type="date" name="endDate"
+                        <input type="date" name="endDate" id="endDate"
                                class="form-control" required
                                min="<%= java.time.LocalDate.now() %>">
                     </div>
+                </div>
+
+                <div class="alert alert-info py-2 mb-3">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <strong>Quy định:</strong> mỗi loại nghỉ có thời hạn
+                    gửi đơn khác nhau:
+                    <ul class="mb-0 mt-1">
+                        <li><strong>Nghỉ phép năm:</strong> báo trước 2 ngày
+                            (nghỉ Thứ Hai phải gửi từ Thứ Bảy trở đi)</li>
+                        <li><strong>Nghỉ không lương:</strong> báo trước 1 ngày</li>
+                        <li><strong>Nghỉ ốm:</strong> báo trước tối thiểu 4 giờ</li>
+                        <li><strong>Nghỉ tang:</strong> gửi trong ngày được</li>
+                    </ul>
+                    <div id="deadlineHint" class="mt-1"></div>
                 </div>
 
                 <div class="mb-3">
@@ -339,5 +354,159 @@
 </div>
 
 <script src="${pageContext.request.contextPath}/js/sidebar.js"></script>
+<script>
+    // Quy định: hạn chót gửi đơn = ngày liền trước 2 ngày của ngày
+    // bắt đầu nghỉ (nghỉ Thứ Hai => gửi từ Thứ Bảy trở đi).
+    (function () {
+        var VN_WEEKDAYS = [
+            'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm',
+            'Thứ Sáu', 'Thứ Bảy', 'Chủ Nhật'
+        ];
+
+        var typeEl = document.getElementById('leaveTypeId');
+        var startEl = document.getElementById('startDate');
+        var endEl = document.getElementById('endDate');
+        var hintEl = document.getElementById('deadlineHint');
+
+        if (!typeEl || !startEl || !endEl) {
+            return;
+        }
+
+        function parseISO(s) {
+            if (!s) {
+                return null;
+            }
+            var p = s.split('-');
+            if (p.length !== 3) {
+                return null;
+            }
+            return new Date(
+                parseInt(p[0], 10),
+                parseInt(p[1], 10) - 1,
+                parseInt(p[2], 10)
+            );
+        }
+
+        function toISO(d) {
+            var m = String(d.getMonth() + 1).padStart(2, '0');
+            var day = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + m + '-' + day;
+        }
+
+        function fmtVn(d) {
+            var dd = String(d.getDate()).padStart(2, '0');
+            var mm = String(d.getMonth() + 1).padStart(2, '0');
+            var wd = VN_WEEKDAYS[(d.getDay() + 6) % 7];
+            return wd + ' (' + dd + '/' + mm + '/' + d.getFullYear() + ')';
+        }
+
+        function fmtHours(h) {
+            if (h % 24 === 0) {
+                return (h / 24) + ' ngày';
+            }
+            return h + ' giờ';
+        }
+
+        // Số giờ báo trước của loại nghỉ đang chọn
+        function getNoticeHours() {
+            var opt = typeEl.options[typeEl.selectedIndex];
+            if (!opt || !opt.value) {
+                return null;
+            }
+            var v = parseInt(opt.getAttribute('data-notice'), 10);
+            return isNaN(v) ? null : v;
+        }
+
+        function update() {
+            var start = parseISO(startEl.value);
+            var notice = getNoticeHours();
+
+            // Chưa chọn loại nghỉ: chỉ chặn ngày quá khứ
+            if (notice === null) {
+                var todayISO = toISO(new Date());
+                startEl.min = todayISO;
+                endEl.min = todayISO;
+                if (hintEl) {
+                    hintEl.textContent = 'Vui lòng chọn loại nghỉ để xem hạn chót gửi đơn.';
+                }
+                return;
+            }
+
+            // notice = 0: gửi trong ngày được -> chỉ chặn quá khứ
+            if (notice === 0) {
+                var t0 = toISO(new Date());
+                startEl.min = t0;
+                endEl.min = t0;
+                if (hintEl) {
+                    hintEl.innerHTML =
+                        'Loại nghỉ này <strong>gửi đơn trong ngày được</strong>.';
+                }
+                return;
+            }
+
+            if (!start) {
+                startEl.min = toISO(new Date());
+                endEl.min = startEl.min;
+                if (hintEl) {
+                    hintEl.textContent = '';
+                }
+                return;
+            }
+
+            // Mốc chót: thời điểm SỚM NHẤT được gửi đơn
+            // (00:00 ngày bắt đầu trừ notice giờ).
+            var deadline = new Date(start);
+            deadline.setHours(deadline.getHours() - notice);
+
+            // Ngày bắt đầu tối thiểu hợp lệ:
+            //  - loại >= 24h: phải nghỉ từ ngày mai trở đi
+            //  - loại < 24h (vd nghỉ ốm 4h): nghỉ trong ngày vẫn được
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            var minStart = new Date(today);
+            if (notice >= 24) {
+                minStart.setDate(minStart.getDate() + 1);
+            }
+
+            // Nếu mốc chót của ngày đã chọn còn ở tương lai
+            // thì ngày đó chưa tới hạn gửi -> báo lỗi.
+            var now = new Date();
+            var tooEarly = now.getTime() < deadline.getTime();
+
+            startEl.min = toISO(minStart);
+            endEl.min = startEl.min;
+
+            if (hintEl) {
+                if (tooEarly || start < minStart) {
+                    hintEl.innerHTML =
+                        '<span class="text-danger fw-bold">'
+                        + 'Chưa tới hạn gửi đơn. Loại nghỉ này yêu cầu báo trước '
+                        + fmtHours(notice) + '. Đơn cho ngày '
+                        + fmtVn(start) + ' chỉ được gửi từ <strong>'
+                        + fmtVn(deadline) + '</strong> trở đi.</span>';
+                } else {
+                    hintEl.innerHTML =
+                        'Loại nghỉ này yêu cầu báo trước <strong>'
+                        + fmtHours(notice) + '</strong>. Đơn cho ngày '
+                        + '<strong>' + fmtVn(start)
+                        + '</strong> được gửi từ <strong>'
+                        + fmtVn(deadline) + '</strong> trở đi.';
+                }
+            }
+        }
+
+        typeEl.addEventListener('change', update);
+        startEl.addEventListener('change', update);
+        endEl.addEventListener('change', function () {
+            if (startEl.value && endEl.value < startEl.value) {
+                endEl.value = startEl.value;
+            }
+            update();
+        });
+
+        update();
+    })();
+</script>
 </body>
 </html>

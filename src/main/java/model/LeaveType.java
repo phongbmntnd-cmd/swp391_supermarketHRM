@@ -7,6 +7,7 @@ public class LeaveType {
     private String description;
     private int defaultDays;      // Số ngày mặc định được nghỉ trong năm
     private boolean paidLeave;     // Có được hưởng lương không
+    private int noticeHours;       // Số giờ phải báo trước khi gửi đơn (0 = không giới hạn)
 
     public LeaveType() {
     }
@@ -63,5 +64,13 @@ public class LeaveType {
 
     public void setPaidLeave(boolean paidLeave) {
         this.paidLeave = paidLeave;
+    }
+
+    public int getNoticeHours() {
+        return noticeHours;
+    }
+
+    public void setNoticeHours(int noticeHours) {
+        this.noticeHours = noticeHours;
     }
 }

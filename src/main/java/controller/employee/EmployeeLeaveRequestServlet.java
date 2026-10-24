@@ -10,6 +10,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 
@@ -172,6 +173,56 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
                 return;
             }
 
+            // Quy định: mỗi loại nghỉ có thời hạn báo trước riêng
+            // (notice_hours trong bảng leave_types).
+            //   0  = gửi trong ngày được (không giới hạn)
+            //   48 = phải báo trước 2 ngày (nghỉ phép năm)
+            //   24 = phải báo trước 1 ngày (nghỉ không lương)
+            //   4  = phải báo trước tối thiểu 4 giờ (nghỉ ốm)
+            int noticeHours = new LeaveTypeDAO()
+                .getNoticeHours(leaveTypeId);
+
+            if (noticeHours > 0) {
+                LocalDateTime now = LocalDateTime.now();
+                LocalDate today = LocalDate.now();
+
+                // Mốc chót = thời điểm SỚM NHẤT được gửi đơn
+                // (00:00 của ngày bắt đầu nghỉ trừ đi notice_hours).
+                // VD: nghỉ Thứ Hai, notice = 48h
+                //     => mốc = Thứ Bảy 00:00 => gửi từ Thứ Bảy trở đi.
+                LocalDateTime deadline = startDate
+                    .atStartOfDay()
+                    .minusHours(noticeHours);
+
+                boolean blocked;
+
+                if (noticeHours >= 24) {
+                    // Loại cần báo trước >= 1 ngày:
+                    // phải nghỉ từ ngày mai trở đi, và phải gửi
+                    // sau mốc chót.
+                    blocked = !startDate.isAfter(today)
+                        || now.isBefore(deadline);
+                } else {
+                    // Loại báo trước ngắn (vd nghỉ ốm 4h):
+                    // nghỉ trong ngày vẫn gửi được, nhưng nghỉ từ
+                    // ngày mai thì phải gửi trước mốc chót.
+                    boolean sameDay = startDate.equals(today);
+                    blocked = !sameDay && now.isBefore(deadline);
+                }
+
+                if (blocked) {
+                    req.setAttribute(
+                        "error",
+                        "Đơn nghỉ phép đã quá hạn gửi. Loại nghỉ này yêu cầu "
+                        + "báo trước " + formatHours(noticeHours)
+                        + ". Nếu nghỉ từ " + formatVn(startDate)
+                        + " thì phải gửi đơn từ "
+                        + formatVnTime(deadline) + " trở đi."
+                    );
+                    showPage(req, resp, user);
+                    return;
+                }
+            }
             // Validate lý do
             if (reason == null
                 || reason.trim().isEmpty()
@@ -256,6 +307,48 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
                 "Cannot create leave request", e
             );
         }
+    }
+
+    // Định dạng ngày kiểu Việt Nam: "Thứ Hai (02/06/2026)"
+    // Chỉ số = DayOfWeek.getValue() - 1 (Thứ Hai = 1 ... Chủ Nhật = 7)
+    private static final String[] VN_WEEKDAYS = {
+        "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm",
+        "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"
+    };
+
+    private String formatVn(LocalDate date) {
+        String dd = date.getDayOfMonth() < 10
+            ? "0" + date.getDayOfMonth()
+            : String.valueOf(date.getDayOfMonth());
+
+        String mm = date.getMonthValue() < 10
+            ? "0" + date.getMonthValue()
+            : String.valueOf(date.getMonthValue());
+
+        return VN_WEEKDAYS[date.getDayOfWeek().getValue() - 1]
+            + " (" + dd + "/" + mm + "/" + date.getYear() + ")";
+    }
+
+    // Định dạng số giờ thành câu tiếng Việt dễ hiểu
+    private String formatHours(int hours) {
+        if (hours % 24 == 0) {
+            int days = hours / 24;
+            return days + " ngày";
+        }
+        return hours + " giờ";
+    }
+
+    // Định dạng ngày giờ kiểu Việt Nam: "Thứ Hai (02/06/2026) 08:00"
+    private String formatVnTime(LocalDateTime dt) {
+        String hh = dt.getHour() < 10
+            ? "0" + dt.getHour()
+            : String.valueOf(dt.getHour());
+
+        String mm = dt.getMinute() < 10
+            ? "0" + dt.getMinute()
+            : String.valueOf(dt.getMinute());
+
+        return formatVn(dt.toLocalDate()) + " " + hh + ":" + mm;
     }
 
     private void handleCancel(
