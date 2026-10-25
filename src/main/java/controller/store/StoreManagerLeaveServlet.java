@@ -1,13 +1,27 @@
 package controller.store;
 
+import dao.LeaveCoverageDAO;
 import dao.LeaveRequestDAO;
+import dao.LeaveShiftDetailDAO;
+import model.LeaveRequestShift;
 import model.User;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
+/**
+ * Màn hình Store Manager duyệt đơn nghỉ phép - mô hình "C trên nền B".
+ *
+ * Ngoài danh sách đơn, màn hình này hiển thị:
+ *   - Chi tiết ca bị nghỉ của từng đơn (phần "C").
+ *   - Cảnh báo ca sẽ thiếu người sau khi duyệt, để SM điều người cover.
+ */
 @WebServlet(
     name = "StoreManagerLeaveServlet",
     urlPatterns = {"/store-manager/leave-requests"}
@@ -40,10 +54,72 @@ public class StoreManagerLeaveServlet extends HttpServlet {
 
         try {
             LeaveRequestDAO dao = new LeaveRequestDAO();
+            int branchId = user.getHomeBranchId();
 
+            List<Map<String, Object>> requestList =
+                    dao.getBranchRequests(branchId);
+
+            // Nạp chi tiết ca cho tất cả đơn (tránh N+1 query)
+            List<Integer> ids = new ArrayList<>();
+            for (Map<String, Object> r : requestList) {
+                ids.add(toInt(r.get("id")));
+            }
+
+            Map<Integer, List<LeaveRequestShift>> detailsByRequest =
+                    new LeaveShiftDetailDAO().getByRequestIds(ids);
+
+            // Gắn chi tiết ca vào từng dòng để JSP hiển thị
+            for (Map<String, Object> r : requestList) {
+                int id = toInt(r.get("id"));
+                List<LeaveRequestShift> details =
+                        detailsByRequest.get(id);
+                r.put("shiftDetails",
+                        details == null ? new ArrayList<>() : details);
+                r.put("shiftCount", details == null ? 0 : details.size());
+            }
+
+            // Tình trạng nhân sự của các ca bị nghỉ (phần "C").
+            // SM thấy ngay ca nào sẽ thiếu người TRƯỚC khi bấm duyệt.
+            LeaveCoverageDAO coverageDao = new LeaveCoverageDAO();
+            for (Map<String, Object> r : requestList) {
+                int id = toInt(r.get("id"));
+                List<Map<String, Object>> cov =
+                        coverageDao.getCoverageStatus(branchId, id);
+
+                int missing = 0;
+                for (Map<String, Object> row : cov) {
+                    if (Boolean.TRUE.equals(row.get("warning"))) {
+                        missing++;
+                    }
+                }
+
+                r.put("coverage", cov);
+                r.put("coverageWarningCount", missing);
+                r.put("hasCoverageWarning", missing > 0);
+            }
+
+            req.setAttribute("requestList", requestList);
+
+            // Tổng hợp thời gian nghỉ theo từng loại của chi nhánh.
+            List<Map<String, Object>> leaveSummary =
+                    new dao.LeaveBalanceDAO()
+                        .getBranchLeaveSummary(
+                            branchId,
+                            java.time.LocalDate.now().getYear()
+                        );
+
+            req.setAttribute("leaveSummary", leaveSummary);
+
+            // Tổng thời gian nghỉ của TẤT CẢ nhân viên trong chi nhánh.
             req.setAttribute(
-                "requestList",
-                dao.getBranchRequests(user.getHomeBranchId())
+                "branchTotalHours",
+                sumTotalHours(leaveSummary)
+            );
+
+            // Định nghĩa ca để SM hiểu giờ nghỉ tương ứng với ca nào.
+            req.setAttribute(
+                "shiftDefinitions",
+                new dao.LeaveShiftOptionDAO().getShiftDefinitions()
             );
 
             req.getRequestDispatcher(
@@ -91,6 +167,14 @@ public class StoreManagerLeaveServlet extends HttpServlet {
 
             boolean approve = "approve".equals(action);
 
+            // Cảnh báo thiếu người trước khi duyệt (để SM biết và
+            // chủ động điều người cover).
+            String warning = "";
+            if (approve) {
+                warning = new LeaveCoverageDAO().getCoverageWarning(
+                        user.getHomeBranchId(), requestId);
+            }
+
             LeaveRequestDAO dao = new LeaveRequestDAO();
             boolean success = dao.review(
                 requestId,
@@ -104,6 +188,7 @@ public class StoreManagerLeaveServlet extends HttpServlet {
                 resp.sendRedirect(
                     req.getContextPath()
                     + "/store-manager/leave-requests?success=1"
+                    + (warning.isEmpty() ? "" : "&warn=" + java.net.URLEncoder.encode(warning, "UTF-8"))
                 );
                 return;
             }
@@ -129,5 +214,33 @@ public class StoreManagerLeaveServlet extends HttpServlet {
                 "Cannot process leave request", e
             );
         }
+    }
+
+    private int toInt(Object o) {
+        if (o instanceof Number) {
+            return ((Number) o).intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(o));
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Tổng tất cả thời gian nghỉ (đã duyệt + chờ duyệt) của chi nhánh.
+     */
+    private double sumTotalHours(List<Map<String, Object>> summary) {
+        double sum = 0;
+        if (summary == null) {
+            return 0;
+        }
+        for (Map<String, Object> row : summary) {
+            Object v = row.get("totalHours");
+            if (v instanceof Number) {
+                sum += ((Number) v).doubleValue();
+            }
+        }
+        return sum;
     }
 }

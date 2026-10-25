@@ -13,6 +13,8 @@ public class LeaveRequest {
     private Date startDate;
     private Date endDate;
     private int totalDays;
+    // Giờ nghỉ thực tế của đơn (đơn vị đo chuẩn theo mô hình "C trên nền B").
+    private double totalHours;
     private String reason;
     private String status;
     private String managerResponse;
@@ -98,6 +100,14 @@ public class LeaveRequest {
 
     public void setTotalDays(int totalDays) {
         this.totalDays = totalDays;
+    }
+
+    public double getTotalHours() {
+        return totalHours;
+    }
+
+    public void setTotalHours(double totalHours) {
+        this.totalHours = totalHours;
     }
 
     public String getReason() {

@@ -256,6 +256,34 @@ public class ShiftChangeRequestDAO {
         }
     }
 
+    /**
+     * Nhân viên đang có đơn nghỉ phép ĐÃ DUYỆT trong ngày này không?
+     * Dùng để chặn việc giao ca cho nhân viên đang nghỉ.
+     */
+    private boolean isOnApprovedLeave(
+            int userId, java.sql.Date workDate) throws SQLException {
+
+        String sql
+                = "SELECT COUNT(*) FROM leave_requests lr "
+                + "WHERE lr.user_id = ? AND lr.status = 'APPROVED' "
+                + "AND lr.start_date <= ? AND lr.end_date >= ?";
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ps.setDate(2, workDate);
+            ps.setDate(3, workDate);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SQLException(
+                    "Không kiểm tra được đơn nghỉ phép", e);
+        }
+    }
+
     // 6. Xem lịch sử của Employee
     public List<Map<String, Object>> getMyRequests(int userId) {
         String sql
@@ -557,8 +585,14 @@ public class ShiftChangeRequestDAO {
         // Kiểm tra cả hai nhân viên không trùng ca mới
         if (hasConflict(c, requester, dates.get(targetId),
                 shiftIds.get(targetId), myId)
-                || hasConflict(c, targetUser, dates.get(myId),
-                        shiftIds.get(myId), targetId)) {
+            || hasConflict(c, targetUser, dates.get(myId),
+                    shiftIds.get(myId), targetId)) {
+            return false;
+        }
+
+        // Người nhận ca (targetUser) không được đang nghỉ phép trong
+        // ngày sẽ làm việc mới.
+        if (isOnApprovedLeave(targetUser, dates.get(myId))) {
             return false;
         }
 
@@ -581,7 +615,6 @@ public class ShiftChangeRequestDAO {
     private boolean approveOpen(
             Connection c, int branch, int myId,
             int openId, int requester) throws SQLException {
-
         String lockMy
                 = "SELECT user_id, branch_id, shift_id, work_date, "
                 + "position_id, status "
@@ -633,6 +666,12 @@ public class ShiftChangeRequestDAO {
         }
 
         if (hasConflict(c, requester, newDate, newShift, myId)) {
+            return false;
+        }
+
+        // Nhân viên nhận ca trống nhưng đang nghỉ phép (đơn đã duyệt)
+        // trong ngày đó -> không được nhận ca.
+        if (isOnApprovedLeave(requester, newDate)) {
             return false;
         }
 

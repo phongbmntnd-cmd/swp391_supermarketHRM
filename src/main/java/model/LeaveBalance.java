@@ -13,6 +13,12 @@ public class LeaveBalance {
     private int usedDays;
     private int remainingDays;
 
+    // Đơn vị đo mới theo mô hình "C trên nền B": GIỜ là đơn vị chuẩn.
+    // total_days/used_days vẫn được giữ để tương thích ngược & lịch sử.
+    private double totalHours;
+    private double usedHours;
+    private double remainingHours;
+
     public LeaveBalance() {
     }
 
@@ -86,5 +92,29 @@ public class LeaveBalance {
 
     public void setRemainingDays(int remainingDays) {
         this.remainingDays = remainingDays;
+    }
+
+    public double getTotalHours() {
+        return totalHours;
+    }
+
+    public void setTotalHours(double totalHours) {
+        this.totalHours = totalHours;
+    }
+
+    public double getUsedHours() {
+        return usedHours;
+    }
+
+    public void setUsedHours(double usedHours) {
+        this.usedHours = usedHours;
+    }
+
+    public double getRemainingHours() {
+        return remainingHours;
+    }
+
+    public void setRemainingHours(double remainingHours) {
+        this.remainingHours = remainingHours;
     }
 }

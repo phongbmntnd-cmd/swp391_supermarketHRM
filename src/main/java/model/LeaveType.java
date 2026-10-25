@@ -8,6 +8,12 @@ public class LeaveType {
     private int defaultDays;      // Số ngày mặc định được nghỉ trong năm
     private boolean paidLeave;     // Có được hưởng lương không
     private int noticeHours;       // Số giờ phải báo trước khi gửi đơn (0 = không giới hạn)
+    // Số giờ phải báo trước riêng cho nhân viên PART_TIME.
+    // Part-time báo trước lâu hơn vì ca đã publish cần kịp tìm người cover.
+    private int noticeHoursPartTime;
+    // true = loại nghỉ được làm đơn TRONG NGÀY, không kiểm tra hạn
+    // báo trước (nghỉ ốm, nghỉ tang).
+    private boolean sameDayAllowed;
 
     public LeaveType() {
     }
@@ -72,5 +78,21 @@ public class LeaveType {
 
     public void setNoticeHours(int noticeHours) {
         this.noticeHours = noticeHours;
+    }
+
+    public int getNoticeHoursPartTime() {
+        return noticeHoursPartTime;
+    }
+
+    public void setNoticeHoursPartTime(int noticeHoursPartTime) {
+        this.noticeHoursPartTime = noticeHoursPartTime;
+    }
+
+    public boolean isSameDayAllowed() {
+        return sameDayAllowed;
+    }
+
+    public void setSameDayAllowed(boolean sameDayAllowed) {
+        this.sameDayAllowed = sameDayAllowed;
     }
 }

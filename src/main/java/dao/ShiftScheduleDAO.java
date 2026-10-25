@@ -33,9 +33,33 @@ public class ShiftScheduleDAO {
     }
 
     // 2. Kiểm tra xem ca trực đã tồn tại trong database chưa
+    // Lưu ý: bỏ qua dòng đang 'ON_LEAVE' (nhân viên đã nghỉ phép được
+    // duyệt). Dòng này phải được giữ nguyên để hệ thống còn biết
+    // ca đó đã được chuyển cho nghỉ - không được xoá khi SM bấm lại.
     public boolean checkScheduleExists(int branchId, int userId, int shiftId, String workDate) {
-        String sql = "SELECT id FROM shift_schedules WHERE branch_id = ? AND user_id = ? AND shift_id = ? AND work_date = ?";
+        String sql = "SELECT id FROM shift_schedules WHERE branch_id = ? AND user_id = ? AND shift_id = ? AND work_date = ? AND status <> 'ON_LEAVE'";
         try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
+            st.setInt(1, branchId);
+            st.setInt(2, userId);
+            st.setInt(3, shiftId);
+            st.setDate(4, Date.valueOf(workDate));
+            try (ResultSet rs = st.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // 2b. Kiểm tra ca đang 'ON_LEAVE' (nhân viên đã nghỉ phép được duyệt).
+    // Ca này KHÔNG được xoá và cũng KHÔNG được xếp thêm ca khác
+    // cùng ngày cho nhân viên đó.
+    public boolean checkOnLeaveSchedule(int branchId, int userId, int shiftId, String workDate) {
+        String sql = "SELECT id FROM shift_schedules WHERE branch_id = ? AND user_id = ? AND shift_id = ? AND work_date = ? AND status = 'ON_LEAVE'";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement st = conn.prepareStatement(sql)) {
             st.setInt(1, branchId);
             st.setInt(2, userId);
             st.setInt(3, shiftId);
@@ -326,6 +350,29 @@ public class ShiftScheduleDAO {
             }
         }catch(Exception e){throw new IllegalStateException("Không kiểm tra được khoá điều chuyển",e);}
     }
+    // 3b. Nhân viên đang có đơn nghỉ phép ĐÃ DUYỆT trong ngày này không?
+    // Dùng để chặn Store Manager xếp nhân viên đang nghỉ vào ca.
+    // Chặn theo cả ngày (không chỉ ca bị nghỉ) để an toàn: nhân viên
+    // đã xin nghỉ cả ngày thì không nên bị xếp vào bất kỳ ca nào.
+    public boolean isOnApprovedLeave(int userId, String workDate) {
+        String sql = "SELECT COUNT(*) FROM leave_requests lr "
+                + "JOIN employee_profiles ep ON ep.user_id = lr.user_id "
+                + "WHERE lr.user_id = ? AND lr.status = 'APPROVED' "
+                + "AND lr.start_date <= ? AND lr.end_date >= ?";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement st = conn.prepareStatement(sql)) {
+            st.setInt(1, userId);
+            st.setDate(2, Date.valueOf(workDate));
+            st.setDate(3, Date.valueOf(workDate));
+            try (ResultSet rs = st.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Không kiểm tra được đơn nghỉ phép", e);
+        }
+    }
+
     // Protect against manual assignment of another person's shift or overlapping schedules.
     public boolean canAssign(int branchId,int userId,int positionId,int shiftId,String workDate){
         String sql="SELECT COUNT(*) FROM employee_profiles ep JOIN users u ON u.id=ep.user_id " +
@@ -341,6 +388,10 @@ public class ShiftScheduleDAO {
             try(PreparedStatement p=c.prepareStatement(sql)){
                 p.setInt(1,userId);p.setInt(2,branchId);p.setInt(3,positionId);
                 try(ResultSet rs=p.executeQuery()){if(!rs.next()||rs.getInt(1)!=1)return false;}
+            }
+            // Nhân viên đang nghỉ phép (đơn đã duyệt) -> không được xếp ca.
+            if (isOnApprovedLeave(userId, workDate)) {
+                return false;
             }
             for(String q:new String[]{conflict,held})try(PreparedStatement p=c.prepareStatement(q)){
                 p.setInt(1,shiftId);p.setInt(2,userId);p.setDate(3,Date.valueOf(workDate));
