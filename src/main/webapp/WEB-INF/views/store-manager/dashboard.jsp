@@ -14,6 +14,8 @@
         <title>Bảng Điều Khiển - Quản Lý Siêu Thị</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <!-- Sidebar dùng chung (Employee / Store Manager) -->
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/sidebar.css">
         <style>
             * {
                 box-sizing: border-box;
@@ -28,66 +30,11 @@
                 min-height: 100vh;
             }
 
-            /* --- SIDEBAR --- */
-            .sidebar {
-                width: 260px;
-                background-color: #1e293b;
-                color: #94a3b8;
-                display: flex;
-                flex-direction: column;
-                position: fixed;
-                top: 0;
-                bottom: 0;
-                left: 0;
-                z-index: 100;
-                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            }
-            .sidebar-brand {
-                padding: 25px 20px;
-                font-size: 18px;
-                font-weight: 700;
-                color: #ffffff;
-                background-color: #0f172a;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            .sidebar-brand i {
-                color: #38bdf8;
-                font-size: 22px;
-            }
-            .sidebar-menu {
-                list-style: none;
-                padding: 20px 0;
-                flex-grow: 1;
-            }
-            .sidebar-menu li a {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-                padding: 14px 25px;
-                color: #94a3b8;
-                text-decoration: none;
-                font-size: 14px;
-                font-weight: 500;
-                transition: all 0.3s ease;
-                border-left: 4px solid transparent;
-            }
-            .sidebar-menu li a:hover, .sidebar-menu li.active a {
-                color: #ffffff;
-                background-color: rgba(255, 255, 255, 0.05);
-                border-left-color: #38bdf8;
-            }
-            .sidebar-menu li a i {
-                font-size: 16px;
-                width: 20px;
-                text-align: center;
-            }
-
-            /* --- MAIN CONTENT WRAPPER --- */
+            /* --- MAIN WRAPPER (Khớp chuẩn kích thước với sidebar) --- */
             .main-wrapper {
-                margin-left: 260px;
-                flex-grow: 1;
+                flex: 1;
+                margin-left: 260px; /* Khớp chiều rộng chuẩn của sidebar */
+                min-width: 0;
                 display: flex;
                 flex-direction: column;
             }
@@ -143,11 +90,12 @@
                 color: white;
             }
 
-            /* --- CONTAINER --- */
-            .container {
+            /* --- DASHBOARD CONTENT CONTAINER --- */
+            .dashboard-container {
                 max-width: 1400px;
-                margin: 30px;
-                padding: 0;
+                width: 100%;
+                margin: 0 auto;
+                padding: 30px;
             }
 
             /* --- THANH HIỂN THỊ CƠ SỞ HIỆN TẠI --- */
@@ -205,7 +153,7 @@
             /* --- QUICK STATS / KPI CARDS --- */
             .stats-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
                 gap: 20px;
                 margin-bottom: 30px;
             }
@@ -227,15 +175,22 @@
                 align-items: center;
                 justify-content: center;
                 font-size: 20px;
+                flex-shrink: 0;
+            }
+            .stat-info {
+                min-width: 0;
             }
             .stat-info h4 {
                 font-size: 13px;
                 color: #64748b;
                 margin-bottom: 4px;
                 font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .stat-info span {
-                font-size: 20px;
+                font-size: 18px;
                 font-weight: 700;
                 color: #1e293b;
             }
@@ -276,6 +231,7 @@
                 justify-content: center;
                 font-size: 18px;
                 color: white;
+                flex-shrink: 0;
             }
             .card h3 {
                 font-size: 18px;
@@ -302,27 +258,19 @@
                 gap: 12px;
                 color: #1d4ed8;
             }
+
+            /* Responsive cho màn hình nhỏ */
+            @media (max-width: 992px) {
+                .main-wrapper {
+                    margin-left: 0;
+                }
+            }
         </style>
     </head>
     <body>
 
         <!-- Sidebar Điều Hướng Trái -->
-        <div class="sidebar">
-            <div class="sidebar-brand">
-                <i class="fa-solid fa-store"></i>
-                <span>Store Portal</span>
-            </div>
-            <ul class="sidebar-menu">
-                <li class="active"><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-pie"></i> Bảng điều khiển</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users"></i> Quản lý nhân sự</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-invoice"></i> Đề xuất tiếp nhận nhân sự</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clipboard-user"></i> Chấm công & Ca làm</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/violations"><i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-days"></i> Xếp lịch trực tuần</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-exchange-alt"></i> Quản lí đổi ca</a></li>
-            </ul>
-        </div>
+        <jsp:include page="/WEB-INF/views/fragments/store-manager-sidebar.jsp"/>
 
         <!-- Main Content Wrapper -->
         <div class="main-wrapper">
@@ -339,10 +287,9 @@
                         <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
                     </a>
                 </div>
-
             </div>
 
-            <div class="container">
+            <div class="dashboard-container">
 
                 <!-- Thanh hiển thị Cơ sở hiện tại -->
                 <div class="branch-info-bar">
@@ -383,6 +330,15 @@
                         <div class="stat-info">
                             <h4>Ca Trực Hôm Nay</h4>
                             <span>${totalShifts} Ca làm</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #fef3c7; color: #d97706;">
+                            <i class="fa-solid fa-envelope-open-text"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h4>Đơn Chờ Duyệt</h4>
+                            <span>${pendingRequestCount} Đơn</span>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -473,16 +429,14 @@
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
-                                <div class="card-icon"
-                                     style="background-color: #10b981;">
+                                <div class="card-icon" style="background-color: #10b981;">
                                     <i class="fa-solid fa-people-arrows-left-right"></i>
                                 </div>
                                 <h3>Quản Lý Đổi Ca</h3>
                             </div>
                             <p> Xem xét, tiếp nhận và phê duyệt các đơn đổi ca giữa nhân viên cùng chi nhánh.</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/store-manager/shift-requests"
-                           class="card-link">
+                        <a href="${pageContext.request.contextPath}/store-manager/shift-requests" class="card-link">
                             Xem yêu cầu đổi ca
                             <i class="fa-solid fa-arrow-right"></i>
                         </a>
@@ -492,16 +446,14 @@
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
-                                <div class="card-icon"
-                                     style="background-color: #ef4444;">
+                                <div class="card-icon" style="background-color: #ef4444;">
                                     <i class="fa-solid fa-triangle-exclamation"></i>
                                 </div>
                                 <h3>Báo cáo vi phạm</h3>
                             </div>
                             <p> Ghi nhận sự việc để HR xác minh trước khi có quyết định xử lý.</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/store-manager/violations"
-                           class="card-link">
+                        <a href="${pageContext.request.contextPath}/store-manager/violations" class="card-link">
                             Thông tin chi tiết
                             <i class="fa-solid fa-arrow-right"></i>
                         </a>
@@ -510,6 +462,8 @@
 
             </div>
         </div>
+
+    <script src="${pageContext.request.contextPath}/js/sidebar.js"></script>
 
     </body>
 </html>

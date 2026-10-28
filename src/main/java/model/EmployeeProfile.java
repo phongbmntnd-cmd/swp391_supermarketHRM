@@ -13,6 +13,11 @@ public class EmployeeProfile {
     private int departmentId;
     private String employeeType;
     private String shiftType;
+    // Định mức giờ làm việc tiêu chuẩn mỗi ngày.
+    // FULL_TIME = 10 (ca 07:00-17:00 hoặc 12:00-22:00)
+    // PART_TIME = 5  (ca Sáng / Chiều / Tối)
+    // Dùng làm fallback khi chưa có lịch làm việc cụ thể.
+    private double standardHoursPerDay;
     private Timestamp createdAt;
 
     // Thông tin bổ sung từ JOIN (không lưu DB)
@@ -98,6 +103,14 @@ public class EmployeeProfile {
 
     public void setShiftType(String shiftType) {
         this.shiftType = shiftType;
+    }
+
+    public double getStandardHoursPerDay() {
+        return standardHoursPerDay;
+    }
+
+    public void setStandardHoursPerDay(double standardHoursPerDay) {
+        this.standardHoursPerDay = standardHoursPerDay;
     }
 
     public Timestamp getCreatedAt() {

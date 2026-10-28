@@ -31,6 +31,7 @@ public class EmployeeProfileDAO {
     public EmployeeProfile getProfileByUserId(int userId) {
         String sql = "SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, "
                 + "ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.shift_type, "
+                + "COALESCE(ep.standard_hours_per_day, 10.00) AS standard_hours_per_day, "
                 + "p.title AS position_name, d.name AS department_name, "
                 + "u.username, u.email, u.status, u.role_id, r.name AS role_name "
                 + "FROM employee_profiles ep "
@@ -68,6 +69,7 @@ public class EmployeeProfileDAO {
 
         sql.append("SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, ");
         sql.append("ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.shift_type, "); // <-- Thêm ep.shift_type vào đây
+        sql.append("COALESCE(ep.standard_hours_per_day, 10.00) AS standard_hours_per_day, ");
         sql.append("p.title AS position_name, d.name AS department_name, ");
         sql.append("u.username, u.email, u.status, u.role_id, r.name AS role_name ");
         sql.append("FROM employee_profiles ep ");
@@ -295,6 +297,14 @@ public class EmployeeProfileDAO {
 
         // Đọc giá trị shift_type từ database lên model
         profile.setShiftType(rs.getString("shift_type"));
+
+        // Định mức giờ làm việc tiêu chuẩn mỗi ngày (mô hình "C trên nền B")
+        try {
+            profile.setStandardHoursPerDay(
+                    rs.getDouble("standard_hours_per_day"));
+        } catch (Exception ignore) {
+            profile.setStandardHoursPerDay(10.00);
+        }
 
         profile.setPositionName(rs.getString("position_name"));
         profile.setDepartmentName(rs.getString("department_name"));

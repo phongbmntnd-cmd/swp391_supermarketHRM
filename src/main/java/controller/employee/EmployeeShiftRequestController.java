@@ -60,6 +60,18 @@ public class EmployeeShiftRequestController extends HttpServlet {
                     dao.getIncomingRequests(user.getId())
             );
 
+            // Ca trống tại cơ sở để nhân viên đề nghị chuyển sang
+            req.setAttribute(
+                    "openShifts",
+                    dao.getOpenShifts(user.getId())
+            );
+
+            // Badge số đơn đổi ca đang chờ mình phản hồi
+            req.setAttribute(
+                    "incomingSwapCount",
+                    dao.countIncomingShiftRequests(user.getId())
+            );
+
             req.getRequestDispatcher(
                     "/WEB-INF/views/employee/request-shift.jsp"
             ).forward(req, resp);
@@ -141,11 +153,21 @@ public class EmployeeShiftRequestController extends HttpServlet {
                 boolean accepted
                         = "accept".equals(decision);
 
+                String message = req.getParameter("message");
+
+                if (message != null
+                        && message.trim().length() > 255) {
+                    resp.sendError(400, "Message too long");
+                    return;
+                }
+
                 boolean success = dao.respondToSwap(
                         requestId,
                         user.getId(),
                         accepted,
-                        null
+                        message == null
+                                ? null
+                                : message.trim()
                 );
 
                 resp.sendRedirect(
@@ -156,18 +178,38 @@ public class EmployeeShiftRequestController extends HttpServlet {
                 return;
             }
 
+            // NHÂN VIÊN A HỦY ĐƠN
+            if ("cancel".equals(action)) {
+
+                int requestId = Integer.parseInt(
+                        req.getParameter("requestId")
+                );
+
+                boolean success = dao.cancelMyRequest(
+                        requestId, user.getId());
+
+                resp.sendRedirect(
+                        req.getContextPath()
+                        + "/employee/request-shift?"
+                        + (success ? "cancelled=1" : "invalid=1")
+                );
+                return;
+            }
+
             // NHÂN VIÊN A GỬI ĐƠN
-            if (action != null && !"create".equals(action)) {
+            if (action != null
+                    && !"create".equals(action)
+                    && !"createOpen".equals(action)) {
                 resp.sendError(400, "Invalid action");
                 return;
             }
 
+            // Loại đơn: đổi với đồng nghiệp (SWAP) hay chuyển
+            // sang ca trống (OPEN).
+            boolean openType = "createOpen".equals(action);
+
             int myScheduleId = Integer.parseInt(
                     req.getParameter("myScheduleId")
-            );
-
-            int targetScheduleId = Integer.parseInt(
-                    req.getParameter("targetScheduleId")
             );
 
             String reason = req.getParameter("reason");
@@ -185,12 +227,31 @@ public class EmployeeShiftRequestController extends HttpServlet {
                 return;
             }
 
-            boolean success = dao.createSwap(
-                    user.getId(),
-                    myScheduleId,
-                    targetScheduleId,
-                    reason.trim()
-            );
+            boolean success;
+
+            if (openType) {
+                int openShiftId = Integer.parseInt(
+                        req.getParameter("openShiftId")
+                );
+
+                success = dao.createOpenChange(
+                        user.getId(),
+                        myScheduleId,
+                        openShiftId,
+                        reason.trim()
+                );
+            } else {
+                int targetScheduleId = Integer.parseInt(
+                        req.getParameter("targetScheduleId")
+                );
+
+                success = dao.createSwap(
+                        user.getId(),
+                        myScheduleId,
+                        targetScheduleId,
+                        reason.trim()
+                );
+            }
 
             resp.sendRedirect(
                     req.getContextPath()

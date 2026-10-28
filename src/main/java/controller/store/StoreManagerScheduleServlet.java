@@ -235,8 +235,14 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             int positionId = getIntParameter(request, "positionId", -1);
             int shiftId = getIntParameter(request, "shiftId", -1);
             String workDate = getStringParameter(request, "workDate");
-
             if (userId != -1 && shiftId != -1 && positionId > 0 && branchId != -1 && workDate != null) {
+                // Ca đang ON_LEAVE (nhân viên đã nghỉ phép được duyệt):
+                // không được xoá, không được xếp thêm -> báo riêng cho SM.
+                if (scheduleDAO.checkOnLeaveSchedule(branchId, userId, shiftId, workDate)
+                        || scheduleDAO.isOnApprovedLeave(userId, workDate)) {
+                    response.getWriter().write("on_leave");
+                    return;
+                }
                 boolean exists = scheduleDAO.checkScheduleExists(branchId, userId, shiftId, workDate);
                 if (exists) {
                     if(scheduleDAO.isLockedForTransfer(branchId, userId, shiftId, workDate)){
@@ -271,13 +277,29 @@ public class StoreManagerScheduleServlet extends BaseServlet {
 
         } else if ("publish".equals(action)) {
             if (branchId != -1) {
-                if(startDate == null){
-                    response.sendError(400, "Thiếu tuần cần Publish");
-                    return;
-                }
+//<<<<<<< HEAD
+                if(startDate == null){response.sendError(400, "Thiếu tuần cần Publish");return;}
                 LocalDate monday = LocalDate.parse(startDate);
                 scheduleDAO.publishSchedules(branchId, monday.toString(), monday.plusDays(6).toString());
                 new SupplementaryShiftDAO().closeRegistrationsForWeek(branchId, monday.toString(), monday.plusDays(6).toString());
+////=======
+//                if(startDate == null){response.sendError(400,"Thiếu tuần cần Publish");return;}
+//                LocalDate monday=LocalDate.parse(startDate);
+//                scheduleDAO.publishSchedules(branchId,monday.toString(),monday.plusDays(6).toString());
+//
+//                // Khớp lại các đơn nghỉ phép đã duyệt với lịch vừa
+//                // publish: đánh dấu ON_LEAVE + đưa ca vào open_shifts.
+//                // Nhờ vậy part-time xin nghỉ trước khi lịch được publish
+//                // vẫn có hiệu lực đầy đủ.
+//                try {
+//                    new dao.LeaveRequestDAO().reconcileApprovedLeaves(
+//                            branchId,
+//                            java.sql.Date.valueOf(monday),
+//                            java.sql.Date.valueOf(monday.plusDays(6)));
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                }
+//>>>>>>> origin/TienDat
             }
             String redirectUrl = "schedule?success=published";
             if (startDate != null && !startDate.trim().isEmpty()) {

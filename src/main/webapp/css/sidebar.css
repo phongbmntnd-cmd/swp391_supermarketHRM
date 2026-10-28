@@ -1,0 +1,194 @@
+/* ============================================================
+   SIDEBAR DÙNG CHUNG - Employee / Store Manager
+   Gồm: sidebar, sidebar-menu, submenu (Đơn từ & Khiếu nại)
+   Biến theme theo class .theme-employee / .theme-store-manager
+   ============================================================ */
+
+:root {
+    --sb-width: 260px;
+    --sb-bg: #1e293b;
+    --sb-text: #94a3b8;
+    --sb-text-active: #ffffff;
+    --sb-hover-bg: rgba(255, 255, 255, 0.05);
+    --sb-accent: #22c55e;
+    --sb-sub-bg: rgba(0, 0, 0, 0.22);
+}
+
+.theme-store-manager {
+    --sb-accent: #38bdf8;
+}
+
+/* --- SIDEBAR --- */
+.sidebar {
+    width: var(--sb-width);
+    background-color: var(--sb-bg);
+    color: var(--sb-text);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-brand {
+    padding: 25px 20px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+    background-color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar-brand i {
+    color: var(--sb-accent);
+    font-size: 22px;
+}
+
+/* --- MENU --- */
+.sidebar-menu {
+    list-style: none;
+    padding: 20px 0;
+    margin: 0;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.sidebar-menu li a {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 14px 25px;
+    color: var(--sb-text);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.sidebar-menu li a:hover,
+.sidebar-menu li.active > a {
+    color: var(--sb-text-active);
+    background-color: var(--sb-hover-bg);
+    border-left-color: var(--sb-accent);
+}
+
+.sidebar-menu li a i {
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+/* --- SUBMENU (Đơn từ & Khiếu nại) --- */
+.sidebar-menu > li {
+    position: relative;
+}
+
+/* Nút toggle nhỏ nằm bên phải, tách khỏi link cha */
+.sidebar-menu .submenu-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 48px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--sb-text);
+    cursor: pointer;
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.sidebar-menu .submenu-toggle:hover {
+    color: var(--sb-text-active);
+    background-color: var(--sb-hover-bg);
+}
+
+/* Cấp chừa chỗ cho nút toggle ở item cha có submenu */
+.sidebar-menu > li:has(> .submenu) > a {
+    padding-right: 48px;
+}
+
+/* Link cha khi đang mở submenu */
+.sidebar-menu > li.open > a {
+    color: var(--sb-text-active);
+    background-color: var(--sb-hover-bg);
+    border-left-color: var(--sb-accent);
+}
+
+.sidebar-menu .submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background-color: var(--sb-sub-bg);
+}
+
+.sidebar-menu .submenu.show {
+    max-height: 400px;
+}
+
+.sidebar-menu .submenu li a {
+    padding: 11px 25px 11px 50px;
+    font-size: 13px;
+    font-weight: 400;
+    gap: 12px;
+}
+
+.sidebar-menu .submenu li a i {
+    font-size: 13px;
+}
+
+/* Icon mũi tên xoay khi mở/đóng submenu */
+.sidebar-menu .submenu-toggle .chevron {
+    font-size: 11px;
+    transition: transform 0.3s ease;
+}
+
+.sidebar-menu > li.open > .submenu-toggle .chevron {
+    transform: rotate(180deg);
+}
+
+/* Submenu item đang được chọn */
+.sidebar-menu .submenu li a.current {
+    color: var(--sb-text-active);
+    background-color: var(--sb-hover-bg);
+    border-left-color: var(--sb-accent);
+    font-weight: 500;
+}
+
+/* --- MAIN WRAPPER (dùng chung) --- */
+.main-wrapper {
+    margin-left: var(--sb-width);
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* --- RESPONSIVE: thu gọn sidebar trên màn hình nhỏ --- */
+@media (max-width: 992px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-wrapper {
+        margin-left: 0;
+    }
+}
