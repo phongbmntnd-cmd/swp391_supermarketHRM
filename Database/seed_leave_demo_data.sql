@@ -105,95 +105,155 @@ WHERE lt.code IN ('ANNUAL', 'SICK', 'FUNERAL')
 -- Ví dụ: CURDATE() = Thứ Bảy -> WEEKDAY() = 5 -> lùi 5 ngày -> Thứ Hai.
 SET @mon = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY);
 
--- Lịch cho TUẦN HIỆN TẠI và TUẦN SAU
--- (nhân viên xin nghỉ trong tuần kế tiếp, nên cần lịch đã publish).
+-- ------------------------------------------------------------
+-- 3a. Dọn lịch làm việc cũ của nhân viên DEMO
 --
--- Quy ước: n = 0 là Thứ Hai, n = 6 là Chủ Nhật.
+--     Lý do: seed chạy lại nhiều lần có thể để lại ca KHÔNG NHẤT
+--     quán (ví dụ part-time bị gán cả ca Full-time lẫn Ca Sáng
+--     cùng ngày -> chồng lấn giờ, làm hỏng chức năng đổi ca).
 --
---   Full-time (user 5): T2->T6 (n = 0..4), ca 4 (07:00-17:00) = 10h/ngày
---   Part-time 1 (Anh):  T2/T4/T6/CN (n = 0,2,4,6), ca 3 (Ca Tối) = 5h
---   Part-time 2 (Bình): T3/T5/T7 (n = 1,3,5), ca 1 (Ca Sáng) = 5h
+--     Quy tắc: part-time (PART_TIME/CASUAL) KHÔNG được xếp ca
+--     full-time (ca 10h). Xóa các ca full-time đó đi.
+--
+--     Các bản ghi chấm công tham chiếu shift_schedule_id nên
+--     xóa luôn chấm công của ca bị xóa (tránh dữ liệu mồ côi).
+--     Tương tự, các đơn đổi ca / nhận ca trống cũng tham chiếu
+--     shift_schedule_id -> phải dọn trước để không vi phạm FK.
+-- ------------------------------------------------------------
+DELETE a FROM `attendances` a
+JOIN `shift_schedules` ss ON ss.id = a.shift_schedule_id
+JOIN `employee_profiles` ep ON ep.user_id = ss.user_id
+WHERE ep.employee_type IN ('PART_TIME', 'CASUAL')
+  AND ss.shift_id IN (4, 5);
+
+-- Dọn đơn đổi ca / nhận ca trống tham chiếu ca sắp bị xóa
+DELETE scr FROM `shift_change_requests` scr
+JOIN `shift_schedules` ss ON ss.id = scr.shift_schedule_id
+JOIN `employee_profiles` ep ON ep.user_id = ss.user_id
+WHERE ep.employee_type IN ('PART_TIME', 'CASUAL')
+  AND ss.shift_id IN (4, 5);
+
+DELETE scr FROM `shift_change_requests` scr
+JOIN `shift_schedules` ss ON ss.id = scr.target_shift_schedule_id
+JOIN `employee_profiles` ep ON ep.user_id = ss.user_id
+WHERE ep.employee_type IN ('PART_TIME', 'CASUAL')
+  AND ss.shift_id IN (4, 5);
+
+DELETE ss FROM `shift_schedules` ss
+JOIN `employee_profiles` ep ON ep.user_id = ss.user_id
+WHERE ep.employee_type IN ('PART_TIME', 'CASUAL')
+  AND ss.shift_id IN (4, 5);
+
+-- ------------------------------------------------------------
+-- 3b. Sinh lịch cho 3 TUẦN: tuần hiện tại + 2 tuần kế tiếp.
+--
+-- Lý do: nhân viên cần xin nghỉ TRƯỚC cho các tuần sau, và
+-- Store Manager cần lịch đã publish để duyệt đơn / đổi ca.
+-- Mỗi tuần vẫn giữ đúng quy tắc T2/T4/T6/CN và T3/T5/T7.
+--
+-- @w = so tuần (0 = tuần hien tai).
+-- Quy uoc moi tuan: n = 0 la Thu Hai, n = 6 la Chu Nhat.
+CREATE TEMPORARY TABLE IF NOT EXISTS tmp_weeks (w INT);
+DELETE FROM tmp_weeks;
+INSERT INTO tmp_weeks (w)
+SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2;
 
 -- Full-time: T2 -> T6, ca 4 (07:00-17:00)
 INSERT INTO `shift_schedules`
     (`branch_id`, `user_id`, `shift_id`, `work_date`, `position_id`, `status`)
-SELECT 1, 5, 4, DATE_ADD(@mon, INTERVAL n DAY), 7, 'PUBLISHED'
-FROM (
+SELECT 1, 5, 4, DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY), 7, 'PUBLISHED'
+FROM tmp_weeks w
+JOIN (
     SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2
     UNION ALL SELECT 3 UNION ALL SELECT 4
-) d
+) n
 WHERE NOT EXISTS (
     SELECT 1 FROM `shift_schedules` s
     WHERE s.user_id = 5 AND s.shift_id = 4
-      AND s.work_date = DATE_ADD(@mon, INTERVAL d.n DAY)
+      AND s.work_date = DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
 );
 
 -- Part-time 1: ca Tối (id 3), T2/T4/T6/CN
 INSERT INTO `shift_schedules`
     (`branch_id`, `user_id`, `shift_id`, `work_date`, `position_id`, `status`)
-SELECT 1, @pt1, 3, DATE_ADD(@mon, INTERVAL n DAY), 7, 'PUBLISHED'
-FROM (
+SELECT 1, @pt1, 3, DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY), 7, 'PUBLISHED'
+FROM tmp_weeks w
+JOIN (
     SELECT 0 AS n UNION ALL SELECT 2 UNION ALL SELECT 4 UNION ALL SELECT 6
-) d
+) n
 WHERE NOT EXISTS (
     SELECT 1 FROM `shift_schedules` s
     WHERE s.user_id = @pt1 AND s.shift_id = 3
-      AND s.work_date = DATE_ADD(@mon, INTERVAL d.n DAY)
+      AND s.work_date = DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
 );
 
 -- Part-time 2: ca Sáng (id 1), T3/T5/T7
 INSERT INTO `shift_schedules`
     (`branch_id`, `user_id`, `shift_id`, `work_date`, `position_id`, `status`)
-SELECT 1, @pt2, 1, DATE_ADD(@mon, INTERVAL n DAY), 7, 'PUBLISHED'
-FROM (
+SELECT 1, @pt2, 1, DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY), 7, 'PUBLISHED'
+FROM tmp_weeks w
+JOIN (
     SELECT 1 AS n UNION ALL SELECT 3 UNION ALL SELECT 5
-) d
+) n
 WHERE NOT EXISTS (
     SELECT 1 FROM `shift_schedules` s
     WHERE s.user_id = @pt2 AND s.shift_id = 1
-      AND s.work_date = DATE_ADD(@mon, INTERVAL d.n DAY)
+      AND s.work_date = DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
 );
+
+DROP TEMPORARY TABLE IF EXISTS tmp_weeks;
 
 -- ------------------------------------------------------------
 -- 4. Định mức nhân sự (shift_requirements)
 --    Dùng để demo cảnh báo "thiếu người" khi Store Manager duyệt đơn.
+--    Cũng phủ 3 tuần như lịch làm việc.
 -- ------------------------------------------------------------
+CREATE TEMPORARY TABLE IF NOT EXISTS tmp_weeks2 (w INT);
+DELETE FROM tmp_weeks2;
+INSERT INTO tmp_weeks2 (w)
+SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2;
+
 INSERT INTO `shift_requirements`
     (`branch_id`, `position_id`, `shift_id`, `required_count`, `work_date`)
-SELECT 1, 7, 3, 2, DATE_ADD(@mon, INTERVAL d.n DAY)
-FROM (
+SELECT 1, 7, 3, 2, DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
+FROM tmp_weeks2 w
+JOIN (
     SELECT 0 AS n UNION ALL SELECT 2 UNION ALL SELECT 4 UNION ALL SELECT 6
-) d
+) n
 WHERE NOT EXISTS (
     SELECT 1 FROM `shift_requirements` r
     WHERE r.branch_id = 1 AND r.shift_id = 3
-      AND r.work_date = DATE_ADD(@mon, INTERVAL d.n DAY)
+      AND r.work_date = DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
 );
 
 INSERT INTO `shift_requirements`
     (`branch_id`, `position_id`, `shift_id`, `required_count`, `work_date`)
-SELECT 1, 7, 1, 2, DATE_ADD(@mon, INTERVAL d.n DAY)
-FROM (
+SELECT 1, 7, 1, 2, DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
+FROM tmp_weeks2 w
+JOIN (
     SELECT 1 AS n UNION ALL SELECT 3 UNION ALL SELECT 5
-) d
+) n
 WHERE NOT EXISTS (
     SELECT 1 FROM `shift_requirements` r
     WHERE r.branch_id = 1 AND r.shift_id = 1
-      AND r.work_date = DATE_ADD(@mon, INTERVAL d.n DAY)
+      AND r.work_date = DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
 );
 
 INSERT INTO `shift_requirements`
     (`branch_id`, `position_id`, `shift_id`, `required_count`, `work_date`)
-SELECT 1, 7, 4, 3, DATE_ADD(@mon, INTERVAL d.n DAY)
-FROM (
+SELECT 1, 7, 4, 3, DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
+FROM tmp_weeks2 w
+JOIN (
     SELECT 0 AS n UNION ALL SELECT 1 UNION ALL SELECT 2
     UNION ALL SELECT 3 UNION ALL SELECT 4
-) d
+) n
 WHERE NOT EXISTS (
     SELECT 1 FROM `shift_requirements` r
     WHERE r.branch_id = 1 AND r.shift_id = 4
-      AND r.work_date = DATE_ADD(@mon, INTERVAL d.n DAY)
+      AND r.work_date = DATE_ADD(DATE_ADD(@mon, INTERVAL w.w WEEK), INTERVAL n.n DAY)
 );
+
+DROP TEMPORARY TABLE IF EXISTS tmp_weeks2;
 
 -- ------------------------------------------------------------
 -- 5. Kết quả

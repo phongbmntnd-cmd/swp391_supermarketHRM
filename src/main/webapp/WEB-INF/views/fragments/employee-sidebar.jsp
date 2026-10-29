@@ -50,6 +50,11 @@
                 <li>
                     <a href="${pageContext.request.contextPath}/employee/request-shift">
                         <i class="fa-solid fa-arrows-rotate"></i> Đổi ca làm
+                        <c:if test="${not empty incomingSwapCount}">
+                            <span class="badge rounded-pill text-bg-warning ms-1">
+                                ${incomingSwapCount}
+                            </span>
+                        </c:if>
                     </a>
                 </li>
             </ul>

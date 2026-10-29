@@ -682,6 +682,194 @@ public class LeaveRequestDAO {
         }
     }
 
+    /**
+     * Thu hồi một đơn nghỉ phép ĐÃ DUYỆT.
+     *
+     * <h3>Vì sao cần?</h3>
+     * Trong vận hành thực tế, đơn đã duyệt có thể cần bị hủy:
+     * nhân viên ốm đột xuất, kế hoạch thay đổi, chi nhánh thiếu
+     * người... Nếu không có chức năng này thì:
+     *   <ul>
+     *     <li>Quota đã trừ mà không được hoàn lại.</li>
+     *     <li>Ca vẫn bị đánh dấu ON_LEAVE dù nhân viên không nghỉ.</li>
+     *     <li>Ca trống vẫn treo trong danh sách cover vô ích.</li>
+     *   </ul>
+     *
+     * <h3>Thao tác (trong 1 transaction)</h3>
+     * <ol>
+     *   <li>Chuyển đơn APPROVED -> CANCELLED.</li>
+     *   <li>Hoàn lại giờ nghỉ đã trừ vào quota.</li>
+     *   <li>Gỡ trạng thái ON_LEAVE của các ca bị nghỉ
+     *       (đưa về PUBLISHED nếu ca còn ở tương lai).</li>
+     *   <li>Đóng các ca trống phát sinh từ đơn này
+     *       (trừ khi ca đó đã có người nhận cover).</li>
+     * </ol>
+     *
+     * @param requestId  id đơn cần thu hồi
+     * @param branchId   chi nhánh của người thực hiện (để chặn SM
+     *                   chi nhánh khác thao tác)
+     * @param reviewerId id người thực hiện
+     * @param reason     lý do thu hồi
+     * @return true nếu thu hồi thành công
+     */
+    public boolean revokeApprovedRequest(
+            int requestId,
+            int branchId,
+            int reviewerId,
+            String reason) throws Exception {
+
+        Connection c = null;
+        try {
+            c = connect();
+            c.setAutoCommit(false);
+
+            // 1. Khóa dòng đơn và kiểm tra điều kiện
+            String lockSql = "SELECT lr.user_id AS userId, "
+                    + "ep.home_branch_id AS branchId, "
+                    + "lr.leave_type_id AS leaveTypeId, "
+                    + "YEAR(lr.start_date) AS leaveYear, "
+                    + "COALESCE(lr.total_hours, 0) AS totalHours, "
+                    + "lr.status "
+                    + "FROM leave_requests lr "
+                    + "JOIN employee_profiles ep ON ep.user_id = lr.user_id "
+                    + "WHERE lr.id = ? FOR UPDATE";
+
+            int userId;
+            int reqBranchId;
+            int leaveTypeId;
+            int year;
+            double totalHours;
+            String status;
+
+            try (PreparedStatement ps = c.prepareStatement(lockSql)) {
+                ps.setInt(1, requestId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        c.rollback();
+                        return false;
+                    }
+                    status = rs.getString("status");
+                    userId = rs.getInt("userId");
+                    reqBranchId = rs.getInt("branchId");
+                    leaveTypeId = rs.getInt("leaveTypeId");
+                    year = rs.getInt("leaveYear");
+                    totalHours = rs.getDouble("totalHours");
+                }
+            }
+
+            // Chỉ thu hồi được đơn đã duyệt, đúng chi nhánh
+            if (!"APPROVED".equals(status) || reqBranchId != branchId) {
+                c.rollback();
+                return false;
+            }
+
+            // 2. Chuyển trạng thái đơn
+            String updateSql = "UPDATE leave_requests "
+                    + "SET status = 'CANCELLED', "
+                    + "manager_response = ?, "
+                    + "reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP "
+                    + "WHERE id = ? AND status = 'APPROVED'";
+
+            String note = (reason == null || reason.trim().isEmpty())
+                    ? "Đơn đã được thu hồi bởi quản lý."
+                    : "Thu hồi: " + reason.trim();
+
+            try (PreparedStatement ps = c.prepareStatement(updateSql)) {
+                ps.setString(1, note);
+                ps.setInt(2, reviewerId);
+                ps.setInt(3, requestId);
+                if (ps.executeUpdate() != 1) {
+                    c.rollback();
+                    return false;
+                }
+            }
+
+            // 3. Hoàn lại quota (giờ đã trừ lúc duyệt)
+            if (totalHours > 0) {
+                try (PreparedStatement ps = c.prepareStatement(
+                        "UPDATE leave_balances lb "
+                        + "JOIN employee_profiles ep "
+                        + "  ON ep.user_id = lb.user_id "
+                        + "SET lb.used_hours = GREATEST(0, "
+                        + "  COALESCE(lb.used_hours, 0) - ?), "
+                        + "lb.used_days = GREATEST(0, lb.used_days - "
+                        + "  FLOOR(? / ep.standard_hours_per_day)) "
+                        + "WHERE lb.user_id = ? AND lb.leave_type_id = ? "
+                        + "AND lb.year = ?")) {
+
+                    ps.setDouble(1, totalHours);
+                    ps.setDouble(2, totalHours);
+                    ps.setInt(3, userId);
+                    ps.setInt(4, leaveTypeId);
+                    ps.setInt(5, year);
+                    ps.executeUpdate();
+                }
+            }
+
+            // 4. Gỡ ON_LEAVE của các ca bị nghỉ
+            //    Chỉ gỡ những ca CHƯA QUA (còn trong tương lai) và
+            //    CHƯA CÓ NGƯỜI COVER.
+            //
+            //    "Đã có người cover" = ca trống phát sinh từ chính
+            //    đơn này đã bị đóng (một đồng nghiệp đã nhận ca).
+            //    Khi đó phải giữ ca ở trạng thái ON_LEAVE vì ca đó
+            //    đã có người khác đảm nhiệm.
+            String restoreSql = "UPDATE shift_schedules ss "
+                    + "JOIN leave_request_shifts lrs "
+                    + "  ON lrs.shift_id = ss.shift_id "
+                    + " AND lrs.work_date = ss.work_date "
+                    + "SET ss.status = 'PUBLISHED' "
+                    + "WHERE ss.user_id = ? "
+                    + "AND ss.status = 'ON_LEAVE' "
+                    + "AND lrs.leave_request_id = ? "
+                    + "AND ss.work_date >= CURDATE() "
+                    + "AND NOT EXISTS (SELECT 1 FROM open_shifts os "
+                    + "  WHERE os.leave_request_id = lrs.leave_request_id "
+                    + "  AND os.shift_id = ss.shift_id "
+                    + "  AND os.work_date = ss.work_date "
+                    + "  AND os.status = 'CLOSED')";
+
+            try (PreparedStatement ps = c.prepareStatement(restoreSql)) {
+                ps.setInt(1, userId);
+                ps.setInt(2, requestId);
+                ps.executeUpdate();
+            }
+
+            // 5. Đóng các ca trống phát sinh từ đơn này mà CHƯA có
+            //    người nhận. (Ca đã có người cover thì vốn đã CLOSED.)
+            String closeOpenSql = "UPDATE open_shifts "
+                    + "SET status = 'CLOSED' "
+                    + "WHERE leave_request_id = ? AND status = 'OPEN'";
+
+            try (PreparedStatement ps = c.prepareStatement(closeOpenSql)) {
+                ps.setInt(1, requestId);
+                ps.executeUpdate();
+            }
+
+            c.commit();
+            return true;
+
+        } catch (Exception e) {
+            if (c != null) {
+                try {
+                    c.rollback();
+                } catch (SQLException re) {
+                    // ignore
+                }
+            }
+            throw e;
+        } finally {
+            if (c != null) {
+                try {
+                    c.setAutoCommit(true);
+                    c.close();
+                } catch (SQLException e) {
+                    // ignore
+                }
+            }
+        }
+    }
+
     // 6. Đánh dấu ca làm việc trong khoảng nghỉ thành "ON_LEAVE"
     // (MySQL không hỗ trợ UPDATE...LIMIT trong mọi version)
     private void markSchedulesAsLeave(
@@ -1031,6 +1219,9 @@ public class LeaveRequestDAO {
                     + "status, leave_request_id) "
                     + "VALUES (?, ?, ?, ?, 'OPEN', ?)";
 
+            // Tập các đơn bị ảnh hưởng -> cần tính lại giờ nghỉ.
+            Set<Integer> touchedRequests = new HashSet<>();
+
             try (PreparedStatement psMark = c.prepareStatement(markSql);
                  PreparedStatement psFind = c.prepareStatement(findOpen);
                  PreparedStatement psLink = c.prepareStatement(linkOpen);
@@ -1071,6 +1262,14 @@ public class LeaveRequestDAO {
                     }
 
                     matched++;
+                    touchedRequests.add(requestId);
+
+                    // Cập nhật giờ của ca trong bảng chi tiết theo
+                    // thời lượng THỰC TẾ của ca trong bảng shifts.
+                    // (Đơn có thể được tạo khi lịch chưa publish, lúc
+                    // đó giờ chỉ là ước lượng theo ca cố định.)
+                    updateDetailHours(
+                            c, requestId, shiftId, workDate);
 
                     // Đưa vào ca trống (liên kết nếu đã có, tránh trùng)
                     int existingId = -1;
@@ -1098,6 +1297,14 @@ public class LeaveRequestDAO {
                 }
             }
 
+            // Tính lại giờ nghỉ cho các đơn vừa được khớp.
+            // Lý do: part-time có thể xin nghỉ TRƯỚC khi lịch được
+            // publish, lúc đó giờ nghỉ được ước lượng theo ca cố định.
+            // Khi lịch thật có hiệu lực, thời lượng ca có thể khác ->
+            // phải cập nhật total_hours và hoàn lại phần chênh lệch
+            // trong quota, nếu không NV sẽ bị trừ quota sai.
+            resyncRequestHours(c, touchedRequests);
+
             c.commit();
             return matched;
 
@@ -1121,6 +1328,162 @@ public class LeaveRequestDAO {
                 }
             }
         }
+    }
+
+    /**
+     * Tính lại giờ nghỉ của các đơn đã duyệt sau khi lịch được publish.
+     *
+     * <h3>Vì sao cần?</h3>
+     * Part-time có thể xin nghỉ TRƯỚC khi lịch tuần đó được publish.
+     * Lúc đó hệ thống ước lượng giờ nghỉ theo ca cố định
+     * ({@code getFixedShiftOptions}), ví dụ 5 giờ/ca. Khi lịch thật
+     * được publish, thời lượng ca thực tế có thể khác (ví dụ ca gộp
+     * 8 giờ) -> {@code total_hours} của đơn và quota đã trừ sẽ SAI.
+     *
+     * <p>Hàm này:
+     * <ol>
+     *   <li>Tính lại tổng giờ nghỉ của đơn từ bảng
+     *       {@code leave_request_shifts} (đã cập nhật theo ca thật).</li>
+     *   <li>Cập nhật {@code leave_requests.total_hours}.</li>
+     *   <li>Hoàn lại phần chênh lệch trong quota (nếu giờ thực nhỏ hơn
+     *       giờ ước lượng thì hoàn lại cho NV; nếu lớn hơn thì trừ
+     *       thêm, nhưng không để quota âm).</li>
+     * </ol>
+     *
+     * @param c        connection (đang trong transaction)
+     * @param requestIds các id đơn cần tính lại
+     */
+    private void resyncRequestHours(Connection c, Set<Integer> requestIds)
+            throws SQLException {
+
+        if (requestIds == null || requestIds.isEmpty()) {
+            return;
+        }
+
+        for (Integer requestId : requestIds) {
+            // Giờ nghỉ mới = tổng giờ trong bảng chi tiết ca.
+            // Chi tiết được cập nhật ở bước đánh dấu ON_LEAVE
+            // (xem resyncDetailHours).
+            double newHours = countScalarDouble(
+                    c, "SELECT COALESCE(SUM(hours), 0) "
+                    + "FROM leave_request_shifts "
+                    + "WHERE leave_request_id = ?",
+                    requestId);
+
+            // Giờ cũ đã ghi trong đơn.
+            double oldHours = countScalarDouble(
+                    c, "SELECT COALESCE(total_hours, 0) "
+                    + "FROM leave_requests WHERE id = ?",
+                    requestId);
+
+            double diff = newHours - oldHours;
+            if (Math.abs(diff) < 0.0001) {
+                continue;   // không có chênh lệch -> khỏi làm gì
+            }
+
+            // Cập nhật giờ trong đơn.
+            try (PreparedStatement ps = c.prepareStatement(
+                    "UPDATE leave_requests "
+                    + "SET total_hours = ? WHERE id = ?")) {
+                ps.setDouble(1, newHours);
+                ps.setInt(2, requestId);
+                ps.executeUpdate();
+            }
+
+            // Lấy thông tin đơn để hoàn lại quota.
+            int userId = -1;
+            int leaveTypeId = -1;
+            int year = 0;
+
+            try (PreparedStatement ps = c.prepareStatement(
+                    "SELECT user_id, leave_type_id, "
+                    + "YEAR(start_date) AS leaveYear "
+                    + "FROM leave_requests WHERE id = ?")) {
+                ps.setInt(1, requestId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        userId = rs.getInt("user_id");
+                        leaveTypeId = rs.getInt("leave_type_id");
+                        year = rs.getInt("leaveYear");
+                    }
+                }
+            }
+
+            if (userId < 0) {
+                continue;
+            }
+
+            // Hoàn lại / trừ thêm phần chênh lệch trong quota.
+            // used_hours được giữ >= 0 để không xảy ra quota âm.
+            try (PreparedStatement ps = c.prepareStatement(
+                    "UPDATE leave_balances lb "
+                    + "JOIN employee_profiles ep ON ep.user_id = lb.user_id "
+                    + "SET lb.used_hours = GREATEST(0, "
+                    + "  COALESCE(lb.used_hours, 0) - ?), "
+                    + "lb.used_days = GREATEST(0, lb.used_days - "
+                    + "  FLOOR(? / ep.standard_hours_per_day)) "
+                    + "WHERE lb.user_id = ? AND lb.leave_type_id = ? "
+                    + "AND lb.year = ?")) {
+
+                ps.setDouble(1, diff);
+                ps.setDouble(2, diff);
+                ps.setInt(3, userId);
+                ps.setInt(4, leaveTypeId);
+                ps.setInt(5, year);
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    /**
+     * Cập nhật giờ của một ca trong bảng chi tiết theo thời lượng
+     * thực tế lấy từ bảng {@code shifts}.
+     *
+     * <p>Áp dụng khi lịch được publish sau khi đơn đã duyệt: giờ
+     * lúc tạo đơn chỉ là ước lượng theo ca cố định, cần sửa lại
+     * theo ca thật để quota được trừ chính xác.
+     */
+    private void updateDetailHours(
+            Connection c,
+            int requestId,
+            int shiftId,
+            java.sql.Date workDate) throws SQLException {
+
+        String sql = "UPDATE leave_request_shifts lrs "
+                + "JOIN shifts s ON s.id = lrs.shift_id "
+                + "SET lrs.hours = TIMESTAMPDIFF(MINUTE, "
+                + "  s.start_time, s.end_time) / 60.0, "
+                + "lrs.shift_name = s.name "
+                + "WHERE lrs.leave_request_id = ? "
+                + "AND lrs.shift_id = ? AND lrs.work_date = ?";
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, requestId);
+            ps.setInt(2, shiftId);
+            ps.setDate(3, workDate);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Đếm số thực theo 1 câu SQL (trả về 0 nếu không có dòng).
+     */
+    private double countScalarDouble(
+            Connection c, String sql, Object... params)
+            throws SQLException {
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getDouble(1);
+                }
+            }
+        }
+
+        return 0;
     }
 
     /**

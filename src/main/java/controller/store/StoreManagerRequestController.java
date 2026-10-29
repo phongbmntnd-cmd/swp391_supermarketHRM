@@ -45,6 +45,23 @@ public class StoreManagerRequestController extends HttpServlet {
                     "requestList",
                     dao.getBranchRequests(user.getHomeBranchId())
             );
+
+            // Danh sách ca trống của chi nhánh + dữ liệu để tạo mới
+            req.setAttribute(
+                    "openShiftList",
+                    dao.getBranchOpenShifts(user.getHomeBranchId())
+            );
+
+            req.setAttribute(
+                    "allShifts",
+                    dao.getAllShifts()
+            );
+
+            req.setAttribute(
+                    "allPositions",
+                    dao.getPositions()
+            );
+
             req.getRequestDispatcher(
                     "/WEB-INF/views/store-manager/shift-requests.jsp"
             ).forward(req, resp);
@@ -76,6 +93,44 @@ public class StoreManagerRequestController extends HttpServlet {
 
         try {
             String action = req.getParameter("action");
+
+            // Tạo ca trống để nhân viên có thể đề nghị chuyển sang
+            if ("createOpenShift".equals(action)) {
+
+                int shiftId = Integer.parseInt(
+                        req.getParameter("shiftId")
+                );
+
+                int positionId = Integer.parseInt(
+                        req.getParameter("positionId")
+                );
+
+                String dateRaw = req.getParameter("workDate");
+
+                if (dateRaw == null || dateRaw.trim().isEmpty()) {
+                    resp.sendError(400, "Thiếu ngày làm việc");
+                    return;
+                }
+
+                java.time.LocalDate workDate =
+                        java.time.LocalDate.parse(dateRaw.trim());
+
+                ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
+
+                boolean success = dao.createOpenShift(
+                        user.getHomeBranchId(),
+                        shiftId,
+                        positionId,
+                        workDate
+                );
+
+                resp.sendRedirect(
+                        req.getContextPath()
+                        + "/store-manager/shift-requests?"
+                        + (success ? "openCreated=1" : "invalid=1")
+                );
+                return;
+            }
 
             if (!"approve".equals(action)
                     && !"reject".equals(action)) {

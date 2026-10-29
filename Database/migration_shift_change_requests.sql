@@ -59,6 +59,54 @@ BEGIN
     END IF;
 
     -- ---------------------------------------------------------
+    -- 1b. Cột cho phản hồi của đồng nghiệp
+    --     (đồng nghiệp B trả lời đơn đổi ca của A)
+    -- ---------------------------------------------------------
+    SELECT COUNT(*) INTO v_exists
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = 'shift_change_requests'
+      AND COLUMN_NAME  = 'colleague_response';
+
+    IF v_exists = 0 THEN
+        ALTER TABLE `shift_change_requests`
+            ADD COLUMN `colleague_response` varchar(255)
+                CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+                DEFAULT NULL
+            AFTER `response`;
+    END IF;
+
+    SELECT COUNT(*) INTO v_exists
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME   = 'shift_change_requests'
+      AND COLUMN_NAME  = 'colleague_responded_at';
+
+    IF v_exists = 0 THEN
+        ALTER TABLE `shift_change_requests`
+            ADD COLUMN `colleague_responded_at` datetime DEFAULT NULL
+            AFTER `colleague_response`;
+    END IF;
+
+    -- ---------------------------------------------------------
+    -- 1c. Mở rộng ENUM status
+    --     Luồng đổi ca đầy đủ cần các trạng thái:
+    --       WAITING_COLLEAGUE -> đợi đồng nghiệp trả lời
+    --       PENDING           -> chờ Store Manager duyệt
+    --       APPROVED/REJECTED -> quyết định của Store Manager
+    --       DECLINED         -> đồng nghiệp từ chối
+    --       CANCELLED        -> người gửi tự hủy
+    --     DB cũ chỉ có ('PENDING','APPROVED','REJECTED') nên
+    --     INSERT 'WAITING_COLLEAGUE' bị lỗi "Data truncated".
+    -- ---------------------------------------------------------
+    ALTER TABLE `shift_change_requests`
+        MODIFY COLUMN `status`
+            enum('WAITING_COLLEAGUE','PENDING','APPROVED',
+                 'REJECTED','DECLINED','CANCELLED')
+            CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+            NOT NULL DEFAULT 'WAITING_COLLEAGUE';
+
+    -- ---------------------------------------------------------
     -- 2. target_user_id cho phép NULL
     --    (đơn OPEN không có đồng nghiệp đích)
     -- ---------------------------------------------------------

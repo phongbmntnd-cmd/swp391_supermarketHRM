@@ -5,6 +5,7 @@ import dao.LeaveBalanceDAO;
 import dao.LeaveRequestDAO;
 import dao.LeaveShiftOptionDAO;
 import dao.LeaveTypeDAO;
+import dao.ShiftChangeRequestDAO;
 import model.EmployeeProfile;
 import model.LeaveShiftSelection;
 import model.User;
@@ -114,8 +115,7 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
             );
 
             // Thông tin loại nhân viên để JSP render đúng form
-            req.setAttribute("isPartTime", partTime);
-            req.setAttribute("employeeType",
+            req.setAttribute("isPartTime", partTime);            req.setAttribute("employeeType",
                     profile == null ? "FULL_TIME"
                             : profile.getEmployeeType());
             req.setAttribute("standardHoursPerDay",
@@ -168,6 +168,13 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
                 req.setAttribute("fixedShiftOptions", new ArrayList<>());
                 req.setAttribute("hasPublishedSchedule", false);
             }
+
+            // Badge số đơn đổi ca đang chờ mình phản hồi (sidebar)
+            req.setAttribute(
+                "incomingSwapCount",
+                new ShiftChangeRequestDAO()
+                    .countIncomingShiftRequests(user.getId())
+            );
 
             req.getRequestDispatcher(
                 "/WEB-INF/views/employee/leave-request.jsp"

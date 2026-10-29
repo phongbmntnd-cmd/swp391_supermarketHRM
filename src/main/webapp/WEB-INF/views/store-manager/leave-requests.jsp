@@ -175,6 +175,13 @@
         </div>
     </c:if>
 
+    <c:if test="${not empty param.msg}">
+        <div class="alert alert-info">
+            <i class="fa-solid fa-circle-info"></i>
+            <c:out value="${param.msg}"/>
+        </div>
+    </c:if>
+
     <!-- Tổng hợp thời gian nghỉ theo từng loại -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
@@ -458,6 +465,35 @@
                                                     type="submit"
                                                     class="btn btn-danger btn-sm mb-1">
                                                 Từ chối
+                                            </button>
+                                        </form>
+                                    </c:if>
+
+                                    <%-- Đơn đã duyệt: cho phép thu hồi.
+                                         Thao tác này hoàn lại quota,
+                                         gỡ ca ON_LEAVE và đóng ca
+                                         trống phát sinh từ đơn. --%>
+                                    <c:if test="${r.status eq 'APPROVED'}">
+                                        <form method="post"
+                                              action="${pageContext.request.contextPath}/store-manager/leave-requests"
+                                              onsubmit="return confirm('Thu hồi đơn này?\n\nQuota sẽ được hoàn lại, các ca bị nghỉ sẽ được mở lại và ca trống tương ứng sẽ được đóng.\n\nBạn có chắc chắn không?');">
+
+                                            <input type="hidden"
+                                                   name="requestId"
+                                                   value="${r.id}">
+
+                                            <input type="text"
+                                                   name="response"
+                                                   maxlength="255"
+                                                   class="form-control form-control-sm mb-2"
+                                                   placeholder="Lý do thu hồi (tùy chọn)">
+
+                                            <button name="action"
+                                                    value="revoke"
+                                                    type="submit"
+                                                    class="btn btn-warning btn-sm mb-1">
+                                                <i class="fa-solid fa-rotate-left"></i>
+                                                Thu hồi
                                             </button>
                                         </form>
                                     </c:if>

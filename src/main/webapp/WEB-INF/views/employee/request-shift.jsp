@@ -1,5 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 
 <!DOCTYPE html>
 <html lang="vi">
@@ -156,6 +157,18 @@
         </div>
     </c:if>
 
+    <c:if test="${param.responded eq '1'}">
+        <div class="alert alert-success">
+            Đã phản hồi yêu cầu đổi ca.
+        </div>
+    </c:if>
+
+    <c:if test="${param.cancelled eq '1'}">
+        <div class="alert alert-success">
+            Đã hủy đơn.
+        </div>
+    </c:if>
+
     <c:if test="${param.invalid eq '1'}">
         <div class="alert alert-warning">
             Không thể gửi đơn. Vui lòng kiểm tra ca đã chọn.
@@ -168,25 +181,166 @@
         </div>
     </c:if>
 
+    <%-- ============ ĐƠN ĐẾN TỪ ĐỒNG NGHIỆP ============ --%>
+    <c:if test="${not empty incomingRequests}">
+        <div class="alert alert-warning d-flex align-items-center
+                    justify-content-between flex-wrap gap-2">
+            <div>
+                <i class="fa-solid fa-bell fa-lg me-2"></i>
+                <strong>
+                    Bạn có ${fn:length(incomingRequests)} yêu cầu đổi ca
+                    đang chờ bạn phản hồi.
+                </strong>
+                <span class="d-block small ms-4 mt-1">
+                    Bấm "Đồng ý" để đồng ý đổi ca (đơn sẽ chuyển lên
+                    Store Manager duyệt), hoặc "Từ chối" nếu không đồng ý.
+                </span>
+            </div>
+            <a href="#incomingRequests"
+               class="btn btn-warning btn-sm">
+                <i class="fa-solid fa-arrow-down"></i>
+                Xem &amp; phản hồi
+            </a>
+        </div>
+
+        <div class="card mb-4 shadow-sm border-warning"
+             id="incomingRequests">
+            <div class="card-body">
+                <h4 class="text-warning">
+                    <i class="fa-solid fa-bell"></i>
+                    Yêu cầu đổi ca từ đồng nghiệp
+                    <span class="badge bg-warning">
+                        ${fn:length(incomingRequests)}
+                    </span>
+                </h4>
+
+                <p class="text-muted" style="font-size: 13px;">
+                    Đồng nghiệp muốn đổi ca với bạn.
+                    Nếu đồng ý, đơn sẽ được chuyển lên
+                    Store Manager duyệt.
+                </p>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Người gửi</th>
+                                <th>Ca của họ</th>
+                                <th>Ca của bạn</th>
+                                <th>Lý do</th>
+                                <th>Trả lời</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <c:forEach var="r" items="${incomingRequests}">
+                                <tr>
+                                    <td>
+                                        <strong>
+                                            <c:out value="${r.requesterName}"/>
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        <c:out value="${r.requesterDate}"/>
+                                        -
+                                        <c:out value="${r.requesterShift}"/>
+                                    </td>
+                                    <td>
+                                        <c:out value="${r.myDate}"/>
+                                        -
+                                        <c:out value="${r.myShift}"/>
+                                    </td>
+                                    <td>
+                                        <c:out value="${r.reason}"/>
+                                    </td>
+                                    <td>
+                                        <form method="post"
+                                              action="${pageContext.request.contextPath}/employee/request-shift">
+                                            <input type="hidden"
+                                                   name="action"
+                                                   value="respond">
+                                            <input type="hidden"
+                                                   name="requestId"
+                                                   value="${r.id}">
+
+                                            <input type="text"
+                                                   name="message"
+                                                   maxlength="255"
+                                                   class="form-control form-control-sm mb-2"
+                                                   placeholder="Lời nhắn (không bắt buộc)">
+
+                                            <button name="decision"
+                                                    value="accept"
+                                                    type="submit"
+                                                    class="btn btn-success btn-sm me-1">
+                                                <i class="fa-solid fa-check"></i>
+                                                Đồng ý
+                                            </button>
+
+                                            <button name="decision"
+                                                    value="decline"
+                                                    type="submit"
+                                                    class="btn btn-outline-danger btn-sm">
+                                                <i class="fa-solid fa-xmark"></i>
+                                                Từ chối
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            </c:forEach>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </c:if>
+
     <div class="card mb-4 shadow-sm">
         <div class="card-body">
             <h4 class="text-primary">
-                Tạo đơn đổi ca với đồng nghiệp
+                Tạo đơn đổi ca
             </h4>
 
             <div class="alert alert-info py-2">
+                <i class="fa-solid fa-circle-info"></i>
                 Đơn đổi ca phải được gửi trước ít nhất
-                24 giờ.
+                <strong>48 giờ</strong> (2 ngày) kể từ ngày làm việc.
+                Thời gian chờ đồng nghiệp trả lời cũng được tính
+                trong thời hạn này.
             </div>
 
-            <form method="post"
+            <ul class="nav nav-tabs mb-3" id="requestTypeTabs">
+                <li class="nav-item">
+                    <button class="nav-link active"
+                            type="button"
+                            data-mode="swap"
+                            id="tabSwap">
+                        <i class="fa-solid fa-people-arrows"></i>
+                        Đổi với đồng nghiệp
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link"
+                            type="button"
+                            data-mode="open"
+                            id="tabOpen">
+                        <i class="fa-solid fa-inbox"></i>
+                        Chuyển sang ca trống
+                    </button>
+                </li>
+            </ul>
+
+            <form method="post" id="shiftForm"
                   action="${pageContext.request.contextPath}/employee/request-shift">
+
+                <input type="hidden" name="action" id="formAction"
+                       value="create">
 
                 <div class="mb-3">
                     <label class="form-label">
                         Ca làm hiện tại của bạn
                     </label>
                     <select name="myScheduleId"
+                            id="myScheduleId"
                             class="form-select" required>
                         <option value="">-- Chọn ca hiện tại --</option>
                         <c:forEach var="s" items="${mySchedules}">
@@ -202,7 +356,8 @@
                     </select>
                 </div>
 
-                <div class="mb-4">
+                <%-- ============ CHẾ ĐỘ 1: ĐỔI VỚI ĐỒNG NGHIỆP ============ --%>
+                <div class="mb-4" id="swapMode">
                     <div class="d-flex justify-content-between
                          align-items-center mb-3">
 
@@ -244,13 +399,77 @@
                         <div class="card-body">
                             <h5>Chọn nhân viên muốn đổi ca</h5>
                             <div id="employeeList"></div>
+                        </div>
                     </div>
                 </div>
 
-                    <input type="hidden"
-                           id="targetScheduleId"
-                           name="targetScheduleId"
-                           required>
+                <input type="hidden"
+                       id="targetScheduleId"
+                       name="targetScheduleId">
+
+                <%-- ============ CHẾ ĐỘ 2: CHUYỂN SANG CA TRỐNG ============ --%>
+                <div class="mb-4 d-none" id="openMode">
+                    <h5 class="fw-bold mb-2">
+                        Chọn ca trống tại cơ sở
+                    </h5>
+
+                    <p class="text-muted" style="font-size: 13px;">
+                        Ca trống là ca đang thiếu người làm
+                        (do đồng nghiệp nghỉ phép, nghỉ tang, ốm...).
+                        Khi Store Manager duyệt, ca của bạn sẽ được
+                        chuyển sang ca trống này và ca cũ sẽ được
+                        mở lại cho người khác nhận.
+                    </p>
+
+                    <c:choose>
+                        <c:when test="${empty openShifts}">
+                            <div class="alert alert-light border text-muted">
+                                Hiện chưa có ca trống nào tại cơ sở
+                                của bạn.
+                            </div>
+                        </c:when>
+                        <c:otherwise>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Ngày</th>
+                                            <th>Ca</th>
+                                            <th>Khung giờ</th>
+                                            <th>Cơ sở</th>
+                                            <th>Chọn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <c:forEach var="os" items="${openShifts}">
+                                            <tr>
+                                                <td>
+                                                    <c:out value="${os.workDate}"/>
+                                                </td>
+                                                <td>
+                                                    <c:out value="${os.shiftName}"/>
+                                                </td>
+                                                <td>
+                                                    <c:out value="${os.startTime}"/>
+                                                    -
+                                                    <c:out value="${os.endTime}"/>
+                                                </td>
+                                                <td>
+                                                    <c:out value="${os.branchName}"/>
+                                                </td>
+                                                <td>
+                                                    <input type="radio"
+                                                           class="form-check-input"
+                                                           name="openShiftId"
+                                                           value="${os.id}">
+                                                </td>
+                                            </tr>
+                                        </c:forEach>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </c:otherwise>
+                    </c:choose>
                 </div>
 
                 <div class="mb-3">
@@ -283,13 +502,27 @@
                             <th>Lý do</th>
                             <th>Trạng thái</th>
                             <th>Phản hồi</th>
+                            <th>Thao tác</th>
                         </tr>
                     </thead>
                     <tbody>
                         <c:forEach var="r" items="${myRequests}">
                             <tr>
                                 <td>${r.id}</td>
-                                <td><c:out value="${r.requestType}"/></td>
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${r.requestType eq 'SWAP'}">
+                                            <span class="badge bg-info">
+                                                Đổi với đồng nghiệp
+                                            </span>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <span class="badge bg-primary">
+                                                Chuyển sang ca trống
+                                            </span>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </td>
                                 <td>
                                     <c:out value="${r.myDate}"/>
                                     -
@@ -302,14 +535,82 @@
                                 </td>
                                 <td><c:out value="${r.colleagueName}"/></td>
                                 <td><c:out value="${r.reason}"/></td>
-                                <td><c:out value="${r.status}"/></td>
-                                <td><c:out value="${r.response}"/></td>
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${r.status eq 'WAITING_COLLEAGUE'}">
+                                            <span class="badge bg-warning">
+                                                Chờ đồng nghiệp
+                                            </span>
+                                        </c:when>
+                                        <c:when test="${r.status eq 'PENDING'}">
+                                            <span class="badge bg-warning">
+                                                Chờ duyệt
+                                            </span>
+                                        </c:when>
+                                        <c:when test="${r.status eq 'APPROVED'}">
+                                            <span class="badge bg-success">
+                                                Đã duyệt
+                                            </span>
+                                        </c:when>
+                                        <c:when test="${r.status eq 'REJECTED'}">
+                                            <span class="badge bg-danger">
+                                                Bị từ chối
+                                            </span>
+                                        </c:when>
+                                        <c:when test="${r.status eq 'DECLINED'}">
+                                            <span class="badge bg-danger">
+                                                Đồng nghiệp từ chối
+                                            </span>
+                                        </c:when>
+                                        <c:when test="${r.status eq 'CANCELLED'}">
+                                            <span class="badge bg-secondary">
+                                                Đã hủy
+                                            </span>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <span class="badge bg-light text-dark">
+                                                <c:out value="${r.status}"/>
+                                            </span>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </td>
+                                <td>
+                                    <c:if test="${not empty r.response}">
+                                        <c:out value="${r.response}"/>
+                                    </c:if>
+                                    <c:if test="${not empty r.colleagueResponse}">
+                                        <div class="small text-muted">
+                                            <i class="fa-solid fa-comment"></i>
+                                            <c:out value="${r.colleagueResponse}"/>
+                                        </div>
+                                    </c:if>
+                                </td>
+                                <td>
+                                    <c:if test="${r.status eq 'WAITING_COLLEAGUE'
+                                                  or r.status eq 'PENDING'}">
+                                        <form method="post"
+                                              action="${pageContext.request.contextPath}/employee/request-shift"
+                                              style="display:inline">
+                                            <input type="hidden"
+                                                   name="action"
+                                                   value="cancel">
+                                            <input type="hidden"
+                                                   name="requestId"
+                                                   value="${r.id}">
+                                            <button type="submit"
+                                                    class="btn btn-outline-danger btn-sm"
+                                                    onclick="return confirm('Hủy đơn đổi ca này?');">
+                                                Hủy đơn
+                                            </button>
+                                        </form>
+                                    </c:if>
+                                </td>
                             </tr>
                         </c:forEach>
 
                         <c:if test="${empty myRequests}">
                             <tr>
-                                <td colspan="8" class="text-center">
+                                <td colspan="9" class="text-center">
                                     Chưa có đơn nào.
                                 </td>
                             </tr>
@@ -373,7 +674,12 @@
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
+        // Lưu ý: KHÔNG dùng template literal trong file JSP này.
+        // Biểu thức "{...}" trong JS sẽ bị JSP EL đọc nhầm là biến
+        // server-side (không tồn tại) và thay bằng chuỗi rỗng,
+        // khiến hàm trả về "--" và mọi ô ca bị disable.
+        // Nối chuỗi thuần để tránh bị JSP đọc nhầm.
+        return year + "-" + month + "-" + day;
     }
 
     function getMonday(date) {
@@ -529,10 +835,57 @@
 
     const swapForm = targetInput.closest("form");
 
+    // ---- Chuyển tab: đổi với đồng nghiệp / chuyển sang ca trống ----
+    const formAction = document.getElementById("formAction");
+    const swapMode = document.getElementById("swapMode");
+    const openMode = document.getElementById("openMode");
+    const tabSwap = document.getElementById("tabSwap");
+    const tabOpen = document.getElementById("tabOpen");
+    let currentMode = "swap";
+
+    function setMode(mode) {
+        currentMode = mode;
+
+        if (mode === "open") {
+            formAction.value = "createOpen";
+            swapMode.classList.add("d-none");
+            openMode.classList.remove("d-none");
+            tabSwap.classList.remove("active");
+            tabOpen.classList.add("active");
+
+            // Bỏ chọn ca đồng nghiệp khi chuyển sang ca trống
+            resetSelection();
+        } else {
+            formAction.value = "create";
+            openMode.classList.add("d-none");
+            swapMode.classList.remove("d-none");
+            tabOpen.classList.remove("active");
+            tabSwap.classList.add("active");
+
+            // Bỏ chọn ca trống khi chuyển sang đổi với đồng nghiệp
+            document.querySelectorAll(
+                    'input[name="openShiftId"]')
+                    .forEach(r => r.checked = false);
+        }
+    }
+
+    tabSwap.addEventListener("click", () => setMode("swap"));
+    tabOpen.addEventListener("click", () => setMode("open"));
+
     swapForm.addEventListener("submit", e => {
-        if (!targetInput.value) {
-            e.preventDefault();
-            alert("Vui lòng chọn nhân viên muốn đổi ca.");
+        if (currentMode === "swap") {
+            if (!targetInput.value) {
+                e.preventDefault();
+                alert("Vui lòng chọn nhân viên muốn đổi ca.");
+            }
+        } else {
+            const openSelected = document.querySelector(
+                    'input[name="openShiftId"]:checked');
+
+            if (!openSelected) {
+                e.preventDefault();
+                alert("Vui lòng chọn một ca trống để chuyển sang.");
+            }
         }
     });
 

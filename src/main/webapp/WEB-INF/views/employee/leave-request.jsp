@@ -283,10 +283,33 @@
                                         (<c:out value="${b.leaveTypeCode}"/>)
                                     </small>
                                 </td>
-                                <td><c:out value="${b.totalHours}"/></td>
-                                <td><c:out value="${b.usedHours}"/></td>
                                 <td>
-                                    <strong><c:out value="${b.remainingHours}"/></strong>
+                                    <c:choose>
+                                        <c:when test="${b.totalHours gt 0}">
+                                            <c:out value="${b.totalHours}"/>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <span class="text-muted">Không giới hạn</span>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </td>
+                                <td>
+                                    <c:out value="${b.usedHours}"/>
+                                    <small class="text-muted d-block">
+                                        (đã duyệt + đang chờ duyệt)
+                                    </small>
+                                </td>
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${b.totalHours gt 0}">
+                                            <strong>
+                                                <c:out value="${b.remainingHours}"/>
+                                            </strong>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <span class="text-muted">—</span>
+                                        </c:otherwise>
+                                    </c:choose>
                                 </td>
                                 <td>
                                     <small class="text-muted">

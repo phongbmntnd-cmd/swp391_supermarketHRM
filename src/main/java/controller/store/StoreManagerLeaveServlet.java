@@ -165,6 +165,13 @@ public class StoreManagerLeaveServlet extends HttpServlet {
                 return;
             }
 
+            // ---- Thu hồi đơn đã duyệt ----
+            // Hoàn lại quota, gỡ ca ON_LEAVE, đóng ca trống phát sinh.
+            if ("revoke".equals(action)) {
+                handleRevoke(req, resp, user, requestId, responseText);
+                return;
+            }
+
             boolean approve = "approve".equals(action);
 
             // Cảnh báo thiếu người trước khi duyệt (để SM biết và
@@ -214,6 +221,61 @@ public class StoreManagerLeaveServlet extends HttpServlet {
                 "Cannot process leave request", e
             );
         }
+    }
+
+    /**
+     * Xử lý thu hồi đơn nghỉ phép đã duyệt.
+     *
+     * <p>Khác với duyệt/từ chối, thao tác này thay đổi trạng thái
+     * đã có hiệu lực nên cần thông báo rõ cho SM kết quả.
+     */
+    private void handleRevoke(
+            HttpServletRequest req,
+            HttpServletResponse resp,
+            User user,
+            int requestId,
+            String reason) throws IOException, ServletException {
+
+        LeaveRequestDAO dao = new LeaveRequestDAO();
+
+        boolean success;
+        try {
+            success = dao.revokeApprovedRequest(
+                    requestId,
+                    user.getHomeBranchId(),
+                    user.getId(),
+                    reason);
+        } catch (Exception e) {
+            throw new ServletException(
+                    "Cannot revoke leave request", e);
+        }
+
+        if (success) {
+            resp.sendRedirect(
+                    req.getContextPath()
+                    + "/store-manager/leave-requests?success=1"
+                    + "&msg="
+                    + java.net.URLEncoder.encode(
+                        "Đã thu hồi đơn #" + requestId
+                        + ". Quota đã được hoàn lại và các ca "
+                        + "liên quan đã được mở lại.",
+                        "UTF-8"));
+            return;
+        }
+
+        // Thất bại -> chỉ ra nguyên nhân cụ thể
+        String msg = dao.getReviewFailureReason(
+                requestId, user.getHomeBranchId(), false);
+
+        if (msg == null || msg.isEmpty()) {
+            msg = "Không thể thu hồi đơn này. "
+                    + "Chỉ thu hồi được đơn đang ở trạng thái ĐÃ DUYỆT.";
+        }
+
+        resp.sendRedirect(
+                req.getContextPath()
+                + "/store-manager/leave-requests?error="
+                + java.net.URLEncoder.encode(msg, "UTF-8"));
     }
 
     private int toInt(Object o) {

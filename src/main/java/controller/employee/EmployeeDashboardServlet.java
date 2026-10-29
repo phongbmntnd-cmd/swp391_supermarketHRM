@@ -52,6 +52,12 @@ public class EmployeeDashboardServlet extends BaseServlet {
                     countPendingRequests(currentUser.getId())
             );
 
+            // 4c. Badge số đơn đổi ca đang chờ MÌNH phản hồi
+            request.setAttribute(
+                    "incomingSwapCount",
+                    countIncomingSwapRequests(currentUser.getId())
+            );
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -82,5 +88,18 @@ public class EmployeeDashboardServlet extends BaseServlet {
         }
 
         return total;
+    }
+
+    /**
+     * Số đơn đổi ca đang chờ nhân viên này phản hồi (đồng nghiệp gửi tới).
+     */
+    private int countIncomingSwapRequests(int userId) {
+        try {
+            return new ShiftChangeRequestDAO()
+                    .countIncomingShiftRequests(userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 }

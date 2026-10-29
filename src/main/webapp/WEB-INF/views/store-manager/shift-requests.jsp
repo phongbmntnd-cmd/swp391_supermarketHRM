@@ -103,6 +103,134 @@
                 </div>
             </c:if>
 
+            <c:if test="${param.openCreated eq '1'}">
+                <div class="alert alert-success">
+                    Đã tạo ca trống. Nhân viên có thể đề nghị
+                    chuyển ca sang ca này.
+                </div>
+            </c:if>
+
+            <!-- ============ Tạo ca trống ============ -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h4>
+                        <i class="fa-solid fa-inbox text-primary"></i>
+                        Quản lý ca trống
+                    </h4>
+
+                    <p class="text-muted" style="font-size: 13px;">
+                        Ca trống là ca đang thiếu người làm.
+                        Tạo ca trống để nhân viên có thể đề nghị
+                        chuyển ca của họ sang ca này.
+                    </p>
+
+                    <form method="post"
+                          action="${pageContext.request.contextPath}/store-manager/shift-requests"
+                          class="row g-2 align-items-end mb-3">
+
+                        <input type="hidden"
+                               name="action"
+                               value="createOpenShift">
+
+                        <div class="col-md-3">
+                            <label class="form-label">Ca làm việc</label>
+                            <select name="shiftId"
+                                    class="form-select" required>
+                                <option value="">-- Chọn ca --</option>
+                                <c:forEach var="s" items="${allShifts}">
+                                    <option value="${s.id}">
+                                        <c:out value="${s.name}"/>
+                                        (<c:out value="${s.startTime}"/>
+                                        - <c:out value="${s.endTime}"/>)
+                                    </option>
+                                </c:forEach>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Vị trí công tác</label>
+                            <select name="positionId"
+                                    class="form-select" required>
+                                <option value="">-- Chọn vị trí --</option>
+                                <c:forEach var="p" items="${allPositions}">
+                                    <option value="${p.id}">
+                                        <c:out value="${p.title}"/>
+                                    </option>
+                                </c:forEach>
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Ngày làm việc</label>
+                            <input type="date"
+                                   name="workDate"
+                                   class="form-control"
+                                   min="<%= java.time.LocalDate.now() %>"
+                                   required>
+                        </div>
+
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-plus"></i>
+                                Tạo ca trống
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Ngày</th>
+                                    <th>Ca</th>
+                                    <th>Vị trí</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <c:forEach var="os" items="${openShiftList}">
+                                    <tr>
+                                        <td>${os.id}</td>
+                                        <td>
+                                            <c:out value="${os.workDate}"/>
+                                        </td>
+                                        <td>
+                                            <c:out value="${os.shiftName}"/>
+                                        </td>
+                                        <td>
+                                            <c:out value="${os.positionTitle}"/>
+                                        </td>
+                                        <td>
+                                            <c:choose>
+                                                <c:when test="${os.status eq 'OPEN'}">
+                                                    <span class="badge bg-success">
+                                                        Đang mở
+                                                    </span>
+                                                </c:when>
+                                                <c:otherwise>
+                                                    <span class="badge bg-secondary">
+                                                        Đã đóng
+                                                    </span>
+                                                </c:otherwise>
+                                            </c:choose>
+                                        </td>
+                                    </tr>
+                                </c:forEach>
+
+                                <c:if test="${empty openShiftList}">
+                                    <tr>
+                                        <td colspan="5" class="text-center">
+                                            Chưa có ca trống nào.
+                                        </td>
+                                    </tr>
+                                </c:if>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Danh sách yêu cầu -->
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
@@ -132,10 +260,14 @@
                                         <td>
                                             <c:choose>
                                                 <c:when test="${r.requestType eq 'SWAP'}">
-                                                    Đổi với đồng nghiệp
+                                                    <span class="badge bg-info">
+                                                        Đổi với đồng nghiệp
+                                                    </span>
                                                 </c:when>
                                                 <c:otherwise>
-                                                    Chuyển sang ca trống
+                                                    <span class="badge bg-primary">
+                                                        Chuyển sang ca trống
+                                                    </span>
                                                 </c:otherwise>
                                             </c:choose>
                                         </td>
@@ -152,7 +284,43 @@
                                         <td><c:out value="${r.colleagueName}"/></td>
                                         <td><c:out value="${r.reason}"/></td>
                                         <td>
-                                            <c:out value="${r.status}"/>
+                                            <c:choose>
+                                                <c:when test="${r.status eq 'WAITING_COLLEAGUE'}">
+                                                    <span class="badge bg-warning">
+                                                        Chờ đồng nghiệp
+                                                    </span>
+                                                </c:when>
+                                                <c:when test="${r.status eq 'PENDING'}">
+                                                    <span class="badge bg-warning">
+                                                        Chờ duyệt
+                                                    </span>
+                                                </c:when>
+                                                <c:when test="${r.status eq 'APPROVED'}">
+                                                    <span class="badge bg-success">
+                                                        Đã duyệt
+                                                    </span>
+                                                </c:when>
+                                                <c:when test="${r.status eq 'REJECTED'}">
+                                                    <span class="badge bg-danger">
+                                                        Bị từ chối
+                                                    </span>
+                                                </c:when>
+                                                <c:when test="${r.status eq 'DECLINED'}">
+                                                    <span class="badge bg-danger">
+                                                        Đồng nghiệp từ chối
+                                                    </span>
+                                                </c:when>
+                                                <c:when test="${r.status eq 'CANCELLED'}">
+                                                    <span class="badge bg-secondary">
+                                                        Đã hủy
+                                                    </span>
+                                                </c:when>
+                                                <c:otherwise>
+                                                    <span class="badge bg-light text-dark">
+                                                        <c:out value="${r.status}"/>
+                                                    </span>
+                                                </c:otherwise>
+                                            </c:choose>
                                             <c:if test="${not empty r.response}">
                                                 <div class="small text-muted">
                                                     <c:out value="${r.response}"/>

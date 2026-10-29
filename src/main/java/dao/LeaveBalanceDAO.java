@@ -20,7 +20,20 @@ public class LeaveBalanceDAO {
         return DBContext.getConnection();
     }
 
-    // Lấy quota nghỉ phép của nhân viên trong năm hiện tại
+    /**
+     * Lấy quota nghỉ phép của nhân viên trong năm hiện tại.
+     *
+     * <h3>Quy ước "đã cam kết"</h3>
+     * Giờ đã dùng hiển thị = giờ đã trừ trong balance (đơn APPROVED)
+     *                    + giờ của các đơn đang PENDING (đã đặt chỗ).
+     *
+     * <h3>Vì sao phải tính cả PENDING?</h3>
+     * Server chặn đơn mới dựa trên đúng công thức này (xem
+     * {@link LeaveBalanceDAO#getUsedHours}). Nếu bảng quota hiển thị
+     * chỉ phần APPROVED, nhân viên sẽ thấy "còn 60 giờ" rồi bị báo
+     * "không đủ quota" khi gửi đơn -> gây khó hiểu và mất niềm tin.
+     * Hai nơi phải dùng CHUNG một công thức.
+     */
     public List<Map<String, Object>> getMyBalances(int userId, int year) {
         List<Map<String, Object>> result = new ArrayList<>();
 
@@ -32,12 +45,27 @@ public class LeaveBalanceDAO {
                 + "lb.used_days AS usedDays, "
                 + "COALESCE(lb.total_hours, lb.total_days * ep.standard_hours_per_day) "
                 + "  AS totalHours, "
-                + "COALESCE(lb.used_hours, lb.used_days * ep.standard_hours_per_day) "
+                // Giờ đã cam kết = APPROVED (trong balance) + PENDING
+                + "(COALESCE(lb.used_hours, "
+                + "     lb.used_days * ep.standard_hours_per_day) "
+                + " + COALESCE((SELECT SUM(lr.total_hours) "
+                + "     FROM leave_requests lr "
+                + "     WHERE lr.user_id = lb.user_id "
+                + "     AND lr.leave_type_id = lb.leave_type_id "
+                + "     AND YEAR(lr.start_date) = lb.year "
+                + "     AND lr.status = 'PENDING'), 0)) "
                 + "  AS usedHours, "
                 + "GREATEST(0, COALESCE(lb.total_hours, "
                 + "  lb.total_days * ep.standard_hours_per_day) "
-                + "  - COALESCE(lb.used_hours, "
-                + "  lb.used_days * ep.standard_hours_per_day)) AS remainingHours, "
+                + "  - (COALESCE(lb.used_hours, "
+                + "     lb.used_days * ep.standard_hours_per_day) "
+                + "   + COALESCE((SELECT SUM(lr.total_hours) "
+                + "     FROM leave_requests lr "
+                + "     WHERE lr.user_id = lb.user_id "
+                + "     AND lr.leave_type_id = lb.leave_type_id "
+                + "     AND YEAR(lr.start_date) = lb.year "
+                + "     AND lr.status = 'PENDING'), 0))) "
+                + "  AS remainingHours, "
                 + "GREATEST(0, lb.total_days - lb.used_days) AS remainingDays, "
                 + "lt.paid_leave AS paidLeave "
                 + "FROM leave_balances lb "

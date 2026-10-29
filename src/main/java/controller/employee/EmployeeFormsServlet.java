@@ -78,6 +78,12 @@ public class EmployeeFormsServlet extends HttpServlet {
 
             req.setAttribute("forms", forms);
 
+            // Badge số đơn đổi ca đang chờ mình phản hồi
+            req.setAttribute(
+                    "incomingSwapCount",
+                    shiftDao.countIncomingShiftRequests(user.getId())
+            );
+
             req.getRequestDispatcher(
                 "/WEB-INF/views/employee/forms.jsp"
             ).forward(req, resp);
