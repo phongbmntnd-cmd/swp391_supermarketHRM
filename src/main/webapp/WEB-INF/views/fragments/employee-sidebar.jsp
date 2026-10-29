@@ -65,5 +65,11 @@
                 <i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến
             </a>
         </li>
+
+        <li>
+            <a href="${pageContext.request.contextPath}/employee/violations">
+                <i class="fa-solid fa-triangle-exclamation"></i> Vi phạm &amp; kết quả
+            </a>
+        </li>
     </ul>
 </div>

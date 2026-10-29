@@ -37,6 +37,12 @@
         </li>
 
         <li>
+            <a href="${pageContext.request.contextPath}/store-manager/violations">
+                <i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm
+            </a>
+        </li>
+
+        <li>
             <a href="${pageContext.request.contextPath}/store-manager/schedule">
                 <i class="fa-solid fa-calendar-days"></i> Xếp lịch trực tuần
             </a>
