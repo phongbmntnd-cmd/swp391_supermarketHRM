@@ -315,7 +315,7 @@
             <ul class="sidebar-menu">
                 <li class="active"><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-pie"></i> Bảng điều khiển</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users"></i> Quản lý nhân sự</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-invoice"></i> Đề xuất nhân sự</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-invoice"></i> Đề xuất tiếp nhận nhân sự</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clipboard-user"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-days"></i> Xếp lịch trực tuần</a></li>
@@ -416,9 +416,9 @@
                                 <div class="card-icon" style="background-color: #f59e0b;">
                                     <i class="fa-solid fa-file-pen"></i>
                                 </div>
-                                <h3>Quản Lí Đề Xuất Nhân Sự</h3>
+                                <h3>Quản Lý Đề Xuất Tiếp Nhận Nhân Sự</h3>
                             </div>
-                            <p>Lập các yêu cầu tuyển dụng mới, đề xuất điều chuyển nhân sự hoặc thay đổi vị trí công việc gửi trực tiếp lên bộ phận Nhân sự (HR) xem xét và phê duyệt.</p>
+                            <p>Lập các yêu cầu tiếp nhận nhân sự mới, gửi trực tiếp lên bộ phận Nhân sự (HR) xem xét và phê duyệt.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/store-manager/recruitment" class="card-link">Thông tin chi tiết <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
@@ -430,7 +430,7 @@
                                 <div class="card-icon" style="background-color: #0ea5e9;">
                                     <i class="fa-solid fa-right-left"></i>
                                 </div>
-                                <h3>Quản Lý Điều Chuyển</h3>
+                                <h3>Quản Lý Điều Chuyển Nhân Sự</h3>
                             </div>
                             <p>Theo dõi các yêu cầu mượn nhân sự gửi đi và tiếp nhận, xem xét phê duyệt hoặc từ chối các yêu cầu điều chuyển từ các cơ sở khác gửi đến.</p>
                         </div>
