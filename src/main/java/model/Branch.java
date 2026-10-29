@@ -24,7 +24,9 @@ public class Branch {
     }
 
     public Branch(int aInt, String string, String string0) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        this.id = aInt;
+        this.code = string;
+        this.name = string0;
     }
 
     public int getId() {

@@ -1071,3 +1071,120 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2026-10-20 14:46:23
+<<<<<<< Updated upstream
+=======
+
+ALTER TABLE violations
+    ADD COLUMN category VARCHAR(40) NOT NULL DEFAULT 'OTHER',
+    ADD COLUMN violation_date DATE DEFAULT NULL,
+    ADD COLUMN reported_by INT DEFAULT NULL,
+    ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'LEGACY',
+    ADD COLUMN review_note TEXT DEFAULT NULL,
+    ADD COLUMN disciplinary_action TEXT DEFAULT NULL,
+    ADD COLUMN reviewed_by INT DEFAULT NULL,
+    ADD COLUMN reviewed_at DATETIME DEFAULT NULL,
+    ADD KEY idx_violations_status_recorded (status, recorded_at),
+    ADD KEY idx_violations_reported_by (reported_by),
+    ADD KEY idx_violations_reviewed_by (reviewed_by),
+    ADD CONSTRAINT violations_reported_by_fk
+        FOREIGN KEY (reported_by) REFERENCES users (id) ON DELETE SET NULL,
+    ADD CONSTRAINT violations_reviewed_by_fk
+        FOREIGN KEY (reviewed_by) REFERENCES users (id) ON DELETE SET NULL;
+        
+        -- Run after violation_workflow_migration.sql on the swp391_supermarket database.
+-- Uses the sample users from databasenewproject.sql:
+-- Store Managers 4 (branch 1) and 6 (branch 2), HR 3,
+-- Employees 8-10 (branch 1) and 11 (branch 2).
+-- Each title is a stable test key, so rerunning this script will not duplicate rows.
+
+
+INSERT INTO violations
+    (user_id, branch_id, title, category, description, violation_date,
+     reported_by, status, deduction_amount)
+SELECT 8, 1, '[TEST-VIOLATION] Chờ HR xác minh - CS1', 'ATTENDANCE',
+       'Nhân viên được ghi nhận đến muộn trong ca. Cần xác minh lịch làm việc và nguyên nhân trước khi kết luận.',
+       DATE_SUB(CURDATE(), INTERVAL 1 DAY), 4, 'PENDING_REVIEW', 0
+WHERE EXISTS (SELECT 1 FROM users WHERE id = 8 AND role_id = 5)
+  AND EXISTS (SELECT 1 FROM users WHERE id = 4 AND role_id = 4)
+  AND NOT EXISTS (
+      SELECT 1 FROM violations
+      WHERE user_id = 8 AND title = '[TEST-VIOLATION] Chờ HR xác minh - CS1'
+  );
+
+INSERT INTO violations
+    (user_id, branch_id, title, category, description, violation_date,
+     reported_by, status, deduction_amount)
+SELECT 11, 2, '[TEST-VIOLATION] Chờ HR xác minh - CS2', 'OPERATIONAL',
+       'Báo cáo test về việc chưa tuân thủ quy trình vận hành. HR cần kiểm tra thông tin trước khi quyết định.',
+       DATE_SUB(CURDATE(), INTERVAL 2 DAY), 6, 'PENDING_REVIEW', 0
+WHERE EXISTS (SELECT 1 FROM users WHERE id = 11 AND role_id = 5)
+  AND EXISTS (SELECT 1 FROM users WHERE id = 6 AND role_id = 4)
+  AND NOT EXISTS (
+      SELECT 1 FROM violations
+      WHERE user_id = 11 AND title = '[TEST-VIOLATION] Chờ HR xác minh - CS2'
+  );
+
+INSERT INTO violations
+    (user_id, branch_id, title, category, description, violation_date,
+     reported_by, status, review_note, disciplinary_action, reviewed_by, reviewed_at, deduction_amount)
+SELECT 9, 1, '[TEST-VIOLATION] Đã xác minh - CS1', 'WORKPLACE_CONDUCT',
+       'Bản ghi test đã được HR xác minh.',
+       DATE_SUB(CURDATE(), INTERVAL 5 DAY), 4, 'APPROVED',
+       'Đã trao đổi với nhân viên và lưu ghi nhận để theo dõi.',
+       'Nhắc nhở bằng văn bản; không tự động khấu trừ.',
+       3, CURRENT_TIMESTAMP, 0
+WHERE EXISTS (SELECT 1 FROM users WHERE id = 9 AND role_id = 5)
+  AND EXISTS (SELECT 1 FROM users WHERE id = 4 AND role_id = 4)
+  AND EXISTS (SELECT 1 FROM users WHERE id = 3 AND role_id = 3)
+  AND NOT EXISTS (
+      SELECT 1 FROM violations
+      WHERE user_id = 9 AND title = '[TEST-VIOLATION] Đã xác minh - CS1'
+  );
+
+INSERT INTO violations
+    (user_id, branch_id, title, category, description, violation_date,
+     reported_by, status, review_note, reviewed_by, reviewed_at, deduction_amount)
+SELECT 10, 1, '[TEST-VIOLATION] Đã từ chối - CS1', 'WORK_PERFORMANCE',
+       'Bản ghi test có thông tin chưa đủ để kết luận vi phạm.',
+       DATE_SUB(CURDATE(), INTERVAL 7 DAY), 4, 'REJECTED',
+       'Từ chối báo cáo test do chưa có đủ bằng chứng xác minh.',
+       3, CURRENT_TIMESTAMP, 0
+WHERE EXISTS (SELECT 1 FROM users WHERE id = 10 AND role_id = 5)
+  AND EXISTS (SELECT 1 FROM users WHERE id = 4 AND role_id = 4)
+  AND EXISTS (SELECT 1 FROM users WHERE id = 3 AND role_id = 3)
+  AND NOT EXISTS (
+      SELECT 1 FROM violations
+      WHERE user_id = 10 AND title = '[TEST-VIOLATION] Đã từ chối - CS1'
+  );
+
+SELECT id, user_id, branch_id, title, category, status, recorded_at
+FROM violations
+WHERE title LIKE '[TEST-VIOLATION]%'
+ORDER BY id;
+
+ALTER TABLE attendances
+    MODIFY COLUMN status ENUM('PENDING', 'VALID', 'INVALID', 'ADJUSTED') DEFAULT 'PENDING';
+
+ALTER TABLE attendances
+    MODIFY COLUMN method ENUM('WIFI', 'DYNAMIC_QR', 'WEB') NOT NULL;
+
+CREATE TABLE IF NOT EXISTS attendance_adjustment_history (
+    id INT NOT NULL AUTO_INCREMENT,
+    attendance_id INT NOT NULL,
+    adjusted_by INT NOT NULL,
+    previous_check_in DATETIME DEFAULT NULL,
+    previous_check_out DATETIME DEFAULT NULL,
+    adjusted_check_in DATETIME DEFAULT NULL,
+    adjusted_check_out DATETIME DEFAULT NULL,
+    adjustment_note VARCHAR(1000) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_attendance_adjustment_attendance (attendance_id, id),
+    KEY idx_attendance_adjustment_user (adjusted_by),
+    CONSTRAINT fk_attendance_adjustment_attendance
+        FOREIGN KEY (attendance_id) REFERENCES attendances (id) ON DELETE CASCADE,
+    CONSTRAINT fk_attendance_adjustment_user
+        FOREIGN KEY (adjusted_by) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+>>>>>>> Stashed changes
