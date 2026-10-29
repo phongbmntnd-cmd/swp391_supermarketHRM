@@ -318,6 +318,7 @@
                 <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-invoice"></i> Đề xuất tiếp nhận nhân sự</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clipboard-user"></i> Chấm công & Ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/violations"><i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-days"></i> Xếp lịch trực tuần</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-exchange-alt"></i> Quản lí đổi ca</a></li>
             </ul>

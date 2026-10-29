@@ -326,6 +326,7 @@
                 <li><a href="${pageContext.request.contextPath}/employee/my-schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
                 <li><a href="#"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
                 <li><a href="#"><i class="fa-solid fa-file-lines"></i> Đơn từ & Khiếu nại</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/violations"><i class="fa-solid fa-triangle-exclamation"></i> Vi phạm & kết quả</a></li>
             </ul>
         </div>
 
