@@ -339,7 +339,7 @@
                         <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
                     </a>
                 </div>
-                        
+
             </div>
 
             <div class="container">
@@ -398,6 +398,8 @@
 
                 <!-- Khối danh sách các chức năng chính -->
                 <div class="menu-grid">
+
+                    <!-- Tính năng 1: Quản lý nhân sự cơ sở -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -411,6 +413,7 @@
                         <a href="${pageContext.request.contextPath}/store-manager/employees" class="card-link">Xem danh sách nhân sự <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng 2: Quản lý đề xuất tiếp nhận nhân sự -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -424,7 +427,7 @@
                         <a href="${pageContext.request.contextPath}/store-manager/recruitment" class="card-link">Thông tin chi tiết <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Thẻ Quản Lý Điều Chuyển -->
+                    <!-- Tính năng 3: Quản lý điều chuyển nhân sự -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -438,6 +441,7 @@
                         <a href="${pageContext.request.contextPath}/store-manager/transfer-requests" class="card-link">Quản lý điều chuyển <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng 4: Chấm công & Ca làm việc -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -451,6 +455,7 @@
                         <a href="${pageContext.request.contextPath}/store-manager/attendance" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng 5: Xếp lịch & Phân công ca -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -464,6 +469,7 @@
                         <a href="${pageContext.request.contextPath}/store-manager/schedule" class="card-link">Quản lý lịch làm việc <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng 6: Quản lý đổi ca -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -471,20 +477,32 @@
                                      style="background-color: #10b981;">
                                     <i class="fa-solid fa-people-arrows-left-right"></i>
                                 </div>
-
                                 <h3>Quản Lý Đổi Ca</h3>
                             </div>
-
-                            <p>
-                                Xem xét, tiếp nhận và phê duyệt
-                                các đơn đổi ca giữa nhân viên
-                                cùng chi nhánh.
-                            </p>
+                            <p> Xem xét, tiếp nhận và phê duyệt các đơn đổi ca giữa nhân viên cùng chi nhánh.</p>
                         </div>
-
                         <a href="${pageContext.request.contextPath}/store-manager/shift-requests"
                            class="card-link">
                             Xem yêu cầu đổi ca
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+
+                    <!-- Tính năng 7: Báo cáo vi phạm -->
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon"
+                                     style="background-color: #ef4444;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                                <h3>Báo cáo vi phạm</h3>
+                            </div>
+                            <p> Ghi nhận sự việc để HR xác minh trước khi có quyết định xử lý.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/store-manager/violations"
+                           class="card-link">
+                            Thông tin chi tiết
                             <i class="fa-solid fa-arrow-right"></i>
                         </a>
                     </div>
