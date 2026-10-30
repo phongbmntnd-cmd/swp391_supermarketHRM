@@ -30,7 +30,14 @@
                 min-height: 100vh;
             }
 
-            /* --- SIDEBAR: dùng chung tại css/sidebar.css --- */
+            /* --- MAIN WRAPPER (Khớp chuẩn kích thước với sidebar) --- */
+            .main-wrapper {
+                flex: 1;
+                margin-left: 260px; /* Khớp chiều rộng chuẩn của sidebar */
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+            }
 
             /* --- TOP NAVBAR --- */
             .top-navbar {
@@ -83,11 +90,12 @@
                 color: white;
             }
 
-            /* --- CONTAINER --- */
-            .container {
+            /* --- DASHBOARD CONTENT CONTAINER --- */
+            .dashboard-container {
                 max-width: 1400px;
-                margin: 30px;
-                padding: 0;
+                width: 100%;
+                margin: 0 auto;
+                padding: 30px;
             }
 
             /* --- THANH HIỂN THỊ CƠ SỞ HIỆN TẠI --- */
@@ -145,7 +153,7 @@
             /* --- QUICK STATS / KPI CARDS --- */
             .stats-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
                 gap: 20px;
                 margin-bottom: 30px;
             }
@@ -167,15 +175,22 @@
                 align-items: center;
                 justify-content: center;
                 font-size: 20px;
+                flex-shrink: 0;
+            }
+            .stat-info {
+                min-width: 0;
             }
             .stat-info h4 {
                 font-size: 13px;
                 color: #64748b;
                 margin-bottom: 4px;
                 font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .stat-info span {
-                font-size: 20px;
+                font-size: 18px;
                 font-weight: 700;
                 color: #1e293b;
             }
@@ -216,6 +231,7 @@
                 justify-content: center;
                 font-size: 18px;
                 color: white;
+                flex-shrink: 0;
             }
             .card h3 {
                 font-size: 18px;
@@ -242,6 +258,13 @@
                 gap: 12px;
                 color: #1d4ed8;
             }
+
+            /* Responsive cho màn hình nhỏ */
+            @media (max-width: 992px) {
+                .main-wrapper {
+                    margin-left: 0;
+                }
+            }
         </style>
     </head>
     <body>
@@ -264,10 +287,9 @@
                         <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
                     </a>
                 </div>
-                        
             </div>
 
-            <div class="container">
+            <div class="dashboard-container">
 
                 <!-- Thanh hiển thị Cơ sở hiện tại -->
                 <div class="branch-info-bar">
@@ -332,6 +354,8 @@
 
                 <!-- Khối danh sách các chức năng chính -->
                 <div class="menu-grid">
+
+                    <!-- Tính năng 1: Quản lý nhân sự cơ sở -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -345,33 +369,35 @@
                         <a href="${pageContext.request.contextPath}/store-manager/employees" class="card-link">Xem danh sách nhân sự <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng 2: Quản lý đề xuất tiếp nhận nhân sự -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
                                 <div class="card-icon" style="background-color: #f59e0b;">
                                     <i class="fa-solid fa-file-pen"></i>
                                 </div>
-                                <h3>Quản Lí Đề Xuất Nhân Sự</h3>
+                                <h3>Quản Lý Đề Xuất Tiếp Nhận Nhân Sự</h3>
                             </div>
-                            <p>Lập các yêu cầu tuyển dụng mới, đề xuất điều chuyển nhân sự hoặc thay đổi vị trí công việc gửi trực tiếp lên bộ phận Nhân sự (HR) xem xét và phê duyệt.</p>
+                            <p>Lập các yêu cầu tiếp nhận nhân sự mới, gửi trực tiếp lên bộ phận Nhân sự (HR) xem xét và phê duyệt.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/store-manager/recruitment" class="card-link">Thông tin chi tiết <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Thẻ Quản Lý Điều Chuyển -->
+                    <!-- Tính năng 3: Quản lý điều chuyển nhân sự -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
                                 <div class="card-icon" style="background-color: #0ea5e9;">
                                     <i class="fa-solid fa-right-left"></i>
                                 </div>
-                                <h3>Quản Lý Điều Chuyển</h3>
+                                <h3>Quản Lý Điều Chuyển Nhân Sự</h3>
                             </div>
                             <p>Theo dõi các yêu cầu mượn nhân sự gửi đi và tiếp nhận, xem xét phê duyệt hoặc từ chối các yêu cầu điều chuyển từ các cơ sở khác gửi đến.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/store-manager/transfer-requests" class="card-link">Quản lý điều chuyển <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng 4: Chấm công & Ca làm việc -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -385,6 +411,7 @@
                         <a href="${pageContext.request.contextPath}/store-manager/attendance" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng 5: Xếp lịch & Phân công ca -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
@@ -398,27 +425,36 @@
                         <a href="${pageContext.request.contextPath}/store-manager/schedule" class="card-link">Quản lý lịch làm việc <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+                    <!-- Tính năng 6: Quản lý đổi ca -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
-                                <div class="card-icon"
-                                     style="background-color: #10b981;">
+                                <div class="card-icon" style="background-color: #10b981;">
                                     <i class="fa-solid fa-people-arrows-left-right"></i>
                                 </div>
-
                                 <h3>Quản Lý Đổi Ca</h3>
                             </div>
-
-                            <p>
-                                Xem xét, tiếp nhận và phê duyệt
-                                các đơn đổi ca giữa nhân viên
-                                cùng chi nhánh.
-                            </p>
+                            <p> Xem xét, tiếp nhận và phê duyệt các đơn đổi ca giữa nhân viên cùng chi nhánh.</p>
                         </div>
-
-                        <a href="${pageContext.request.contextPath}/store-manager/shift-requests"
-                           class="card-link">
+                        <a href="${pageContext.request.contextPath}/store-manager/shift-requests" class="card-link">
                             Xem yêu cầu đổi ca
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+
+                    <!-- Tính năng 7: Báo cáo vi phạm -->
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #ef4444;">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                                <h3>Báo cáo vi phạm</h3>
+                            </div>
+                            <p> Ghi nhận sự việc để HR xác minh trước khi có quyết định xử lý.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/store-manager/violations" class="card-link">
+                            Thông tin chi tiết
                             <i class="fa-solid fa-arrow-right"></i>
                         </a>
                     </div>

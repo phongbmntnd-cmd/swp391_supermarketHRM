@@ -23,6 +23,15 @@
             color: #333;
             display: flex;
             min-height: 100vh;
+            overflow-x: hidden; /* Ngăn chặn hoàn toàn thanh cuộn ngang */
+        }
+
+        /* --- MAIN WRAPPER --- */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
 
         /* --- TOP NAVBAR --- */
@@ -37,6 +46,8 @@
             position: sticky;
             top: 0;
             z-index: 99;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
         .top-navbar h1 {
@@ -85,25 +96,55 @@
         /* --- CONTAINER --- */
         .container {
             max-width: 1400px;
-            margin: 30px;
-            padding: 0;
             width: 100%;
+            margin: 0 auto;
+            padding: 30px;
         }
 
+        /* --- PAGE HEADER (Tiêu đề và nút quay lại cùng một hàng) --- */
         .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
-        .page-header h2 {
+        .page-header-left h2 {
             font-size: 24px;
             font-weight: 600;
             color: #1e293b;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
 
-        .page-header p {
+        .page-header-left p {
             color: #64748b;
             font-size: 14px;
+        }
+
+        /* --- BUTTON QUAY LẠI DASHBOARD --- */
+        .btn-back-dashboard {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #ffffff;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            white-space: nowrap;
+        }
+
+        .btn-back-dashboard:hover {
+            background-color: #f8fafc;
+            color: #16a34a;
+            border-color: #16a34a;
         }
 
         /* --- GRID CÁC LOẠI ĐƠN --- */
@@ -222,9 +263,12 @@
             color: #94a3b8;
         }
 
-        @media (max-width: 992px) {
+        @media (max-width: 768px) {
             .container {
-                margin: 20px;
+                padding: 15px;
+            }
+            .top-navbar {
+                padding: 12px 20px;
             }
         }
     </style>
@@ -252,9 +296,15 @@
 
     <div class="container">
 
+        <!-- Tiêu đề và nút quay lại nằm cùng một hàng -->
         <div class="page-header">
-            <h2>Đơn từ &amp; Khiếu nại</h2>
-            <p>Chọn loại đơn bạn muốn tạo. Đơn sẽ được gửi lên Store Manager để xét duyệt.</p>
+            <div class="page-header-left">
+                <h2>Đơn từ &amp; Khiếu nại</h2>
+                <p>Chọn loại đơn bạn muốn tạo. Đơn sẽ được gửi lên Store Manager để xét duyệt.</p>
+            </div>
+            <a href="${pageContext.request.contextPath}/employee/dashboard" class="btn-back-dashboard">
+                <i class="fa-solid fa-arrow-left"></i> Quay lại Dashboard
+            </a>
         </div>
 
         <c:choose>

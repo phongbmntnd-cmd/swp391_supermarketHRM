@@ -29,9 +29,16 @@
                 color: #333;
                 display: flex;
                 min-height: 100vh;
+                overflow-x: hidden;
             }
 
-            /* --- SIDEBAR: dùng chung tại css/sidebar.css --- */
+            /* --- MAIN WRAPPER CHUẨN RESPONSIVE --- */
+            .main-wrapper {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-width: 0; /* Tránh tràn layout flex item */
+            }
 
             /* --- TOP NAVBAR --- */
             .top-navbar {
@@ -45,6 +52,8 @@
                 position: sticky;
                 top: 0;
                 z-index: 99;
+                flex-wrap: wrap;
+                gap: 15px;
             }
             .top-navbar h1 {
                 font-size: 18px;
@@ -93,8 +102,9 @@
             /* --- CONTAINER --- */
             .container {
                 max-width: 1400px;
-                margin: 30px;
-                padding: 0;
+                width: 100%;
+                margin: 0 auto;
+                padding: 30px;
             }
 
             /* --- THANH HIỂN THỊ CƠ SỞ & VỊ TRÍ --- */
@@ -169,6 +179,7 @@
             .stat-icon {
                 width: 50px;
                 height: 50px;
+                min-width: 50px;
                 border-radius: 10px;
                 display: flex;
                 align-items: center;
@@ -190,7 +201,7 @@
             /* --- MENU GRID CARDS --- */
             .menu-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
                 gap: 25px;
             }
             .card {
@@ -218,6 +229,7 @@
             .card-icon {
                 width: 45px;
                 height: 45px;
+                min-width: 45px;
                 border-radius: 8px;
                 display: flex;
                 align-items: center;
@@ -250,11 +262,27 @@
                 gap: 12px;
                 color: #15803d;
             }
+
+            /* Responsive điều chỉnh padding khi màn hình nhỏ */
+            @media (max-width: 768px) {
+                .container {
+                    padding: 15px;
+                }
+                .top-navbar {
+                    padding: 12px 20px;
+                }
+                .welcome-banner {
+                    padding: 20px;
+                }
+                .welcome-banner h2 {
+                    font-size: 22px;
+                }
+            }
         </style>
     </head>
     <body>
 
-        <!-- Sidebar Điều Hướng Trái (Nhân viên) -->
+        <!-- Sidebar Điều Hướng Trái (Nhân viên - dùng chung qua fragment: Trang chủ, Lịch làm việc, Khai báo lịch rảnh, Đơn từ & Khiếu nại, Vi phạm) -->
         <jsp:include page="/WEB-INF/views/fragments/employee-sidebar.jsp"/>
 
         <!-- Main Content Wrapper -->
@@ -304,7 +332,7 @@
                                     <ul style="list-style-type: none; padding: 0; margin: 0;">
                                         <c:forEach var="shift" items="${todayShifts}">
                                             <li style="font-weight: 700; color: #16a34a; font-size: 14px;">${shift}</li>
-                                            </c:forEach>
+                                        </c:forEach>
                                     </ul>
                                 </c:when>
                                 <c:otherwise>

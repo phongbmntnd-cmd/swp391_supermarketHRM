@@ -158,6 +158,10 @@
                 background: #198754;
                 cursor: default;
             }
+            .staff-shortage-trigger.status-sent {
+                background: #6c757d;
+                cursor: default;
+            }
             .staff-shortage-trigger:hover:not(:disabled) {
                 filter: brightness(.94);
             }
@@ -176,6 +180,9 @@
             .shortage-message.red {
                 color: #b02a37;
             }
+            .shortage-message.muted {
+                color: #6c757d;
+            }
             .modal .form-label {
                 font-weight: 600;
             }
@@ -189,8 +196,30 @@
         </div>
 
         <div class="main-container">
+            <%-- Thông báo phản hồi chuyển hướng từ TransferRequestsServlet --%>
+            <c:if test="${not empty sessionScope.transferMessage}">
+                <div class="alert alert-success alert-dismissible fade show shadow-sm mb-4" role="alert">
+                    <i class="fa-solid fa-circle-check me-2"></i><c:out value="${sessionScope.transferMessage}"/>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <% session.removeAttribute("transferMessage"); %>
+            </c:if>
+            <c:if test="${not empty sessionScope.transferError}">
+                <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-4" role="alert">
+                    <i class="fa-solid fa-triangle-exclamation me-2"></i><c:out value="${sessionScope.transferError}"/>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <% session.removeAttribute("transferError"); %>
+            </c:if>
+
             <c:if test="${param.success eq 'published'}">
                 <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã công bố (Publish) lịch làm việc tuần này thành công! Nhân viên đã có thể xem lịch trên hệ thống.</div>
+            </c:if>
+            <c:if test="${param.success eq 'supplementary_opened'}">
+                <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã mở đăng ký bổ sung. Nhân viên phù hợp có thể đăng ký tại trang lịch rảnh.</div>
+            </c:if>
+            <c:if test="${param.error eq 'supplementary_open_failed'}">
+                <div class="alert alert-danger shadow-sm mb-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Không thể mở đăng ký. Hãy kiểm tra ca còn thiếu nhân sự, chưa publish và hạn đăng ký hợp lệ.</div>
             </c:if>
 
             <div class="card card-custom">
@@ -301,13 +330,31 @@
                                                     <c:set var="assignedCount" value="0" />
                                                 </c:if>
 
+                                                <%-- Kiểm tra trạng thái đã gửi/mở từ Servlet --%>
+                                                <c:set var="isSupplementaryOpened" value="${supplementaryOpenedMap[reqKey]}" />
+                                                <c:set var="isTransferProposed" value="${transferProposedMap[reqKey]}" />
+
                                                 <%-- Trạng thái nhân sự: 0 người = đỏ; thiếu một phần = vàng; đủ người = xanh --%>
                                                 <c:set var="shortageClass" value="warning-red" />
                                                 <c:set var="shortageMessage" value="Chưa có nhân sự. Bấm để tạo đề xuất điều chuyển." />
-                                                <c:if test="${assignedCount gt 0 and assignedCount lt requiredCount}">
-                                                    <c:set var="shortageClass" value="warning-yellow" />
-                                                    <c:set var="shortageMessage" value="Chưa đủ nhân sự. Bấm để mở đăng ký bổ sung." />
+                                                <c:if test="${isTransferProposed}">
+                                                    <c:set var="shortageClass" value="status-sent" />
+                                                    <c:set var="shortageMessage" value="Đã gửi đề xuất điều chuyển." />
                                                 </c:if>
+
+                                                <c:if test="${assignedCount gt 0 and assignedCount lt requiredCount}">
+                                                    <c:choose>
+                                                        <c:when test="${isSupplementaryOpened}">
+                                                            <c:set var="shortageClass" value="status-sent" />
+                                                            <c:set var="shortageMessage" value="Đã mở đăng ký bổ sung." />
+                                                        </c:when>
+                                                        <c:otherwise>
+                                                            <c:set var="shortageClass" value="warning-yellow" />
+                                                            <c:set var="shortageMessage" value="Chưa đủ nhân sự. Bấm để mở đăng ký bổ sung." />
+                                                        </c:otherwise>
+                                                    </c:choose>
+                                                </c:if>
+
                                                 <c:if test="${assignedCount ge requiredCount}">
                                                     <c:set var="shortageClass" value="warning-green" />
                                                     <c:set var="shortageMessage" value="Đã đủ số lượng nhân sự." />
@@ -320,7 +367,7 @@
                                                                 class="staff-shortage-trigger ${shortageClass}"
                                                                 title="${shortageMessage}"
                                                                 aria-label="Trạng thái nhân sự ${assignedCount} trên ${requiredCount}"
-                                                                <c:if test="${isPublished or assignedCount ge requiredCount}">disabled</c:if>
+                                                                <c:if test="${isPublished or assignedCount ge requiredCount or isSupplementaryOpened or isTransferProposed}">disabled</c:if>
                                                                 onclick="openShortageModal('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}', '${assignedCount}', '${pos.title}', '${shift.name}')">
                                                             ${assignedCount} / ${requiredCount}
                                                         </button>
@@ -392,7 +439,11 @@
                                                                     <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
                                                                          onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
                                                                         <div>
-                                                                            <strong>${reg.fullName}</strong> <span class="badge bg-light text-dark" style="font-size: 9px;">PT</span>
+                                                                            <strong>${reg.fullName}</strong>
+                                                                            <c:choose>
+                                                                                <c:when test="${reg.registrationType eq 'SUPPLEMENTARY'}"><span class="badge bg-warning text-dark" style="font-size: 9px;">Đăng ký bổ sung</span></c:when>
+                                                                                <c:otherwise><span class="badge bg-light text-dark" style="font-size: 9px;">PT</span></c:otherwise>
+                                                                            </c:choose>
                                                                         </div>
                                                                         <div>
                                                                             <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
@@ -415,8 +466,8 @@
                                                         <div class="text-muted small fst-italic py-2">Không có nhân sự</div>
                                                     </c:if>
                                                     <c:if test="${assignedCount lt requiredCount and !isPublished}">
-                                                        <div class="shortage-message ${assignedCount eq 0 ? 'red' : 'yellow'}">
-                                                            <i class="fa-solid ${assignedCount eq 0 ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'} me-1"></i>
+                                                        <div class="shortage-message ${assignedCount eq 0 ? (isTransferProposed ? 'muted' : 'red') : (isSupplementaryOpened ? 'muted' : 'yellow')}">
+                                                            <i class="fa-solid ${assignedCount eq 0 ? (isTransferProposed ? 'fa-circle-check' : 'fa-circle-exclamation') : (isSupplementaryOpened ? 'fa-circle-check' : 'fa-triangle-exclamation')} me-1"></i>
                                                             <c:out value="${shortageMessage}" />
                                                         </div>
                                                     </c:if>
@@ -450,6 +501,7 @@
                             <input type="hidden" name="positionId" id="suppPositionId">
                             <input type="hidden" name="shiftId" id="suppShiftId">
                             <input type="hidden" name="workDate" id="suppWorkDate">
+                            <input type="hidden" name="startDate" value="${startDateRaw}">
                             <input type="hidden" name="requiredCount" id="suppRequiredCount">
                             <input type="hidden" name="assignedCount" id="suppAssignedCount">
 
@@ -500,17 +552,15 @@
                     <form action="transfer-requests" method="POST" id="transferProposalForm">
                         <div class="modal-header bg-danger-subtle">
                             <h5 class="modal-title" id="transferProposalModalLabel">
-                                <i class="fa-solid fa-right-left me-2"></i>Tạo đề xuất điều chuyển nhân viên
+                                <i class="fa-solid fa-right-left me-2"></i>Tạo đề xuất điều chuyển nhân sự
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
                         </div>
                         <div class="modal-body">
                             <input type="hidden" name="action" value="createTransferProposal">
-                            <input type="hidden" name="destinationStoreId" id="transferDestinationStoreId">
                             <input type="hidden" name="positionId" id="transferPositionId">
                             <input type="hidden" name="shiftId" id="transferShiftId">
                             <input type="hidden" name="workDate" id="transferWorkDate">
-                            <input type="hidden" name="requiredCount" id="transferRequiredCount">
                             <input type="hidden" name="startDate" value="${startDateRaw}">
 
                             <div class="alert alert-danger">
@@ -537,13 +587,16 @@
                                     <label class="form-label">Số lượng cần</label>
                                     <input type="text" class="form-control" id="transferRequiredDisplay" readonly>
                                 </div>
-                                <div class="col-md-6"><label for="requestedCount" class="form-label">Số nhân viên muốn mượn</label><input type="number" min="1" value="1" id="requestedCount" name="requestedCount" class="form-control" required></div>
+                                <div class="col-md-6">
+                                    <label for="requestedCount" class="form-label">Số nhân viên muốn mượn</label>
+                                    <input type="number" min="1" value="1" id="requestedCount" name="requestedCount" class="form-control" required>
+                                </div>
                                 <div class="col-12">
                                     <label for="sourceStoreId" class="form-label">Cơ sở đề nghị cho mượn</label>
+                                    <%-- Thẻ select này sẽ gửi đúng ID của cơ sở cho mượn lên Servlet vào tham số sourceStoreId --%>
                                     <select class="form-select" id="sourceStoreId" name="sourceStoreId" required>
                                         <option value="" disabled selected>-- Chọn cơ sở cho mượn --</option>
                                         <c:forEach var="branch" items="${allBranches}">
-                                            <%-- Kiểm tra nếu ID của cơ sở khác với cơ sở hiện tại (managerBranchId) thì mới hiển thị để chọn --%>
                                             <c:if test="${branch.id != managerBranchId}">
                                                 <option value="${branch.id}">${branch.name}</option>
                                             </c:if>
@@ -553,7 +606,7 @@
                                 </div>
                                 <div class="col-12">
                                     <label for="transferReason" class="form-label">Lý do cần điều chuyển</label>
-                                    <textarea class="form-control" id="transferReason" name="reason" rows="3" maxlength="500" required placeholder="Ví dụ: Ca làm đang thiếu nhân sự và đã mở đăng ký bổ sung nhưng chưa đủ số lượng."></textarea>
+                                    <textarea class="form-control" id="transferReason" name="reason" rows="3" maxlength="500" required placeholder="Ví dụ: Ca làm đang thiếu nhân sự nghiêm trọng."></textarea>
                                 </div>
                             </div>
                         </div>
@@ -568,7 +621,6 @@
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-                                                                             // Biến trạng thái Publish từ Server truyền xuống JavaScript
                                                                              const isPublished = ${isPublished};
 
                                                                              function openShortageModal(branchId, positionId, shiftId, workDate, requiredCount, assignedCount, positionTitle, shiftName) {
@@ -587,11 +639,10 @@
                                                                                  }
 
                                                                                  if (assigned === 0) {
-                                                                                     document.getElementById('transferDestinationStoreId').value = branchId;
+                                                                                     // Không cần set destination store vì Servlet tự lấy branch hiện tại
                                                                                      document.getElementById('transferPositionId').value = positionId;
                                                                                      document.getElementById('transferShiftId').value = shiftId;
                                                                                      document.getElementById('transferWorkDate').value = dateText;
-                                                                                     document.getElementById('transferRequiredCount').value = requiredCount;
                                                                                      document.getElementById('transferPositionTitle').value = positionTitle;
                                                                                      document.getElementById('transferShiftName').value = shiftName;
                                                                                      document.getElementById('transferDateDisplay').value = dateText;
@@ -616,7 +667,6 @@
                                                                                  }
                                                                              }
 
-                                                                             // Kiểm tra cơ bản ở giao diện; backend vẫn phải kiểm tra dữ liệu và quyền.
                                                                              document.getElementById('supplementaryForm').addEventListener('submit', function (event) {
                                                                                  const deadline = document.getElementById('supplementaryDeadline').value;
                                                                                  if (!deadline || new Date(deadline).getTime() <= Date.now()) {
@@ -640,7 +690,6 @@
                                                                              });
 
                                                                              function toggleAssignment(element, userId, shiftId, branchId, workDate, positionId) {
-                                                                                 // Nếu lịch đã được Publish, chặn tuyệt đối không cho thao tác click phân công
                                                                                  if (isPublished) {
                                                                                      alert('Lịch làm việc tuần này đã được Publish. Không thể thay đổi phân công ca!');
                                                                                      return;

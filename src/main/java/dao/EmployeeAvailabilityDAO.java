@@ -30,7 +30,6 @@ public class EmployeeAvailabilityDAO {
     }
 
     // 2. Lấy danh sách ca làm việc tùy theo loại nhân sự (Phục vụ cho nhân viên đăng ký lịch rảnh)
-    // 2. Lấy danh sách ca làm việc tùy theo loại nhân sự (Phục vụ cho nhân viên đăng ký lịch rảnh)
     public List<Shift> getShiftsByEmployeeType(String employeeType) {
         List<Shift> list = new ArrayList<>();
         String sql = "SELECT id, name, start_time, end_time FROM shifts";
@@ -74,8 +73,8 @@ public class EmployeeAvailabilityDAO {
                     list.add(new EmployeeAvailability(
                             rs.getInt("id"),
                             rs.getInt("user_id"),
-                            rs.getString("week_start_date"),
-                            rs.getString("day_of_week"),
+                            rs.getString("day_of_week"), // Đưa day_of_week lên trước
+                            rs.getString("week_start_date"), // Đưa week_start_date ra sau
                             rs.getInt("shift_id")
                     ));
                 }
@@ -95,8 +94,8 @@ public class EmployeeAvailabilityDAO {
                 list.add(new EmployeeAvailability(
                         rs.getInt("id"),
                         rs.getInt("user_id"),
-                        rs.getString("week_start_date"),
-                        rs.getString("day_of_week"),
+                        rs.getString("day_of_week"), // Đưa day_of_week lên trước
+                        rs.getString("week_start_date"), // Đưa week_start_date ra sau
                         rs.getInt("shift_id")
                 ));
             }

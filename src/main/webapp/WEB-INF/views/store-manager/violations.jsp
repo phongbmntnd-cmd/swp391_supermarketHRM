@@ -60,7 +60,15 @@
         <div class="user-info"><span>Xin chào, <b><c:out value="${sessionScope.account.username}"/></b></span><a href="${pageContext.request.contextPath}/logout" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</a></div>
     </header>
     <main class="page-content">
-        <div class="page-title"><h2><i class="fa-solid fa-triangle-exclamation me-2"></i>Báo cáo vi phạm</h2><p>Ghi nhận sự việc để HR xác minh trước khi có quyết định xử lý.</p></div>
+        <div class="page-title d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1"><i class="fa-solid fa-triangle-exclamation me-2"></i>Báo cáo vi phạm</h2>
+                        <p class="mb-0">Ghi nhận sự việc để HR xác minh trước khi có quyết định xử lý.</p>
+                    </div>
+                    <button class="btn btn-light text-primary fw-semibold shadow-sm px-3 py-2" onclick="history.back()">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Quay lại
+                    </button>
+                </div>
         <c:if test="${not empty successMessage}"><div class="alert alert-success"><c:out value="${successMessage}"/></div></c:if>
         <c:if test="${not empty errorMessage}"><div class="alert alert-danger"><c:out value="${errorMessage}"/></div></c:if>
 
