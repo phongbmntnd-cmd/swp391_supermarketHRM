@@ -391,7 +391,7 @@
                         </div>
                         <div class="stat-info">
                             <h4>Trạng Thái Chấm Công</h4>
-                            <span>Chưa Check-in</span>
+                            <span><c:out value="${attendanceStatus}"/></span>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -456,7 +456,7 @@
                             </div>
                             <p>Thực hiện thao tác điểm danh check-in và check-out vào ca làm việc hằng ngày tại cơ sở của bạn.</p>
                         </div>
-                        <a href="#" class="card-link">Truy cập chấm công <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/employee/attendance" class="card-link">Truy cập chấm công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
                     <!-- Tính năng 4: Gửi đơn xin nghỉ / đổi ca -->

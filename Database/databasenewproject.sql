@@ -1070,4 +1070,69 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+<<<<<<< Updated upstream
 -- Dump completed on 2026-10-20 14:46:23
+=======
+-- Dump completed on 2026-10-28 19:05:07
+
+DROP PROCEDURE IF EXISTS `sp_online_attendance_migration`;
+
+DELIMITER $$
+
+CREATE PROCEDURE `sp_online_attendance_migration`()
+BEGIN
+    DECLARE v_method_type TEXT;
+    DECLARE v_status_type TEXT;
+
+    SELECT COLUMN_TYPE INTO v_method_type
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'attendances'
+      AND COLUMN_NAME = 'method';
+
+    IF LOCATE('WEB', v_method_type) = 0 THEN
+        ALTER TABLE `attendances`
+            MODIFY COLUMN `method`
+                enum('WIFI','DYNAMIC_QR','WEB')
+                CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL;
+    END IF;
+
+    SELECT COLUMN_TYPE INTO v_status_type
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'attendances'
+      AND COLUMN_NAME = 'status';
+
+    IF LOCATE('PENDING', v_status_type) = 0 THEN
+        ALTER TABLE `attendances`
+            MODIFY COLUMN `status`
+                enum('VALID','INVALID','ADJUSTED','PENDING')
+                CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'VALID';
+    END IF;
+
+    CREATE TABLE IF NOT EXISTS `attendance_adjustment_history` (
+        `id` int NOT NULL AUTO_INCREMENT,
+        `attendance_id` int NOT NULL,
+        `adjusted_by` int NOT NULL,
+        `previous_check_in` datetime DEFAULT NULL,
+        `previous_check_out` datetime DEFAULT NULL,
+        `adjusted_check_in` datetime DEFAULT NULL,
+        `adjusted_check_out` datetime DEFAULT NULL,
+        `adjustment_note` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+        `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        KEY `attendance_id` (`attendance_id`),
+        KEY `adjusted_by` (`adjusted_by`),
+        CONSTRAINT `attendance_adjustment_history_ibfk_1`
+            FOREIGN KEY (`attendance_id`) REFERENCES `attendances` (`id`),
+        CONSTRAINT `attendance_adjustment_history_ibfk_2`
+            FOREIGN KEY (`adjusted_by`) REFERENCES `users` (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+END$$
+
+DELIMITER ;
+
+CALL `sp_online_attendance_migration`();
+DROP PROCEDURE `sp_online_attendance_migration`;
+
+>>>>>>> Stashed changes
