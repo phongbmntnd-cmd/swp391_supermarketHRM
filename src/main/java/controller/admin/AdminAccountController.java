@@ -36,19 +36,19 @@ public class AdminAccountController extends BaseServlet {
     //  GET: Hiển thị danh sách tài khoản
     // =========================================================
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-
+protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+    
         // 1. Auth
-        User currentUser = getCurrentUser(request);
-        if (currentUser == null) {
-            redirectToLogin(request, response);
-            return;
-        }
-        if (currentUser.getRoleId() != ROLE_ADMIN) {
-            sendForbidden(request, response, "Bạn không có quyền truy cập trang quản lý tài khoản!");
-            return;
-        }
+    User currentUser = getCurrentUser(request);
+    if (currentUser == null) {
+        redirectToLogin(request, response);
+        return;
+    }
+    if (currentUser.getRoleId() != ROLE_ADMIN) {
+        sendForbidden(request, response, "Bạn không có quyền truy cập trang quản lý tài khoản!");
+        return;
+    }
 
         // 2. Parse filter params
         String search        = getStringParameter(request, "search");
@@ -156,8 +156,8 @@ public class AdminAccountController extends BaseServlet {
         request.setAttribute("errorMessage", getAndClearErrorMessage(request));
 
         // 7. Forward
-        request.getRequestDispatcher("/WEB-INF/views/admin/accounts.jsp").forward(request, response);
-    }
+    request.getRequestDispatcher("/WEB-INF/views/admin/accounts.jsp").forward(request, response);
+}
 
     // =========================================================
     //  POST: lock / unlock / resetPassword
