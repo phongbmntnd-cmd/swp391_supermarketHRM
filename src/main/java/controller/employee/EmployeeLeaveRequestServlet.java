@@ -124,49 +124,65 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
 
             // Danh sách ca để part-time tick
             if (partTime) {
-                // Cửa sổ 4 tuần: tuần hiện tại + 3 tuần tới.
-                // Tuần hiện tại đã có lịch -> tick được ca thật.
-                // Các tuần sau chưa publish -> tick ca cố định theo ngày.
-                // Cửa sổ rộng để part-time có thể xin nghỉ trước hạn
-                // (ANNUAL yêu cầu báo trước 5 ngày).
-                LocalDate weekStart = LocalDate.now()
-                        .with(TemporalAdjusters.previousOrSame(
-                                DayOfWeek.MONDAY));
-                LocalDate windowEnd = weekStart.plusDays(27);
+                // CỬA SỔ 2 TUẦN (14 ngày): hôm nay + 13 ngày tới.
+                //
+                // Vì sao giới hạn 2 tuần?
+                //   - Part-time phải tick CA THẬT (cao đó Store đã
+                //     xếp cho mình) mới gửi được đơn.
+                //   - Store chỉ publish được ~2 tuần trước, nên cửa
+                //     sổ 2 tuần là mức mà Store kịp xếp lịch.
+                //
+                // Danh sách LIỆT KÊ ĐỦ 14 ngày. Ngày có ca thật thì
+                // hiện ca bên cạnh; ngày không có ca thì hiện
+                // "Không có ca" (không tick được).
+                LocalDate windowStart = LocalDate.now();
+                LocalDate windowEnd = windowStart.plusDays(13);
 
                 req.setAttribute("leaveWeekStart",
-                        weekStart.toString());
+                        windowStart.toString());
 
                 List<Map<String, Object>> assigned =
                         optionDao.getAssignedShifts(
-                                user.getId(), weekStart, windowEnd);
-
-                // Ca cố định của nhân viên (dùng để dựng lịch tuần
-                // chưa được publish).
-                List<Map<String, Object>> fixed =
-                        optionDao.getFixedShiftOptions(
-                                profile.getShiftType());
+                                user.getId(), windowStart, windowEnd);
 
                 req.setAttribute("assignedShifts", assigned);
-                req.setAttribute("fixedShiftOptions", fixed);
+                req.setAttribute("fixedShiftOptions",
+                        new ArrayList<>());
 
-                // Tuần hiện tại đã có lịch publish hay chưa?
-                boolean published = optionDao.isWeekPublished(
+                // Trạng thái publish của tuần hiện tại:
+                //   - ĐÃ_PUBLISH  : tuần không còn dòng DRAFT nào.
+                //   - CHUA_PUBLISH : chưa có lịch nào được publish.
+                //   - MOT_PHAN    : đã publish một phần, còn dòng DRAFT
+                //                   -> nhân viên phải được cảnh báo để
+                //                   không tưởng lịch đã chốt.
+                LocalDate weekStart = windowStart
+                        .with(TemporalAdjusters.previousOrSame(
+                                DayOfWeek.MONDAY));
+
+                boolean fullyPublished = optionDao.isWeekFullyPublished(
+                        profile.getHomeBranchId(), weekStart);
+                boolean anyPublished = optionDao.isWeekPublished(
                         profile.getHomeBranchId(), weekStart);
 
-                req.setAttribute("hasPublishedSchedule", published);
+                if (fullyPublished && anyPublished) {
+                    req.setAttribute("weekPublishState", "PUBLISHED");
+                } else if (anyPublished) {
+                    req.setAttribute("weekPublishState", "PARTIAL");
+                } else {
+                    req.setAttribute("weekPublishState", "DRAFT");
+                }
 
-                // Danh sách ca DUY NHẤT để hiển thị (không trùng lặp):
-                //   - Ca đã được xếp trong lịch -> tick được thật.
-                //   - Ca cố định cho các ngày CHƯA có lịch -> tick được
-                //     theo ca cố định, hệ thống sẽ khớp lại khi publish.
+                req.setAttribute("hasPublishedSchedule", anyPublished);
+
+                // Danh sách 14 ngày để hiển thị.
                 req.setAttribute("shiftChoices",
-                        buildShiftChoices(assigned, fixed, weekStart,
-                                windowEnd));
+                        buildShiftChoices(assigned,
+                                windowStart, windowEnd));
             } else {
                 req.setAttribute("assignedShifts", new ArrayList<>());
                 req.setAttribute("fixedShiftOptions", new ArrayList<>());
                 req.setAttribute("hasPublishedSchedule", false);
+                req.setAttribute("weekPublishState", "DRAFT");
             }
 
             // Badge số đơn đổi ca đang chờ mình phản hồi (sidebar)
@@ -421,21 +437,32 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
     }
 
     /**
-     * Dựng danh sách ca để nhân viên part-time tick, KHÔNG trùng lặp.
+     * Dựng danh sách 14 NGÀY để nhân viên part-time xem/tick.
      *
-     * Quy tắc:
-     *   - Ngày đã có ca được xếp (PUBLISHED) -> dùng ca thật.
-     *   - Ngày chưa có lịch -> dùng ca cố định của nhân viên, gắn với
-     *     đúng ngày đó (hệ thống sẽ khớp lại khi lịch được publish).
-     *   - Ca đang ON_LEAVE -> hiển thị nhưng không tick được.
+     * <h3>Quy tắc</h3>
+     * <ul>
+     *   <li><b>Liệt kê đủ 14 ngày</b> (hôm nay + 13 ngày). Ngày nào
+     *       không có ca thì hiện dòng trống để nhân viên thấy rõ
+     *       phạm vi thời gian đang xem.</li>
+     *   <li>Ngày <b>có ca thật</b> (kể cả {@code DRAFT}) -> hiện ca
+     *       THẬT của Store kèm giờ và số giờ, nhân viên tick được.
+     *       Nhân viên phải thấy đúng ca mà Store đang xếp, nếu không
+     *       sẽ tick nhầm ca.</li>
+     *   <li>Ngày <b>không có ca</b> -> hiện "Không có ca" (không
+     *       tick được, không có ca ảo "dự kiến" để tick nhầm).</li>
+     *   <li>Ca đang {@code ON_LEAVE} -> hiển thị nhưng không tick được.</li>
+     * </ul>
      *
+     * @param assigned  các ca đã xếp của nhân viên
+     * @param windowStart ngày bắt đầu cửa sổ (hôm nay)
+     * @param windowEnd  ngày kết thúc cửa sổ
      * @return list các map: workDate, shiftId, shiftName, hours,
-     *         startTime, endTime, scheduled, onLeave
+     *         startTime, endTime, hasShift, scheduled, published,
+     *         onLeave
      */
     private List<Map<String, Object>> buildShiftChoices(
             List<Map<String, Object>> assigned,
-            List<Map<String, Object>> fixed,
-            LocalDate weekStart,
+            LocalDate windowStart,
             LocalDate windowEnd) {
 
         Map<String, List<Map<String, Object>>> byDate =
@@ -453,25 +480,24 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
         }
 
         List<Map<String, Object>> result = new ArrayList<>();
-        LocalDate today = LocalDate.now();
 
-        for (LocalDate d = weekStart;
+        for (LocalDate d = windowStart;
              !d.isAfter(windowEnd);
              d = d.plusDays(1)) {
-
-            if (d.isBefore(today)) {
-                continue;   // không cho xin nghỉ quá khứ
-            }
 
             List<Map<String, Object>> real = byDate.get(d.toString());
 
             if (real != null && !real.isEmpty()) {
+                // ĐÃ CÓ ca từ Store -> hiện ca thật (kể cả DRAFT).
                 for (Map<String, Object> r : real) {
                     Map<String, Object> row =
                             new LinkedHashMap<>(r);
                     row.put("workDate",
                             java.sql.Date.valueOf(d));
+                    row.put("hasShift", true);
                     row.put("scheduled", true);
+                    row.put("published",
+                            Boolean.TRUE.equals(r.get("published")));
                     row.put("onLeave",
                             Boolean.TRUE.equals(r.get("onLeave")));
                     result.add(row);
@@ -479,16 +505,20 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
                 continue;
             }
 
-            // Chưa có lịch -> dựng ca cố định cho ngày này.
-            for (Map<String, Object> f : fixed) {
-                Map<String, Object> row =
-                        new LinkedHashMap<>(f);
-                row.put("workDate",
-                        java.sql.Date.valueOf(d));
-                row.put("scheduled", false);
-                row.put("onLeave", false);
-                result.add(row);
-            }
+            // Ngày KHÔNG có ca -> vẫn liệt kê để nhân viên thấy
+            // đủ 14 ngày, nhưng không tick được.
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("workDate", java.sql.Date.valueOf(d));
+            row.put("shiftId", 0);
+            row.put("shiftName", null);
+            row.put("startTime", null);
+            row.put("endTime", null);
+            row.put("hours", 0.0);
+            row.put("hasShift", false);
+            row.put("scheduled", false);
+            row.put("published", false);
+            row.put("onLeave", false);
+            result.add(row);
         }
 
         return result;
@@ -615,6 +645,23 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
         LocalDate maxDate = null;
         LocalDate pastDate = null;
 
+        // CỬA SỔ XIN NGHỈ 2 TUẦN (part-time).
+        // Trùng với cửa sổ hiển thị ở trên: nhân viên chỉ được tick
+        // những ca nằm trong 2 tuần tới.
+        LocalDate today = LocalDate.now();
+        LocalDate windowEnd = today.plusDays(13);
+
+        // Ca THẬT của nhân viên trong cửa sổ (để đối chiếu).
+        // Nhân viên chỉ được nghỉ ca đã được Store xếp cho mình.
+        java.util.Set<String> allowedShifts =
+                new java.util.HashSet<>();
+        for (Map<String, Object> row
+                : new LeaveShiftOptionDAO().getAssignedShifts(
+                        user.getId(), today, windowEnd)) {
+            allowedShifts.add(
+                    row.get("workDate") + "_" + row.get("shiftId"));
+        }
+
         for (String raw : rawSelections) {
             LeaveShiftSelection sel = LeaveShiftSelection.parse(raw);
             if (sel == null) {
@@ -628,6 +675,34 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
                 }
                 continue;
             }
+
+            // Chặn nghỉ vượt quá cửa sổ 2 tuần.
+            if (sel.getWorkDate().isAfter(windowEnd)) {
+                req.setAttribute(
+                    "error",
+                    "Chỉ được xin nghỉ trong vòng 2 tuần tới. "
+                    + "Ca ngày "
+                    + formatVn(sel.getWorkDate())
+                    + " nằm ngoài phạm vi cho phép."
+                );
+                showPage(req, resp, user);
+                return null;
+            }
+
+            // Chặn nghỉ ca KHÔNG phải của nhân viên (ngày không có
+            // ca thật, hoặc ca không tồn tại trong lịch).
+            if (!allowedShifts.contains(
+                    sel.getWorkDate() + "_" + sel.getShiftId())) {
+                req.setAttribute(
+                    "error",
+                    "Ca ngày " + formatVn(sel.getWorkDate())
+                    + " không có trong lịch làm việc của bạn. "
+                    + "Vui lòng chỉ chọn các ca được hiển thị."
+                );
+                showPage(req, resp, user);
+                return null;
+            }
+
             selections.add(sel);
 
             if (minDate == null || sel.getWorkDate().isBefore(minDate)) {

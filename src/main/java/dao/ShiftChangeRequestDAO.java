@@ -45,8 +45,53 @@ public class ShiftChangeRequestDAO {
         return result;
     }
 
+    /**
+     * Truy vấn với 1 tham số int và 2 tham số ngày (LocalDate).
+     */
+    private List<Map<String, Object>> query(
+            String sql, int value,
+            LocalDate from, LocalDate to) {
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, value);
+            ps.setDate(2, java.sql.Date.valueOf(from));
+            ps.setDate(3, java.sql.Date.valueOf(to));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData meta = rs.getMetaData();
+
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+
+                    for (int i = 1; i <= meta.getColumnCount(); i++) {
+                        row.put(
+                                meta.getColumnLabel(i),
+                                rs.getObject(i)
+                        );
+                    }
+                    result.add(row);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot load shift data", e
+            );
+        }
+
+        return result;
+    }
+
     // 1. Lịch đã công bố của Employee
-    public List<Map<String, Object>> getMySchedules(int userId) {
+    //
+    // Chỉ trả về ca nằm trong TUẦN ĐANG XEM (weekStart..weekStart+6).
+    // Nhân viên chỉ được đổi ca trong tuần đang xem trên màn hình.
+    public List<Map<String, Object>> getMySchedules(
+            int userId, LocalDate weekStart) {
 
         String sql
                 = "SELECT ss.id, ss.work_date AS workDate, "
@@ -58,14 +103,28 @@ public class ShiftChangeRequestDAO {
                 + "JOIN shifts s ON s.id = ss.shift_id "
                 + "WHERE ss.user_id = ? "
                 + "AND ss.status = 'PUBLISHED' "
+                + "AND ss.work_date BETWEEN ? AND ? "
                 + "AND ss.work_date >= DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "ORDER BY ss.work_date, s.start_time";
 
-        return query(sql, userId);
+        return query(sql, userId, weekStart, weekStart.plusDays(6));
     }
 
-    // 2. Ca đồng nghiệp cùng chi nhánh
-    public List<Map<String, Object>> getColleagueSchedules(int userId) {
+    // 2. Ca đồng nghiệp cùng chi nhánh, CÙNG CHỨC VỤ
+    //    và CÙNG NHÓM LÀM VIỆC
+    //
+    // Quy tắc nghiệp vụ:
+    //   - Nhân viên chỉ được đổi ca với đồng nghiệp có CÙNG CHỨC VỤ
+    //     (position_id trong employee_profiles).
+    //   - FULL_TIME chỉ đổi được với FULL_TIME.
+    //     PART_TIME (và CASUAL) chỉ đổi được với PART_TIME (CASUAL).
+    //
+    // Chú ý: phải so sánh theo CHỨC VỤ THỰC của đồng nghiệp
+    // (their_ep.position_id), KHÔNG so sánh theo position_id của
+    // dòng lịch (ss.position_id) - vì dòng lịch có thể đã bị Store
+    // xếp sai chức vụ (dữ liệu thực tế có 9 dòng lệch).
+    public List<Map<String, Object>> getColleagueSchedules(
+            int userId, LocalDate weekStart) {
 
         String sql
                 = "SELECT ss.id, "
@@ -73,6 +132,7 @@ public class ShiftChangeRequestDAO {
                 + "ss.shift_id AS shiftId, "
                 + "ss.position_id AS positionId, "
                 + "ep.full_name AS colleagueName, "
+                + "ep.employee_type AS colleagueType, "
                 + "ss.work_date AS workDate, "
                 + "s.name AS shiftName, "
                 + "s.start_time AS startTime, "
@@ -85,15 +145,18 @@ public class ShiftChangeRequestDAO {
                 + "ON current_ep.user_id = ? "
                 + "JOIN shifts s ON s.id = ss.shift_id "
                 + "WHERE ss.branch_id = current_ep.home_branch_id "
-                + "AND ss.position_id = current_ep.position_id "
+                + "AND ep.position_id = current_ep.position_id "
+                + "AND COALESCE(ep.employee_type, 'FULL_TIME') = "
+                + "COALESCE(current_ep.employee_type, 'FULL_TIME') "
                 + "AND ss.user_id <> current_ep.user_id "
                 + "AND u.role_id = 5 "
                 + "AND u.status = 'ACTIVE' "
                 + "AND ss.status = 'PUBLISHED' "
+                + "AND ss.work_date BETWEEN ? AND ? "
                 + "AND ss.work_date >= DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "ORDER BY ss.work_date, s.start_time, ep.full_name";
 
-        return query(sql, userId);
+        return query(sql, userId, weekStart, weekStart.plusDays(6));
     }
 
     private List<Map<String, Object>> queryTwo(
@@ -136,8 +199,10 @@ public class ShiftChangeRequestDAO {
     // Chỉ trả về ca trống:
     //   - ở cơ sở của nhân viên,
     //   - đúng vị trí công tác của nhân viên (nếu ca có gán vị trí),
+    //   - trong TUẦN ĐANG XEM,
     //   - chưa có đơn đổi ca nào đang chờ duyệt.
-    public List<Map<String, Object>> getOpenShifts(int userId) {
+    public List<Map<String, Object>> getOpenShifts(
+            int userId, LocalDate weekStart) {
 
         String sql
                 = "SELECT os.id, os.work_date AS workDate, "
@@ -151,6 +216,7 @@ public class ShiftChangeRequestDAO {
                 + "JOIN employee_profiles ep "
                 + "ON ep.user_id = ? "
                 + "WHERE os.status = 'OPEN' "
+                + "AND os.work_date BETWEEN ? AND ? "
                 + "AND os.work_date >= "
                 + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "AND os.branch_id = ep.home_branch_id "
@@ -162,14 +228,15 @@ public class ShiftChangeRequestDAO {
                 + "AND r.status = 'PENDING') "
                 + "ORDER BY os.work_date, s.start_time";
 
-        return query(sql, userId);
+        return query(sql, userId, weekStart, weekStart.plusDays(6));
     }
 
     public boolean createSwap(
             int userId,
             int myScheduleId,
             int targetScheduleId,
-            String reason) throws Exception {
+            String reason,
+            LocalDate weekStart) throws Exception {
 
         if (myScheduleId == targetScheduleId
                 || reason == null
@@ -179,8 +246,8 @@ public class ShiftChangeRequestDAO {
         }
 
         // Chặn trước 2 ca chồng lấn giờ trong cùng ngày và các
-        // điều kiện cơ bản (cùng chi nhánh, cùng vị trí công tác).
-        if (!canSwapShifts(userId, myScheduleId, targetScheduleId)) {
+        // LAM VIEC, CUNG TUAN).
+        if (!canSwapShifts(userId, myScheduleId, targetScheduleId, weekStart)) {
             return false;
         }
 
@@ -194,6 +261,10 @@ public class ShiftChangeRequestDAO {
                 + "FROM shift_schedules mine "
                 + "JOIN shift_schedules theirs "
                 + "ON mine.branch_id = theirs.branch_id "
+                + "JOIN employee_profiles mine_ep "
+                + "ON mine_ep.user_id = mine.user_id "
+                + "JOIN employee_profiles their_ep "
+                + "ON their_ep.user_id = theirs.user_id "
                 + "JOIN users requester "
                 + "ON requester.id = mine.user_id "
                 + "JOIN users colleague "
@@ -202,12 +273,18 @@ public class ShiftChangeRequestDAO {
                 + "AND theirs.id = ? "
                 + "AND mine.user_id = ? "
                 + "AND theirs.user_id <> mine.user_id "
+                + "AND mine_ep.position_id = their_ep.position_id "
+                + "AND COALESCE(mine_ep.employee_type, 'FULL_TIME') = "
+                + "COALESCE(their_ep.employee_type, 'FULL_TIME') "
                 + "AND requester.role_id = 5 "
                 + "AND colleague.role_id = 5 "
                 + "AND requester.status = 'ACTIVE' "
                 + "AND colleague.status = 'ACTIVE' "
                 + "AND mine.status = 'PUBLISHED' "
                 + "AND theirs.status = 'PUBLISHED' "
+                // Cả hai ca phải nằm trong TUẦN ĐANG XEM.
+                + "AND mine.work_date BETWEEN ? AND ? "
+                + "AND theirs.work_date BETWEEN ? AND ? "
                 + "AND mine.work_date >= "
                 + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "AND theirs.work_date >= "
@@ -229,6 +306,10 @@ public class ShiftChangeRequestDAO {
             ps.setInt(3, myScheduleId);
             ps.setInt(4, targetScheduleId);
             ps.setInt(5, userId);
+            ps.setDate(6, java.sql.Date.valueOf(weekStart));
+            ps.setDate(7, java.sql.Date.valueOf(weekStart.plusDays(6)));
+            ps.setDate(8, java.sql.Date.valueOf(weekStart));
+            ps.setDate(9, java.sql.Date.valueOf(weekStart.plusDays(6)));
 
             return ps.executeUpdate() == 1;
         }
@@ -239,16 +320,22 @@ public class ShiftChangeRequestDAO {
      *
      * <h3>Điều kiện</h3>
      * <ul>
-     *   <li>Cùng chi nhánh, cùng vị trí công tác.</li>
+     *   <li>Cùng chi nhánh.</li>
+     *   <li><b>Cùng chức vụ</b> (employee_profiles.position_id).</li>
+     *   <li><b>Cùng nhóm làm việc</b>: FULL_TIME chỉ đổi với FULL_TIME,
+     *       PART_TIME chỉ đổi với PART_TIME.</li>
      *   <li>Không cùng một ngày VÀ chồng lấn khung giờ -&gt;
      *       nếu không, sau khi đổi mỗi người sẽ có 2 ca chồng nhau.</li>
      *   <li>Cả hai ca phải còn hiệu lực (&gt;= 2 ngày từ hôm nay).</li>
+     *   <li><b>Cung tuần</b>: ca cua toi va ca cua dong nghiep phai
+     *       cung nam trong tuan dang xem.</li>
      * </ul>
      */
     public boolean canSwapShifts(
             int userId,
             int myScheduleId,
-            int targetScheduleId) throws Exception {
+            int targetScheduleId,
+            LocalDate weekStart) throws Exception {
 
         if (myScheduleId == targetScheduleId) {
             return false;
@@ -267,13 +354,17 @@ public class ShiftChangeRequestDAO {
                 + "WHERE mine.id = ? "
                 + "AND mine.branch_id = theirs.branch_id "
                 + "AND mine.branch_id = current_ep.home_branch_id "
-                + "AND mine.position_id = current_ep.position_id "
-                + "AND theirs.position_id = current_ep.position_id "
+                + "AND current_ep.position_id = their_ep.position_id "
+                + "AND COALESCE(current_ep.employee_type, 'FULL_TIME') = "
+                + "COALESCE(their_ep.employee_type, 'FULL_TIME') "
                 + "AND theirs.user_id <> current_ep.user_id "
                 + "AND colleague.role_id = 5 "
                 + "AND colleague.status = 'ACTIVE' "
                 + "AND mine.status = 'PUBLISHED' "
                 + "AND theirs.status = 'PUBLISHED' "
+                // Cả hai ca phải nằm trong TUẦN ĐANG XEM.
+                + "AND mine.work_date BETWEEN ? AND ? "
+                + "AND theirs.work_date BETWEEN ? AND ? "
                 + "AND mine.work_date >= "
                 + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "AND theirs.work_date >= "
@@ -285,6 +376,10 @@ public class ShiftChangeRequestDAO {
             ps.setInt(1, targetScheduleId);
             ps.setInt(2, userId);
             ps.setInt(3, myScheduleId);
+            ps.setDate(4, java.sql.Date.valueOf(weekStart));
+            ps.setDate(5, java.sql.Date.valueOf(weekStart.plusDays(6)));
+            ps.setDate(6, java.sql.Date.valueOf(weekStart));
+            ps.setDate(7, java.sql.Date.valueOf(weekStart.plusDays(6)));
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -304,11 +399,14 @@ public class ShiftChangeRequestDAO {
     }
 
     // 5. Tạo đơn chuyển từ ca hiện tại sang ca trống
+    //
+    // Ca của nhân viên và ca trống phải cùng nằm trong TUẦN ĐANG XEM.
     public boolean createOpenChange(
             int userId,
             int myScheduleId,
             int openShiftId,
-            String reason) throws Exception {
+            String reason,
+            LocalDate weekStart) throws Exception {
 
         String sql
                 = "INSERT INTO shift_change_requests "
@@ -326,6 +424,8 @@ public class ShiftChangeRequestDAO {
                 + "AND requester.status = 'ACTIVE' "
                 + "AND mine.status = 'PUBLISHED' "
                 + "AND os.status = 'OPEN' "
+                + "AND mine.work_date BETWEEN ? AND ? "
+                + "AND os.work_date BETWEEN ? AND ? "
                 + "AND mine.work_date >= "
                 + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "AND os.work_date >= "
@@ -355,6 +455,10 @@ public class ShiftChangeRequestDAO {
             ps.setInt(3, myScheduleId);
             ps.setInt(4, openShiftId);
             ps.setInt(5, userId);
+            ps.setDate(6, java.sql.Date.valueOf(weekStart));
+            ps.setDate(7, java.sql.Date.valueOf(weekStart.plusDays(6)));
+            ps.setDate(8, java.sql.Date.valueOf(weekStart));
+            ps.setDate(9, java.sql.Date.valueOf(weekStart.plusDays(6)));
 
             return ps.executeUpdate() > 0;
         }
@@ -830,6 +934,12 @@ public class ShiftChangeRequestDAO {
             return false;
         }
 
+        // Hai ca phải nằm trong CÙNG TUẦN (thứ 2 .. chủ nhật).
+        // Nhân viên chỉ được đổi ca trong tuần đang xem.
+        if (!sameWeek(dates.get(myId), dates.get(targetId))) {
+            return false;
+        }
+
         // Kiểm tra cả hai nhân viên không trùng ca với ca mới.
         // hasConflict so sánh cả KHOẢNG GIỜ, nên chặn được trường
         // hợp "Ca Sáng" và "Ca Full-time Sáng - Chiều" cùng ngày.
@@ -863,6 +973,22 @@ public class ShiftChangeRequestDAO {
             return false;
         }
 
+        // Hai người đổi ca phải có CÙNG CHỨC VỤ và CÙNG NHÓM
+        // LÀM VIỆC (full-time chỉ đổi với full-time,
+        // part-time chỉ đổi với part-time).
+        // Kiểm tra lại lúc duyệt vì chức vụ/loại NV có thể đã
+        // thay đổi trong khoảng thời gian chờ duyệt.
+        if (requesterPosition != targetPosition) {
+            return false;
+        }
+
+        String requesterType = employeeTypeOf(c, requester);
+        String targetType = employeeTypeOf(c, targetUser);
+
+        if (!requesterType.equals(targetType)) {
+            return false;
+        }
+
         String update
                 = "UPDATE shift_schedules SET user_id = ?, "
                 + "position_id = ? WHERE id = ?";
@@ -883,11 +1009,37 @@ public class ShiftChangeRequestDAO {
     }
 
     /**
+     * Nhóm làm việc của nhân viên (FULL_TIME / PART_TIME / CASUAL).
+     * Nếu hồ sơ không ghi -> coi như FULL_TIME.
+     */
+    private String employeeTypeOf(
+            Connection c, int userId) throws SQLException {
+
+        String sql = "SELECT employee_type FROM employee_profiles "
+                + "WHERE user_id = ?";
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String type = rs.getString(1);
+
+                    if (type != null && !type.trim().isEmpty()) {
+                        return type.trim().toUpperCase();
+                    }
+                }
+            }
+        }
+
+        return "FULL_TIME";
+    }
+
+    /**
      * Vị trí công tác của nhân viên.
      */
     private int positionOf(
             Connection c, int userId) throws SQLException {
-
         String sql = "SELECT position_id FROM employee_profiles "
                 + "WHERE user_id = ?";
 
@@ -1149,6 +1301,29 @@ public class ShiftChangeRequestDAO {
     }
 
     /**
+     * Hai ngày có nằm trong cùng một tuần (thứ 2 .. chủ nhật) không?
+     */
+    private boolean sameWeek(
+            java.sql.Date dateA, java.sql.Date dateB) {
+
+        if (dateA == null || dateB == null) {
+            return false;
+        }
+
+        LocalDate a = dateA.toLocalDate();
+        LocalDate b = dateB.toLocalDate();
+
+        LocalDate mondayA = a.with(
+                java.time.temporal.TemporalAdjusters
+                        .previousOrSame(java.time.DayOfWeek.MONDAY));
+        LocalDate mondayB = b.with(
+                java.time.temporal.TemporalAdjusters
+                        .previousOrSame(java.time.DayOfWeek.MONDAY));
+
+        return mondayA.equals(mondayB);
+    }
+
+    /**
      * Hai ca có chồng lấn khung giờ không.
      * Dùng để chặn việc đổi 2 ca cùng một ngày.
      */
@@ -1364,6 +1539,10 @@ public class ShiftChangeRequestDAO {
                 + "ON requester.id = r.requester_id "
                 + "JOIN users colleague "
                 + "ON colleague.id = r.target_user_id "
+                + "JOIN employee_profiles requester_ep "
+                + "ON requester_ep.user_id = r.requester_id "
+                + "JOIN employee_profiles colleague_ep "
+                + "ON colleague_ep.user_id = r.target_user_id "
                 + "SET r.status = ?, "
                 + "r.colleague_response = ?, "
                 + "r.colleague_responded_at = NOW() "
@@ -1383,6 +1562,14 @@ public class ShiftChangeRequestDAO {
                 + "AND requester.status = 'ACTIVE' "
                 + "AND colleague.status = 'ACTIVE' "
                 + "AND requester.id <> colleague.id "
+                + "AND requester_ep.position_id = colleague_ep.position_id "
+                + "AND COALESCE(requester_ep.employee_type, 'FULL_TIME') = "
+                + "COALESCE(colleague_ep.employee_type, 'FULL_TIME') "
+                // Hai ca phai cung thuoc ve cung mot tuan (thu 2..chu nhat).
+                + "AND DATE_SUB(mine.work_date, "
+                + "INTERVAL WEEKDAY(mine.work_date) DAY) = "
+                + "DATE_SUB(theirs.work_date, "
+                + "INTERVAL WEEKDAY(theirs.work_date) DAY) "
                 + "AND mine.work_date >= "
                 + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
                 + "AND theirs.work_date >= "

@@ -7,6 +7,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 
 @WebServlet(
         name = "EmployeeShiftRequestController",
@@ -20,6 +23,27 @@ public class EmployeeShiftRequestController extends HttpServlet {
                 : (User) session.getAttribute("account");
     }
 
+    /**
+     * Xác định tuần đang xem từ tham số {@code startDate}.
+     * Luôn chuẩn hoá về thứ Hai của tuần đó.
+     */
+    private LocalDate resolveWeekStart(HttpServletRequest req) {
+        String param = req.getParameter("startDate");
+
+        if (param != null && !param.trim().isEmpty()) {
+            try {
+                return LocalDate.parse(param.trim())
+                        .with(TemporalAdjusters
+                                .previousOrSame(DayOfWeek.MONDAY));
+            } catch (Exception e) {
+                // Bỏ qua -> dùng tuần mặc định bên dưới.
+            }
+        }
+
+        return LocalDate.now()
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    }
+
     private void showPage(
             HttpServletRequest req,
             HttpServletResponse resp,
@@ -30,16 +54,22 @@ public class EmployeeShiftRequestController extends HttpServlet {
             ShiftChangeRequestDAO dao
                     = new ShiftChangeRequestDAO();
 
-            // Lịch của nhân viên đang đăng nhập
+            // TUẦN ĐANG XEM: nhân viên chỉ được đổi ca trong tuần
+            // đang mở trên màn hình (thứ 2 .. chủ nhật).
+            LocalDate weekStart = resolveWeekStart(req);
+
+            req.setAttribute("weekStart", weekStart.toString());
+
+            // Lịch của nhân viên đang đăng nhập (chỉ trong tuần đang xem)
             req.setAttribute(
                     "mySchedules",
-                    dao.getMySchedules(user.getId())
+                    dao.getMySchedules(user.getId(), weekStart)
             );
 
             // Dữ liệu phân công để dựng bảng tuần
             req.setAttribute(
                     "colleagueSchedules",
-                    dao.getColleagueSchedules(user.getId())
+                    dao.getColleagueSchedules(user.getId(), weekStart)
             );
 
             // Tên và thời gian của các loại ca
@@ -61,9 +91,10 @@ public class EmployeeShiftRequestController extends HttpServlet {
             );
 
             // Ca trống tại cơ sở để nhân viên đề nghị chuyển sang
+            // (chỉ trong tuần đang xem)
             req.setAttribute(
                     "openShifts",
-                    dao.getOpenShifts(user.getId())
+                    dao.getOpenShifts(user.getId(), weekStart)
             );
 
             // Badge số đơn đổi ca đang chờ mình phản hồi
@@ -238,7 +269,8 @@ public class EmployeeShiftRequestController extends HttpServlet {
                         user.getId(),
                         myScheduleId,
                         openShiftId,
-                        reason.trim()
+                        reason.trim(),
+                        resolveWeekStart(req)
                 );
             } else {
                 int targetScheduleId = Integer.parseInt(
@@ -249,7 +281,8 @@ public class EmployeeShiftRequestController extends HttpServlet {
                         user.getId(),
                         myScheduleId,
                         targetScheduleId,
-                        reason.trim()
+                        reason.trim(),
+                        resolveWeekStart(req)
                 );
             }
 

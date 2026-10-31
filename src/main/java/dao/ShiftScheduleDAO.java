@@ -12,11 +12,28 @@ import java.util.Map;
 public class ShiftScheduleDAO {
 
     // 1. Lấy danh sách khóa các ca đã được phân công trong cơ sở để đồng bộ tích xanh
+    // Lưu ý: chỉ lấy trong khoảng tuần đang xem. Trước đây lấy toàn bộ lịch của
+    // cơ sở nên khi xem lại tuần cũ, các ca đã xếp ở tuần khác vẫn tồn tại trong
+    // danh sách -> gây hiển thị sai trạng thái tích xanh.
     public List<String> getAssignedKeysByBranchId(int branchId) {
+        return getAssignedKeysByBranchId(branchId, null, null);
+    }
+
+    public List<String> getAssignedKeysByBranchId(int branchId, String startDate, String endDate) {
         List<String> assignedList = new ArrayList<>();
-        String sql = "SELECT user_id, shift_id, work_date FROM shift_schedules WHERE branch_id = ?";
+        String sql;
+        if (startDate != null && endDate != null) {
+            sql = "SELECT user_id, shift_id, work_date FROM shift_schedules "
+                    + "WHERE branch_id = ? AND work_date BETWEEN ? AND ?";
+        } else {
+            sql = "SELECT user_id, shift_id, work_date FROM shift_schedules WHERE branch_id = ?";
+        }
         try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
             st.setInt(1, branchId);
+            if (startDate != null && endDate != null) {
+                st.setDate(2, Date.valueOf(startDate));
+                st.setDate(3, Date.valueOf(endDate));
+            }
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     int dbUserId = rs.getInt("user_id");
@@ -210,10 +227,14 @@ public class ShiftScheduleDAO {
     // 9. Lấy số lượng nhân viên thực tế đã được xếp trong tuần (Key: workDate_positionId_shiftId)
     public Map<String, Integer> getWeeklyAssignedCountMap(int branchId, String startDate, String endDate) {
         Map<String, Integer> map = new HashMap<>();
+        // Loại 'ON_LEAVE': nhân viên đã nghỉ phép được duyệt thì ca đó không còn
+        // là ca đang làm việc, không được tính vào "đã xếp" (nếu tính vào, ô lịch
+        // báo đủ người trong khi nhân viên thực tế không có ca nào trong tuần).
         String sql = "SELECT ss.work_date, ss.shift_id, ep.position_id, COUNT(ss.user_id) as assigned_count "
                 + "FROM shift_schedules ss "
                 + "JOIN employee_profiles ep ON ss.user_id = ep.user_id "
                 + "WHERE ss.branch_id = ? AND ss.work_date BETWEEN ? AND ? "
+                + "AND ss.status <> 'ON_LEAVE' "
                 + "GROUP BY ss.work_date, ss.shift_id, ep.position_id";
         try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
             st.setInt(1, branchId);
@@ -399,6 +420,138 @@ public class ShiftScheduleDAO {
             }
             return true;
         }catch(Exception e){throw new IllegalStateException("Không kiểm tra được xung đột",e);}
+    }
+
+    /**
+     * Nhân viên có đăng ký lịch rảnh cho đúng (ngày trong tuần, ca, vị trí) không?
+     *
+     * <p>Quy tắc nghiệp vụ: Store Manager chỉ được xếp nhân viên vào ca mà
+     * nhân viên đó <b>đã đăng ký lịch rảnh</b> cho ca đó vào đúng ngày đó.
+     * Ví dụ: hôm nay ca 1 có a, b, c đăng ký rảnh thì Store được chọn
+     * đúng a/b/c vào ca đó.
+     *
+     * <p>Mốc tuần được suy ra từ ngày làm việc (thứ Hai của tuần đó), khớp với
+     * {@code week_start_date} mà nhân viên dùng khi đăng ký lịch rảnh.
+     *
+     * @return true nếu nhân viên đã đăng ký rảnh đúng ca + đúng ngày + đúng vị trí
+     */
+    public boolean hasRegisteredAvailability(int branchId, int userId, int positionId,
+                                             int shiftId, String workDate) {
+        String sql = "SELECT COUNT(*) FROM employee_availabilities ea "
+                + "JOIN employee_profiles ep ON ea.user_id = ep.user_id "
+                + "WHERE ea.user_id = ? AND ep.home_branch_id = ? AND ep.position_id = ? "
+                + "AND ea.shift_id = ? AND ea.day_of_week = ? AND ea.week_start_date = ?";
+
+        LocalDate date = LocalDate.parse(workDate);
+        String dayName = date.getDayOfWeek().name();
+        String weekStart = date
+                .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                .toString();
+
+        try (Connection c = DBContext.getConnection();
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setInt(1, userId);
+            p.setInt(2, branchId);
+            p.setInt(3, positionId);
+            p.setInt(4, shiftId);
+            p.setString(5, dayName);
+            p.setString(6, weekStart);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Không kiểm tra được lịch rảnh đã đăng ký", e);
+        }
+    }
+
+    /**
+     * Nhân viên đã đăng ký tham gia ca bổ sung (đăng ký vào ca trống) chưa?
+     * Loại đăng ký này cũng là sự đồng ý của nhân viên nên được phép xếp.
+     *
+     * @return true nếu nhân viên đã đăng ký ứng tuyển vào đúng ca + đúng ngày này
+     */
+    public boolean hasSupplementaryApplication(int branchId, int userId, int positionId,
+                                               int shiftId, String workDate) {
+        String sql = "SELECT COUNT(*) FROM supplementary_shift_opportunities o "
+                + "JOIN supplementary_shift_applications a ON a.opportunity_id = o.id "
+                + "WHERE o.branch_id = ? AND o.position_id = ? AND o.shift_id = ? "
+                + "AND o.work_date = ? AND a.user_id = ?";
+        try (Connection c = DBContext.getConnection();
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setInt(1, branchId);
+            p.setInt(2, positionId);
+            p.setInt(3, shiftId);
+            p.setDate(4, Date.valueOf(workDate));
+            p.setInt(5, userId);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Không kiểm tra được đăng ký ca bổ sung", e);
+        }
+    }
+
+    /**
+     * Nhân viên Full-time không phải đăng ký lịch rảnh (họ có lịch cố định).
+     *
+     * @return true nếu nhân viên thuộc loại FULL_TIME
+     */
+    public boolean isFullTime(int branchId, int userId) {
+        String sql = "SELECT COUNT(*) FROM employee_profiles ep "
+                + "JOIN users u ON u.id = ep.user_id "
+                + "WHERE ep.user_id = ? AND ep.home_branch_id = ? "
+                + "AND ep.employee_type = 'FULL_TIME' AND u.status = 'ACTIVE'";
+        try (Connection c = DBContext.getConnection();
+             PreparedStatement p = c.prepareStatement(sql)) {
+            p.setInt(1, userId);
+            p.setInt(2, branchId);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Không kiểm tra được loại nhân viên", e);
+        }
+    }
+
+    /**
+     * Lấy danh sách nhân viên đã được xếp ca trong tuần, kèm tên và trạng thái.
+     * Dùng để lưới xếp lịch hiển thị đúng lịch thật (nhân viên nhìn thấy
+     * trong trang "Lịch làm việc" của mình).
+     *
+     * @return key = {@code workDate_positionId_shiftId} -> danh sách ca đã xếp của ô đó
+     */
+    public Map<String, List<Map<String, Object>>> getAssignedStaffMap(int branchId, String startDate, String endDate) {
+        Map<String, List<Map<String, Object>>> result = new HashMap<>();
+        // Loại các ca được MƯỢN từ cơ sở khác (temporary_transfer_id khác NULL):
+        // những ca đó đã được hiển thị riêng bằng khối "borrowedAssignments" trong JSP,
+        // nếu giữ lại sẽ bị hiển thị trùng 2 lần.
+        String sql = "SELECT ss.user_id, ss.shift_id, ss.work_date, ss.position_id, ss.status, ep.full_name "
+                + "FROM shift_schedules ss "
+                + "JOIN employee_profiles ep ON ss.user_id = ep.user_id "
+                + "WHERE ss.branch_id = ? AND ss.work_date BETWEEN ? AND ? "
+                + "AND ss.temporary_transfer_id IS NULL "
+                + "ORDER BY ss.work_date, ss.shift_id, ep.full_name";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement st = conn.prepareStatement(sql)) {
+            st.setInt(1, branchId);
+            st.setDate(2, Date.valueOf(startDate));
+            st.setDate(3, Date.valueOf(endDate));
+            try (ResultSet rs = st.executeQuery()) {
+                while (rs.next()) {
+                    String key = rs.getString("work_date") + "_"
+                            + rs.getInt("position_id") + "_"
+                            + rs.getInt("shift_id");
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("userId", rs.getInt("user_id"));
+                    row.put("fullName", rs.getString("full_name"));
+                    row.put("status", rs.getString("status"));
+                    result.computeIfAbsent(key, k -> new ArrayList<>()).add(row);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 
 }

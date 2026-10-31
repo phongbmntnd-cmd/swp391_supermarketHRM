@@ -67,10 +67,21 @@ public class LeaveShiftOptionDAO {
     }
 
     /**
-     * Lấy các ca đã xếp (PUBLISHED) của nhân viên trong khoảng ngày.
+     * Lấy các ca đã XẾP của nhân viên trong khoảng ngày.
+     *
+     * <h3>Vì sao lấy cả DRAFT?</h3>
+     * Store Manager xếp ca theo tuần rồi mới publish. Trong khoảng
+     * giữa lúc xếp và lúc publish, ca của nhân viên có trạng thái
+     * {@code DRAFT}. Nếu bỏ qua {@code DRAFT} thì màn hình "Chọn ca
+     * muốn nghỉ" sẽ hiện ca CỐ ĐỊNH (dự kiến) cho những ngày đó,
+     * lệch với lịch thật mà Store đang xếp -> nhân viên tick sai ca.
+     *
+     * <p>Do đó lấy cả {@code DRAFT}, {@code PUBLISHED} và
+     * {@code ON_LEAVE}. Bỏ qua {@code CANCELLED} (ca đã bị hủy thì
+     * không phải ca nhân viên đi làm).
      *
      * @return mỗi phần tử gồm: workDate, shiftId, shiftName, hours,
-     *         startTime, endTime, alreadyOnLeave
+     *         startTime, endTime, status, published, onLeave
      */
     public List<Map<String, Object>> getAssignedShifts(
             int userId,
@@ -89,7 +100,7 @@ public class LeaveShiftOptionDAO {
                 + "JOIN shifts s ON s.id = ss.shift_id "
                 + "WHERE ss.user_id = ? "
                 + "AND ss.work_date BETWEEN ? AND ? "
-                + "AND ss.status IN ('PUBLISHED', 'ON_LEAVE') "
+                + "AND ss.status IN ('DRAFT', 'PUBLISHED', 'ON_LEAVE') "
                 + "ORDER BY ss.work_date, s.start_time";
 
         try (Connection c = connect();
@@ -101,6 +112,8 @@ public class LeaveShiftOptionDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    String status = rs.getString("status");
+
                     Map<String, Object> row = new LinkedHashMap<>();
                     row.put("workDate", rs.getDate("workDate"));
                     row.put("shiftId", rs.getInt("shiftId"));
@@ -109,7 +122,9 @@ public class LeaveShiftOptionDAO {
                     row.put("hours", rs.getInt("minutes") / 60.0);
                     row.put("startTime", rs.getString("startTime"));
                     row.put("endTime", rs.getString("endTime"));
-                    row.put("onLeave", "ON_LEAVE".equals(rs.getString("status")));
+                    row.put("status", status);
+                    row.put("published", "PUBLISHED".equals(status));
+                    row.put("onLeave", "ON_LEAVE".equals(status));
                     result.add(row);
                 }
             }
@@ -147,6 +162,49 @@ public class LeaveShiftOptionDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1) > 0;
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot check published week", e);
+        }
+
+        return false;
+    }
+
+    /**
+     * Tuần đã được publish ĐẦY ĐỦ chưa?
+     *
+     * <h3>Vì sao cần phân biệt?</h3>
+     * Lịch có thể được publish theo từng phần: một số ngày đã
+     * {@code PUBLISHED}, số ngày khác còn {@code DRAFT}. Nếu chỉ
+     * kiểm tra "có ít nhất 1 ca PUBLISHED" thì header sẽ báo "lịch đã
+     * được xếp" trong khi thực tế phần lớn tuần chưa publish ->
+     * gây hiểu nhầm cho nhân viên.
+     *
+     * @return true nếu tuần KHÔNG còn dòng {@code DRAFT} nào
+     */
+    public boolean isWeekFullyPublished(int branchId,
+            java.time.LocalDate monday) {
+
+        String sql = "SELECT COUNT(*) FROM shift_schedules "
+                + "WHERE branch_id = ? "
+                + "AND status = 'DRAFT' "
+                + "AND work_date BETWEEN ? AND ?";
+
+        java.time.LocalDate sunday = monday.plusDays(6);
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, branchId);
+            ps.setDate(2, java.sql.Date.valueOf(monday));
+            ps.setDate(3, java.sql.Date.valueOf(sunday));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) == 0;
                 }
             }
 

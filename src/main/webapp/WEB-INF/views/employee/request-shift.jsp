@@ -172,6 +172,15 @@
     <c:if test="${param.invalid eq '1'}">
         <div class="alert alert-warning">
             Không thể gửi đơn. Vui lòng kiểm tra ca đã chọn.
+            <br>
+            <small>
+                Lưu ý: bạn chỉ được đổi ca với đồng nghiệp
+                <strong>cùng chức vụ</strong>,
+                <strong>cùng nhóm làm việc</strong>
+                (full-time chỉ đổi với full-time,
+                part-time chỉ đổi với part-time) và
+                <strong>cùng tuần đang xem</strong>.
+            </small>
         </div>
     </c:if>
 
@@ -335,6 +344,11 @@
                 <input type="hidden" name="action" id="formAction"
                        value="create">
 
+                <%-- Tuần đang xem: dùng để validate đổi ca cùng tuần --%>
+                <input type="hidden" name="startDate"
+                       id="startDateInput"
+                       value="<c:out value='${weekStart}'/>">
+
                 <div class="mb-3">
                     <label class="form-label">
                         Ca làm hiện tại của bạn
@@ -358,6 +372,18 @@
 
                 <%-- ============ CHẾ ĐỘ 1: ĐỔI VỚI ĐỒNG NGHIỆP ============ --%>
                 <div class="mb-4" id="swapMode">
+
+                    <div class="alert alert-info py-2 px-3"
+                         style="font-size: 13px;">
+                        <strong>Quy tắc đổi ca:</strong>
+                        bạn chỉ có thể đổi ca với đồng nghiệp
+                        <strong>cùng chức vụ</strong>,
+                        <strong>cùng nhóm làm việc</strong>
+                        (full-time chỉ đổi với full-time,
+                        part-time chỉ đổi với part-time) và
+                        <strong>cùng tuần đang xem</strong>.
+                    </div>
+
                     <div class="d-flex justify-content-between
                          align-items-center mb-3">
 
@@ -692,6 +718,18 @@
 
     let weekStart = getMonday(new Date());
 
+    // Tuần đang xem do server quyết định (thứ 2 của tuần được chọn).
+    const serverWeekStart = document.getElementById("startDateInput");
+    if (serverWeekStart && serverWeekStart.value) {
+        const parts = serverWeekStart.value.split("-");
+        if (parts.length === 3) {
+            weekStart = new Date(
+                Number(parts[0]),
+                Number(parts[1]) - 1,
+                Number(parts[2])
+            );
+        }
+    }
     function resetSelection() {
         targetInput.value = "";
         panel.classList.add("d-none");
@@ -819,19 +857,26 @@
         });
     }
 
+    // ---- Chuyển tuần ----
+    // Dữ liệu ca được load theo TUẦN ĐANG XEM từ server, nên khi
+    // đổi tuần phải reload lại trang kèm tham số startDate.
+    function gotoWeek(offsetDays) {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + offsetDays);
+
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+
+        window.location.href =
+                window.location.pathname + "?startDate=" + y + "-" + m + "-" + day;
+    }
+
     document.getElementById("prevWeek")
-            .addEventListener("click", () => {
-                weekStart.setDate(weekStart.getDate() - 7);
-                resetSelection();
-                renderWeek();
-            });
+            .addEventListener("click", () => gotoWeek(-7));
 
     document.getElementById("nextWeek")
-            .addEventListener("click", () => {
-                weekStart.setDate(weekStart.getDate() + 7);
-                resetSelection();
-                renderWeek();
-            });
+            .addEventListener("click", () => gotoWeek(7));
 
     const swapForm = targetInput.closest("form");
 

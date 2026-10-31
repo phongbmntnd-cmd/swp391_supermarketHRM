@@ -1250,12 +1250,34 @@ public class LeaveRequestDAO {
                     int positionId = findPosition(
                             c, scheduleId, userId);
 
+                    // FALLBACK: NV tick ca theo ca CỐ ĐỊNH (khi lịch
+                    // chưa publish) nhưng Store lại xếp ca KHÁC cho
+                    // cùng ngày đó. Ví dụ NV tick "Ca Tối" (cố định
+                    // PT_FIXED_EVENING) nhưng Store xếp "Ca Sáng".
+                    // Khi đó cặp (ngày, ca) không khớp -> thay vì bỏ qua
+                    // (đơn nghỉ mất hiệu lực), ta khớp theo NGÀY:
+                    // ca đã xếp của ngày đó chính là ca cần nghỉ.
+                    int actualShiftId = shiftId;
+
+                    if (scheduleId <= 0) {
+                        int sameDayShiftId = findShiftOnDate(
+                                c, userId, workDate);
+
+                        if (sameDayShiftId > 0) {
+                            actualShiftId = sameDayShiftId;
+                            scheduleId = findSchedule(
+                                    c, userId, actualShiftId, workDate);
+                            positionId = findPosition(
+                                    c, scheduleId, userId);
+                        }
+                    }
+
                     if (scheduleId <= 0 || positionId <= 0) {
                         continue;   // lịch chưa khớp -> bỏ qua
                     }
 
                     psMark.setInt(1, userId);
-                    psMark.setInt(2, shiftId);
+                    psMark.setInt(2, actualShiftId);
                     psMark.setDate(3, workDate);
                     if (psMark.executeUpdate() == 0) {
                         continue;
@@ -1269,12 +1291,12 @@ public class LeaveRequestDAO {
                     // (Đơn có thể được tạo khi lịch chưa publish, lúc
                     // đó giờ chỉ là ước lượng theo ca cố định.)
                     updateDetailHours(
-                            c, requestId, shiftId, workDate);
+                            c, requestId, shiftId, actualShiftId, workDate);
 
                     // Đưa vào ca trống (liên kết nếu đã có, tránh trùng)
                     int existingId = -1;
                     psFind.setInt(1, branchId);
-                    psFind.setInt(2, shiftId);
+                    psFind.setInt(2, actualShiftId);
                     psFind.setDate(3, workDate);
                     try (ResultSet rs = psFind.executeQuery()) {
                         if (rs.next()) {
@@ -1288,7 +1310,7 @@ public class LeaveRequestDAO {
                         psLink.executeUpdate();
                     } else {
                         psIns.setInt(1, branchId);
-                        psIns.setInt(2, shiftId);
+                        psIns.setInt(2, actualShiftId);
                         psIns.setInt(3, positionId);
                         psIns.setDate(4, workDate);
                         psIns.setInt(5, requestId);
@@ -1443,11 +1465,39 @@ public class LeaveRequestDAO {
      * lúc tạo đơn chỉ là ước lượng theo ca cố định, cần sửa lại
      * theo ca thật để quota được trừ chính xác.
      */
+    /**
+     * Cập nhật giờ + tên ca trong bảng chi tiết theo ca THỰC TẾ.
+     *
+     * <h3>Tham số</h3>
+     * <ul>
+     *   <li>{@code fromShiftId} - ca ghi trong chi tiết đơn (có thể là
+     *       ca cố định mà NV tick lúc lịch chưa publish).</li>
+     *   <li>{@code toShiftId} - ca thực tế trong lịch (nếu khác thì
+     *       cần sửa lại {@code shift_id} của chi tiết).</li>
+     * </ul>
+     */
     private void updateDetailHours(
             Connection c,
             int requestId,
-            int shiftId,
+            int fromShiftId,
+            int toShiftId,
             java.sql.Date workDate) throws SQLException {
+
+        // Ca thực tế khác ca đã tick -> sửa shift_id cho khớp.
+        if (fromShiftId != toShiftId) {
+            String fixSql = "UPDATE leave_request_shifts "
+                    + "SET shift_id = ? "
+                    + "WHERE leave_request_id = ? "
+                    + "AND shift_id = ? AND work_date = ?";
+
+            try (PreparedStatement ps = c.prepareStatement(fixSql)) {
+                ps.setInt(1, toShiftId);
+                ps.setInt(2, requestId);
+                ps.setInt(3, fromShiftId);
+                ps.setDate(4, workDate);
+                ps.executeUpdate();
+            }
+        }
 
         String sql = "UPDATE leave_request_shifts lrs "
                 + "JOIN shifts s ON s.id = lrs.shift_id "
@@ -1459,7 +1509,7 @@ public class LeaveRequestDAO {
 
         try (PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, requestId);
-            ps.setInt(2, shiftId);
+            ps.setInt(2, toShiftId);
             ps.setDate(3, workDate);
             ps.executeUpdate();
         }
@@ -1504,6 +1554,40 @@ public class LeaveRequestDAO {
             ps.setInt(1, userId);
             ps.setInt(2, shiftId);
             ps.setDate(3, workDate);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+
+        return -1;
+    }
+
+    /**
+     * Tìm ca mà nhân viên được xếp trong một ngày (bất kể ca nào).
+     *
+     * <h3>Dùng để làm gì?</h3>
+     * Khi part-time xin nghỉ TRƯỚC khi lịch được publish, hệ thống
+     * cho họ tick theo ca CỐ ĐỊNH. Nếu Store sau đó xếp ca KHÁC cho
+     * cùng ngày đó, cặp (ngày, ca) sẽ không khớp. Hàm này giúp tìm
+     * ca thực tế của ngày đó để hệ thống khớp đơn nghỉ theo NGÀY.
+     *
+     * @return shift_id của ca đã xếp, hoặc -1 nếu ngày đó không có ca
+     */
+    private int findShiftOnDate(
+            Connection c,
+            int userId,
+            java.sql.Date workDate) throws SQLException {
+
+        String sql = "SELECT shift_id FROM shift_schedules "
+                + "WHERE user_id = ? AND work_date = ? "
+                + "AND status = 'PUBLISHED' "
+                + "ORDER BY id LIMIT 1";
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ps.setDate(2, workDate);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {

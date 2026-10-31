@@ -330,6 +330,14 @@
                                                     <c:set var="assignedCount" value="0" />
                                                 </c:if>
 
+                                                <%-- Số nhân viên ĐÃ ĐĂNG KÝ RẢNH cho ca này (ngày + ca + vị trí).
+                                                     Giúp Store thấy được có bao nhiêu người có thể chọn. --%>
+                                                <c:set var="regKey" value="${day}_${shift.id}_${pos.id}" />
+                                                <c:set var="registeredCount" value="${registrationCounts[regKey]}" />
+                                                <c:if test="${empty registeredCount}">
+                                                    <c:set var="registeredCount" value="0" />
+                                                </c:if>
+
                                                 <%-- Kiểm tra trạng thái đã gửi/mở từ Servlet --%>
                                                 <c:set var="isSupplementaryOpened" value="${supplementaryOpenedMap[reqKey]}" />
                                                 <c:set var="isTransferProposed" value="${transferProposedMap[reqKey]}" />
@@ -371,6 +379,12 @@
                                                                 onclick="openShortageModal('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}', '${assignedCount}', '${pos.title}', '${shift.name}')">
                                                             ${assignedCount} / ${requiredCount}
                                                         </button>
+                                                        <c:if test="${not empty registeredCount}">
+                                                            <span class="badge bg-secondary text-light" style="font-size: 9px;"
+                                                                  title="Số nhân viên đã đăng ký lịch rảnh cho ca này">
+                                                                <i class="fa-solid fa-user-check me-1"></i>${registeredCount} ĐK
+                                                            </span>
+                                                        </c:if>
                                                         <c:if test="${!isPublished}">
                                                             <button type="button" class="btn btn-sm btn-link p-0 text-muted" style="font-size: 11px;" 
                                                                     onclick="openRequirementPrompt('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}')">
@@ -381,7 +395,17 @@
 
                                                     <c:set var="hasEmployee" value="false" />
 
-                                                    <%-- PHÂN TÁC CA: Nếu ca là ca Full-time thì chỉ hiển thị nhân viên Full-time (đã lọc theo shiftType cố định) --%>
+                                                    <%-- Ca đã xếp của ô này, kèm trạng thái PUBLISHED / DRAFT / ON_LEAVE --%>
+                                                    <c:set var="cellAssignments" value="${assignedStaffMap[reqKey]}" />
+
+                                                    <%-- ============================================================
+                                                          PHÂN TÁC CA:
+                                                          - Ca Full-time: nhân viên FT có lịch cố định (không cần đăng ký rảnh).
+                                                          - Ca thường (PT/Casual): CHỈ hiển thị nhân viên ĐÃ ĐĂNG KÝ RẢNH
+                                                            cho đúng ca + đúng ngày đó, cộng thêm người đăng ký ca bổ sung,
+                                                            cộng thêm người đã được xếp ca trước đó (để không mất dấu
+                                                            ca đã publish / đang nghỉ phép).
+                                                          ============================================================ --%>
                                                     <c:choose>
                                                         <c:when test="${shift.name.toLowerCase().contains('full-time') || shift.name.toLowerCase().contains('full time')}">
                                                             <c:forEach var="ft" items="${fullTimeEmployees}">
@@ -404,16 +428,20 @@
                                                                     <c:if test="${showFt}">
                                                                         <c:set var="currentKey" value="${ft.userId}_${shift.id}_${workDate}" />
                                                                         <c:set var="isAssigned" value="false" />
-                                                                        <c:forEach var="asg" items="${assignedList}">
-                                                                            <c:if test="${asg eq currentKey}">
+                                                                        <c:set var="assignStatus" value="" />
+                                                                        <c:forEach var="asg" items="${cellAssignments}">
+                                                                            <c:if test="${asg.userId eq ft.userId}">
                                                                                 <c:set var="isAssigned" value="true" />
+                                                                                <c:set var="assignStatus" value="${asg.status}" />
                                                                             </c:if>
                                                                         </c:forEach>
 
-                                                                        <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
+                                                                        <div class="employee-tag ${isAssigned ? 'assigned' : ''}"
                                                                              onclick="toggleAssignment(this, '${ft.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
                                                                             <div>
                                                                                 <strong>${ft.fullName}</strong> <span class="badge bg-info text-dark" style="font-size: 9px;">FT</span>
+                                                                                <c:if test="${assignStatus eq 'ON_LEAVE'}"><span class="badge bg-secondary text-light" style="font-size: 9px;">Nghỉ phép</span></c:if>
+                                                                                <c:if test="${assignStatus eq 'DRAFT'}"><span class="badge bg-warning text-dark" style="font-size: 9px;" title="Chưa publish - nhân viên chưa thấy ca này">Chưa publish</span></c:if>
                                                                             </div>
                                                                             <div>
                                                                                 <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
@@ -425,28 +453,98 @@
                                                             </c:forEach>
                                                         </c:when>
                                                         <c:otherwise>
-                                                            <%-- Nếu là ca thường (Part-time / Casual), chỉ hiển thị nhân viên đã đăng ký lịch rảnh --%>
+                                                            <%-- Ca thường: chỉ nhân viên đã đăng ký rảnh đúng ca + đúng ngày --%>
                                                             <c:forEach var="reg" items="${branchRegistrations}">
                                                                 <c:if test="${reg.positionTitle eq pos.title and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
                                                                     <c:set var="currentKey" value="${reg.userId}_${shift.id}_${workDate}" />
                                                                     <c:set var="isAssigned" value="false" />
-                                                                    <c:forEach var="asg" items="${assignedList}">
-                                                                        <c:if test="${asg eq currentKey}">
+                                                                    <c:set var="assignStatus" value="" />
+                                                                    <c:forEach var="asg" items="${cellAssignments}">
+                                                                        <c:if test="${asg.userId eq reg.userId}">
                                                                             <c:set var="isAssigned" value="true" />
+                                                                            <c:set var="assignStatus" value="${asg.status}" />
                                                                         </c:if>
                                                                     </c:forEach>
 
-                                                                    <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
+                                                                    <div class="employee-tag ${isAssigned ? 'assigned' : ''}"
                                                                          onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
                                                                         <div>
                                                                             <strong>${reg.fullName}</strong>
-                                                                            <c:choose>
-                                                                                <c:when test="${reg.registrationType eq 'SUPPLEMENTARY'}"><span class="badge bg-warning text-dark" style="font-size: 9px;">Đăng ký bổ sung</span></c:when>
-                                                                                <c:otherwise><span class="badge bg-light text-dark" style="font-size: 9px;">PT</span></c:otherwise>
-                                                                            </c:choose>
+                                                                            <span class="badge bg-light text-dark" style="font-size: 9px;">PT</span>
+                                                                            <c:if test="${assignStatus eq 'ON_LEAVE'}"><span class="badge bg-secondary text-light" style="font-size: 9px;">Nghỉ phép</span></c:if>
+                                                                            <c:if test="${assignStatus eq 'DRAFT'}"><span class="badge bg-warning text-dark" style="font-size: 9px;" title="Chưa publish - nhân viên chưa thấy ca này">Chưa publish</span></c:if>
                                                                         </div>
                                                                         <div>
                                                                             <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
+                                                                        </div>
+                                                                    </div>
+                                                                    <c:set var="hasEmployee" value="true" />
+                                                                </c:if>
+                                                            </c:forEach>
+
+                                                            <%-- Nhân viên đã đăng ký tham gia ca bổ sung (đăng ký vào ca trống).
+                                                                 Gắn với NGÀY CỤ THỂ nên chỉ hiện đúng ngày đó. --%>
+                                                            <c:forEach var="supp" items="${supplementaryApplicants}">
+                                                                <c:if test="${supp.workDate eq workDate and supp.positionId eq pos.id and supp.shiftId eq shift.id}">
+                                                                    <%-- Tránh hiển thị trùng nếu người đó đã có trong danh sách đăng ký rảnh --%>
+                                                                    <c:set var="alreadyShown" value="false" />
+                                                                    <c:forEach var="reg" items="${branchRegistrations}">
+                                                                        <c:if test="${reg.userId eq supp.userId and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
+                                                                            <c:set var="alreadyShown" value="true" />
+                                                                        </c:if>
+                                                                    </c:forEach>
+                                                                    <c:if test="${not alreadyShown}">
+                                                                        <c:set var="currentKey" value="${supp.userId}_${shift.id}_${workDate}" />
+                                                                        <c:set var="isAssigned" value="false" />
+                                                                        <c:set var="assignStatus" value="" />
+                                                                        <c:forEach var="asg" items="${cellAssignments}">
+                                                                            <c:if test="${asg.userId eq supp.userId}">
+                                                                                <c:set var="isAssigned" value="true" />
+                                                                                <c:set var="assignStatus" value="${asg.status}" />
+                                                                            </c:if>
+                                                                        </c:forEach>
+
+                                                                        <div class="employee-tag ${isAssigned ? 'assigned' : ''}"
+                                                                             onclick="toggleAssignment(this, '${supp.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
+                                                                            <div>
+                                                                                <strong>${supp.fullName}</strong>
+                                                                                <span class="badge bg-warning text-dark" style="font-size: 9px;">Đăng ký bổ sung</span>
+                                                                                <c:if test="${assignStatus eq 'ON_LEAVE'}"><span class="badge bg-secondary text-light" style="font-size: 9px;">Nghỉ phép</span></c:if>
+                                                                            </div>
+                                                                            <div>
+                                                                                <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
+                                                                            </div>
+                                                                        </div>
+                                                                        <c:set var="hasEmployee" value="true" />
+                                                                    </c:if>
+                                                                </c:if>
+                                                            </c:forEach>
+
+                                                            <%-- Nhân viên đã được xếp ca trước đó nhưng KHÔNG có trong danh sách đăng ký
+                                                                 (ví dụ: lịch đã publish từ tuần trước, hoặc ca được mượn).
+                                                                 Vẫn phải hiện để Store không mất dấu lịch đang có. --%>
+                                                            <c:forEach var="asg" items="${cellAssignments}">
+                                                                <c:set var="inCandidateList" value="false" />
+                                                                <c:forEach var="reg" items="${branchRegistrations}">
+                                                                    <c:if test="${reg.userId eq asg.userId and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
+                                                                        <c:set var="inCandidateList" value="true" />
+                                                                    </c:if>
+                                                                </c:forEach>
+                                                                <c:forEach var="supp" items="${supplementaryApplicants}">
+                                                                    <c:if test="${supp.userId eq asg.userId and supp.workDate eq workDate}">
+                                                                        <c:set var="inCandidateList" value="true" />
+                                                                    </c:if>
+                                                                </c:forEach>
+                                                                <c:if test="${not inCandidateList}">
+                                                                    <div class="employee-tag assigned" style="opacity: 0.75;"
+                                                                         onclick="toggleAssignment(this, '${asg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
+                                                                        <div>
+                                                                            <strong>${asg.fullName}</strong>
+                                                                            <span class="badge bg-light text-dark" style="font-size: 9px;">Đã xếp</span>
+                                                                            <c:if test="${asg.status eq 'ON_LEAVE'}"><span class="badge bg-secondary text-light" style="font-size: 9px;">Nghỉ phép</span></c:if>
+                                                                        </div>
+                                                                        <div>
+                                                                            <i class="fa-solid fa-check-circle text-success check-icon"></i>
                                                                         </div>
                                                                     </div>
                                                                     <c:set var="hasEmployee" value="true" />
@@ -725,11 +823,16 @@
                                                                                                  location.reload();
                                                                                                  return;
                                                                                              }
-                                                                                             if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
-                                                                                                 alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
-                                                                                                 location.reload();
-                                                                                                 return;
-                                                                                             }
+                                                                                            if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
+                                                                                                alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
+                                                                                                location.reload();
+                                                                                                return;
+                                                                                            }
+                                                                                            if (result.trim() === 'not_registered') {
+                                                                                                alert('Nhân viên này chưa đăng ký lịch rảnh cho ca này trong ngày này.\nStore chỉ được xếp nhân viên đã đăng ký rảnh.');
+                                                                                                location.reload();
+                                                                                                return;
+                                                                                            }
                                                                                              if (result.trim() === 'added') {
                                                                                                  element.classList.add('assigned');
                                                                                                  icon.className = 'fa-solid fa-check-circle text-success check-icon';
