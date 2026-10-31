@@ -4,6 +4,7 @@ import controller.base.BaseServlet;
 import model.User;
 import model.Employee;
 import model.Branch;
+import dao.BranchDAO;
 import dao.EmployeeDAO;
 import dao.EmployeeLockDAO;
 import dao.LeaveRequestDAO;
@@ -41,11 +42,18 @@ public class StoreManagerDashboardServlet extends BaseServlet {
         try {
             int resolvedBranchId = 0;
 
-            // 1. Ưu tiên tìm chi nhánh mà user này làm Store Manager trực tiếp qua bảng branches
-            resolvedBranchId = getBranchIdByManagerId(currentUser.getId());
+            // 1. Lấy từ BaseServlet (nếu hệ thống đã hỗ trợ sẵn session/currentBranchId)
+            try {
+                resolvedBranchId = getCurrentBranchId(request);
+            } catch (Exception ignored) {}
 
-            // 2. Nếu không tìm thấy, fallback lấy theo home_branch_id của nhân viên
-            if (resolvedBranchId == 0) {
+            // 2. Nếu chưa có, tìm chi nhánh mà user này làm Store Manager trực tiếp qua bảng branches
+            if (resolvedBranchId <= 0) {
+                resolvedBranchId = getBranchIdByManagerId(currentUser.getId());
+            }
+
+            // 3. Nếu vẫn không tìm thấy, fallback lấy theo home_branch_id của nhân viên
+            if (resolvedBranchId <= 0) {
                 EmployeeDAO empDao = new EmployeeDAO();
                 Employee currentEmp = empDao.getEmployeeById(currentUser.getId());
                 if (currentEmp != null) {
@@ -53,32 +61,45 @@ public class StoreManagerDashboardServlet extends BaseServlet {
                 }
             }
 
-            // Fallback an toàn cuối cùng nếu vẫn bằng 0
-            if (resolvedBranchId == 0) {
+            // Fallback an toàn cuối cùng nếu tất cả đều bằng 0
+            if (resolvedBranchId <= 0) {
                 resolvedBranchId = 1; 
             }
 
-            // Tạo biến final để sử dụng an toàn bên trong biểu thức Lambda
             final int branchId = resolvedBranchId;
 
-            // 3. Lấy thông tin chi tiết của cơ sở hiện tại
-            Branch currentBranch = getBranchById(branchId);
+            // 4. Lấy thông tin chi tiết của cơ sở hiện tại thông qua BranchDAO chuẩn
+            BranchDAO branchDAO = new BranchDAO();
+            Branch currentBranch = branchDAO.getBranchById(branchId);
+            
+            // Phòng hờ nếu DAO trả về null, khởi tạo đối tượng mặc định để tránh lỗi hiển thị JSP
+            if (currentBranch == null) {
+                currentBranch = new Branch();
+                currentBranch.setId(branchId);
+                currentBranch.setName("Chi nhánh mặc định");
+                currentBranch.setCode("BRANCH-" + branchId);
+                currentBranch.setAddress("Đang cập nhật");
+            }
 
-            // 4. Chỉ đếm nhân viên (role_id = 5) thuộc đúng chi nhánh này
+            // --- XỬ LÝ GHÉP CHUỖI HIỂN THỊ CHI NHÁNH TẠI SERVLET ---
+            String displayBranchInfo = currentBranch.getName() + " (" + currentBranch.getCode() + ") - " + currentBranch.getAddress();
+            request.setAttribute("displayBranchInfo", displayBranchInfo);
+
+            // 5. Chỉ đếm nhân viên thuộc đúng chi nhánh này
             EmployeeDAO empDao = new EmployeeDAO();
-            int totalEmployees = empDao.getAllEmployees(null,null,null,null).stream()
+            int totalEmployees = empDao.getAllEmployees(null, null, null, null).stream()
                     .filter(e -> e.getHomeBranchId() == branchId && e.getRoleId() == 5)
                     .mapToInt(e -> 1).sum();
 
-            // 5. Tổng số đề xuất tuyển dụng của chi nhánh
+            // 6. Tổng số đề xuất tuyển dụng của chi nhánh
             RecruitmentProposalDAO proposalDao = new RecruitmentProposalDAO();
             int totalProposals = proposalDao.getProposalsByBranch(branchId).size();
 
-            // 6. Tổng số ca trực trong ngày hôm nay của chi nhánh
+            // 7. Tổng số ca trực trong ngày hôm nay của chi nhánh
             ShiftScheduleDAO scheduleDao = new ShiftScheduleDAO();
             int totalShifts = scheduleDao.countTodaySchedulesByBranch(branchId);
 
-            // 7. Số tài khoản đang bị khóa khẩn cấp tại chi nhánh
+            // 8. Số tài khoản đang bị khóa khẩn cấp tại chi nhánh
             EmployeeLockDAO lockDao = new EmployeeLockDAO();
             int lockedCount = lockDao.countLockedEmployeesByBranch(branchId, null, null, null);
 
@@ -89,7 +110,7 @@ public class StoreManagerDashboardServlet extends BaseServlet {
             request.setAttribute("totalShifts", totalShifts);
             request.setAttribute("lockedCount", lockedCount);
 
-            // 8. Tổng số đơn (nghỉ phép + đổi ca) đang chờ duyệt của chi nhánh
+            // 9. Tổng số đơn (nghỉ phép + đổi ca) đang chờ duyệt của chi nhánh
             request.setAttribute(
                     "pendingRequestCount",
                     countPendingRequests(branchId)
@@ -104,21 +125,18 @@ public class StoreManagerDashboardServlet extends BaseServlet {
 
     /**
      * Tổng số đơn (nghỉ phép + đổi ca) của chi nhánh đang chờ duyệt.
-     * Nếu lỗi truy vấn thì trả 0 để trang vẫn hiển thị bình thường.
      */
     private int countPendingRequests(int branchId) {
         int total = 0;
 
         try {
-            total += new LeaveRequestDAO()
-                    .countBranchPendingRequests(branchId);
+            total += new LeaveRequestDAO().countBranchPendingRequests(branchId);
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         try {
-            total += new ShiftChangeRequestDAO()
-                    .countBranchPendingShiftRequests(branchId);
+            total += new ShiftChangeRequestDAO().countBranchPendingShiftRequests(branchId);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -127,7 +145,8 @@ public class StoreManagerDashboardServlet extends BaseServlet {
     }
 
     // Hàm phụ trợ: Lấy branchId dựa vào store_manager_id trong bảng branches
-    private int getBranchIdByManagerId(int managerId) {        String sql = "SELECT id FROM branches WHERE store_manager_id = ?";
+    private int getBranchIdByManagerId(int managerId) {
+        String sql = "SELECT id FROM branches WHERE store_manager_id = ?";
         try (Connection conn = new DBContext().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, managerId);
@@ -140,26 +159,5 @@ public class StoreManagerDashboardServlet extends BaseServlet {
             e.printStackTrace();
         }
         return 0;
-    }
-
-    private Branch getBranchById(int branchId) {
-        String sql = "SELECT id, code, name, address, status, store_manager_id FROM branches WHERE id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, branchId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    Branch b = new Branch();
-                    b.setId(rs.getInt("id"));
-                    b.setCode(rs.getString("code"));
-                    b.setName(rs.getString("name"));
-                    b.setAddress(rs.getString("address"));
-                    return b;
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 }

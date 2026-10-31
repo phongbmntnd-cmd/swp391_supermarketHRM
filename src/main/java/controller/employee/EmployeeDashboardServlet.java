@@ -1,13 +1,18 @@
 package controller.employee;
 
 import controller.base.BaseServlet;
+import dao.AttendanceDAO;
 import model.User;
 import model.Employee;
+import model.Attendance;
 import dao.EmployeeDAO;
 import dao.LeaveRequestDAO;
 import dao.ShiftChangeRequestDAO;
 import dao.ShiftScheduleDAO;
 import java.io.IOException;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -42,9 +47,13 @@ public class EmployeeDashboardServlet extends BaseServlet {
             // 4. Lấy danh sách toàn bộ ca trực trong ngày hôm nay của nhân viên
             ShiftScheduleDAO scheduleDao = new ShiftScheduleDAO();
             List<String> todayShifts = scheduleDao.getTodayShiftsForEmployee(currentUser.getId());
+            List<Attendance> todayAttendance = new AttendanceDAO().getEmployeeShifts(
+                    currentUser.getId(),
+                    Date.valueOf(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"))));
 
             request.setAttribute("emp", emp);
             request.setAttribute("todayShifts", todayShifts);
+            request.setAttribute("attendanceStatus", getAttendanceStatus(todayShifts, todayAttendance));
 
             // 4b. Đếm số đơn (nghỉ phép + đổi ca) đang chờ duyệt
             request.setAttribute(
@@ -64,6 +73,28 @@ public class EmployeeDashboardServlet extends BaseServlet {
 
         // 5. Forward ra view dashboard.jsp
         request.getRequestDispatcher("/WEB-INF/views/employee/dashboard.jsp").forward(request, response);
+    }
+
+    private String getAttendanceStatus(List<String> todayShifts, List<Attendance> todayAttendance) {
+        if (todayShifts.isEmpty()) {
+            return "Hôm nay không có ca";
+        }
+        if (todayAttendance.isEmpty()) {
+            return "Chưa có dữ liệu chấm công";
+        }
+
+        long checkedIn = todayAttendance.stream().filter(a -> a.getCheckIn() != null).count();
+        long checkedOut = todayAttendance.stream().filter(a -> a.getCheckOut() != null).count();
+        if (checkedIn == 0) {
+            return "Chưa Check-in";
+        }
+        if (checkedOut == todayAttendance.size()) {
+            return "Đã hoàn thành ca";
+        }
+        if (checkedIn == todayAttendance.size()) {
+            return "Đang trong ca";
+        }
+        return "Đã Check-in " + checkedIn + "/" + todayAttendance.size() + " ca";
     }
 
     /**
@@ -102,4 +133,5 @@ public class EmployeeDashboardServlet extends BaseServlet {
             return 0;
         }
     }
+
 }

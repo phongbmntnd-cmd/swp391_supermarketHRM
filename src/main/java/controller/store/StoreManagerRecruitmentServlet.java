@@ -1,8 +1,10 @@
 package controller.store;
 
 import controller.base.BaseServlet;
+import dao.BranchDAO;
 import dao.CommonDAO;
 import dao.RecruitmentProposalDAO;
+import model.Branch;
 import model.Position;
 import model.User;
 
@@ -149,7 +151,13 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
     private void loadFormData(HttpServletRequest request, User user) {
         CommonDAO commonDAO = new CommonDAO();
         RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
+        BranchDAO branchDAO = new BranchDAO();
+
+        // Lấy thông tin chi tiết chi nhánh quản lý dựa vào homeBranchId của Store Manager
+        Branch currentBranch = branchDAO.getBranchById(user.getHomeBranchId());
+
         request.setAttribute("positions", commonDAO.getStoreEmployeePositions());
         request.setAttribute("proposals", proposalDAO.getProposalsByBranch(user.getHomeBranchId()));
+        request.setAttribute("currentBranch", currentBranch);
     }
 }

@@ -61,7 +61,7 @@
         </li>
 
         <li>
-            <a href="#">
+            <a href="${pageContext.request.contextPath}/employee/attendance">
                 <i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến
             </a>
         </li>

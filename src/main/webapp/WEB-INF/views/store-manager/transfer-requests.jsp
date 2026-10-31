@@ -11,7 +11,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Quản Lý Điều Chuyển Nhân Sự - Supermarket HRM</title>
+        <title>Quản Lý Điều Chuyển Nhân Sự - Store Manager</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
         <!-- Bootstrap 5 -->
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -63,6 +63,8 @@
                 list-style: none;
                 padding: 20px 0;
                 flex-grow: 1;
+                margin: 0;
+                overflow-y: auto;
             }
             .sidebar-menu li a {
                 display: flex;
@@ -93,6 +95,7 @@
                 flex-grow: 1;
                 display: flex;
                 flex-direction: column;
+                min-width: 0;
             }
 
             /* --- TOP NAVBAR --- */
@@ -112,18 +115,13 @@
                 font-size: 18px;
                 font-weight: 500;
                 color: #334155;
+                margin: 0;
             }
             .user-info {
                 display: flex;
                 align-items: center;
                 gap: 20px;
                 font-size: 14px;
-            }
-            .user-info .notification-badge {
-                position: relative;
-                color: #64748b;
-                font-size: 18px;
-                cursor: pointer;
             }
             .user-profile {
                 display: flex;
@@ -145,6 +143,7 @@
                 border-radius: 6px;
                 font-weight: 500;
                 font-size: 13px;
+                white-space: nowrap;
                 transition: all 0.2s;
             }
             .btn-logout:hover {
@@ -156,32 +155,48 @@
             .container-dashboard {
                 max-width: 1400px;
                 margin: 30px;
-                padding: 0;
+            }
+
+            /* --- BRANCH INFO BAR --- */
+            .branch-info-bar {
+                background-color: #eef2ff;
+                border: 1px solid #c7d2fe;
+                color: #3730a3;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-size: 14px;
+                margin-bottom: 25px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-weight: 500;
+            }
+            .branch-info-bar i {
+                color: #2563eb;
+                font-size: 16px;
             }
 
             /* --- PAGE HEADER CARD --- */
             .page-header-card {
-                background: white;
+                background: linear-gradient(135deg, #0ea5e9, #0284c7);
+                color: white;
                 padding: 25px 30px;
                 border-radius: 12px;
-                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-                border: 1px solid #f1f5f9;
+                box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.2);
                 margin-bottom: 25px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
+                flex-wrap: wrap;
+                gap: 15px;
             }
             .page-header-card h2 {
                 font-size: 22px;
                 font-weight: 600;
-                color: #1e293b;
                 display: flex;
                 align-items: center;
                 gap: 12px;
                 margin: 0;
-            }
-            .page-header-card h2 i {
-                color: #0284c7;
             }
 
             /* --- SECTION CARD --- */
@@ -205,6 +220,21 @@
             .section-title i {
                 color: #0284c7;
             }
+
+            @media (max-width: 900px) {
+                .sidebar { width: 220px; }
+                .main-wrapper { margin-left: 220px; }
+                .container-dashboard { margin: 20px; }
+            }
+            @media (max-width: 650px) {
+                body { display: block; }
+                .sidebar { position: static; width: 100%; }
+                .sidebar-menu { display: flex; overflow-x: auto; padding: 5px 0; }
+                .sidebar-menu li { flex: 0 0 auto; }
+                .main-wrapper { margin-left: 0; }
+                .top-navbar { position: static; flex-wrap: wrap; }
+                .container-dashboard { margin: 15px; }
+            }
         </style>
     </head>
     <body>
@@ -212,13 +242,19 @@
         <!-- Sidebar Điều Hướng Trái (Store Manager Portal) -->
         <div class="sidebar">
             <div class="sidebar-brand">
-                <i class="fa-solid fa-shop"></i>
+                <i class="fa-solid fa-store"></i>
                 <span>Store Manager</span>
             </div>
             <ul class="sidebar-menu">
-                <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-days"></i> Xếp lịch ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Nhân sự cơ sở</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng</a></li>
                 <li class="active"><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users"></i> Nhân sự chi nhánh</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clock-rotate-left"></i> Chấm công & Ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-week"></i> Xếp lịch & Phân ca</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/violations"><i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/leave-requests"><i class="fa-solid fa-plane-departure"></i> Duyệt nghỉ phép</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-rotate"></i> Duyệt đổi ca</a></li>
             </ul>
         </div>
 
@@ -227,14 +263,11 @@
 
             <!-- Top Header -->
             <div class="top-navbar">
-                <h1>Hệ Thống Quản Trị Cửa Hàng (Store Manager Portal)</h1>
+                <h1>Hệ Thống Quản Lý Siêu Thị - Chi Nhánh Trực Thuộc</h1>
                 <div class="user-info">
-                    <div class="notification-badge" title="Thông báo mới">
-                        <i class="fa-regular fa-bell"></i>
-                    </div>
                     <div class="user-profile">
-                        <img src="https://ui-avatars.com/api/?name=${sessionScope.account.username != null ? sessionScope.account.username : 'Manager'}&background=0284c7&color=fff" alt="Avatar">
-                        <span>Xin chào, <b>${sessionScope.account.username != null ? sessionScope.account.username : 'Store Manager'}</b></span>
+                        <img src="https://ui-avatars.com/api/?name=${sessionScope.user.username != null ? sessionScope.user.username : 'Store+Manager'}&background=2563eb&color=fff" alt="Avatar">
+                        <span>Xin chào, <b><c:out value="${sessionScope.user.username != null ? sessionScope.user.username : 'Store Manager'}"/></b></span>
                     </div>
                     <a href="${pageContext.request.contextPath}/logout" class="btn-logout">
                         <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
@@ -245,38 +278,46 @@
             <!-- Main Container -->
             <div class="container-dashboard">
 
-                <!-- Page Header -->
-                <div class="card card-custom border-0 shadow-sm mb-4">
-                    <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                        <!-- Tiêu đề và mô tả ngắn -->
-                        <div>
-                            <h2 class="h4 fw-bold text-dark mb-1">
-                                <i class="fa-solid fa-right-left text-primary me-2"></i>Quản Lý Điều Chuyển Nhân Sự
-                            </h2>
-                            <p class="text-muted small mb-0">Theo dõi và thực hiện các yêu cầu điều chuyển nhân sự giữa các cơ sở.</p>
-                        </div>
+                <!-- Thanh hiển thị Cơ sở hiện tại -->
+                <div class="branch-info-bar">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <span>Cơ sở hiện tại: <b><c:choose>
+                        <c:when test="${not empty currentBranch}">
+                            <c:out value="${currentBranch.name}"/> (<c:out value="${currentBranch.code}"/>) - <c:out value="${currentBranch.address}"/>
+                        </c:when>
+                        <c:otherwise>Không xác định được cơ sở của bạn</c:otherwise>
+                    </c:choose></b></span>
+                </div>
 
-                        <!-- Nhóm các nút điều hướng -->
-                        <div class="d-flex align-items-center gap-2">
-                            <a href="${pageContext.request.contextPath}/store-manager/schedule" class="btn btn-outline-primary btn-sm px-3 py-2">
-                                <i class="fa-solid fa-arrow-left me-1"></i> Quay về xếp lịch
-                            </a>
-                            <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-secondary btn-sm px-3 py-2">
-                                <i class="fa-solid fa-house me-1"></i> Dashboard
-                            </a>
-                        </div>
+                <!-- Page Header -->
+                <div class="page-header-card">
+                    <div>
+                        <h2>
+                            <i class="fa-solid fa-right-left"></i> Quản Lý Điều Chuyển Nhân Sự
+                        </h2>
+                        <p class="mb-0 opacity-90 small">Theo dõi và thực hiện các yêu cầu điều chuyển nhân sự giữa các cơ sở.</p>
+                    </div>
+
+                    <!-- Nhóm các nút điều hướng -->
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="${pageContext.request.contextPath}/store-manager/schedule" class="btn btn-light text-primary fw-semibold btn-sm px-3 py-2 shadow-sm">
+                            <i class="fa-solid fa-calendar-week me-1"></i> Xếp lịch ca làm
+                        </a>
+                        <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-light btn-sm px-3 py-2">
+                            <i class="fa-solid fa-house me-1"></i> Dashboard
+                        </a>
                     </div>
                 </div>
 
                 <!-- Thông báo Thành công / Lỗi chung -->
                 <c:if test="${not empty message}">
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
                         <i class="fa-solid fa-circle-check me-2"></i><c:out value="${message}"/>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 </c:if>
                 <c:if test="${not empty error}">
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
                         <i class="fa-solid fa-circle-exclamation me-2"></i><c:out value="${error}"/>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
@@ -286,7 +327,7 @@
                 <div class="content-card">
                     <h3 class="section-title"><i class="fa-solid fa-paper-plane"></i> Đề Xuất Cơ Sở Của Tôi Gửi Đi</h3>
                     <div class="table-responsive">
-                        <table class="table table-bordered align-middle">
+                        <table class="table table-bordered align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th style="width: 10%;">Mã Đơn</th>
@@ -319,8 +360,8 @@
                                         <td>
                                             <c:if test="${not empty t.rejectReason}">
                                                 <div class="text-danger small mb-1"><i class="fa-solid fa-circle-exclamation me-1"></i><c:out value="${t.rejectReason}"/></div>
-                                                </c:if>
-                                                <c:forEach var="e" items="${selectedByTransfer[t.id]}">
+                                            </c:if>
+                                            <c:forEach var="e" items="${selectedByTransfer[t.id]}">
                                                 <div class="small"><i class="fa-solid fa-user text-secondary me-1"></i> <c:out value="${e.fullName}"/></div>
                                             </c:forEach>
                                         </td>
@@ -343,7 +384,7 @@
                 <div class="content-card">
                     <h3 class="section-title"><i class="fa-solid fa-handshake-angle"></i> Cơ Sở Khác Yêu Cầu Cho Mượn Nhân Sự</h3>
                     <div class="table-responsive">
-                        <table class="table table-bordered align-middle">
+                        <table class="table table-bordered align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th style="width: 15%;">Mã & Cơ Sở Xin</th>
@@ -375,7 +416,7 @@
                                             </c:choose>
                                             <c:if test="${not empty t.rejectReason}">
                                                 <div class="text-danger small mt-1"><i class="fa-solid fa-circle-exclamation me-1"></i><c:out value="${t.rejectReason}"/></div>
-                                                </c:if>
+                                            </c:if>
                                         </td>
                                         <td>
                                             <c:choose>
@@ -451,15 +492,15 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
         <script>
-                                                                               function updateTransferSelection(id, max) {
-                                                                                   const boxes = document.querySelectorAll('input.transfer-person[data-transfer="' + id + '"]');
-                                                                                   const count = Array.from(boxes).filter(box => box.checked).length;
-                                                                                   document.getElementById('transfer_count_' + id).textContent =
-                                                                                           'Đã chọn ' + count + ' / ' + max + ' người được yêu cầu.';
-                                                                                   document.getElementById('transfer_error_' + id).textContent =
-                                                                                           count > max ? 'Không được chọn nhiều hơn số người cơ sở yêu cầu.' : '';
-                                                                                   document.getElementById('transfer_submit_' + id).disabled = !(count >= 1 && count <= max);
-                                                                               }
+            function updateTransferSelection(id, max) {
+                const boxes = document.querySelectorAll('input.transfer-person[data-transfer="' + id + '"]');
+                const count = Array.from(boxes).filter(box => box.checked).length;
+                document.getElementById('transfer_count_' + id).textContent =
+                        'Đã chọn ' + count + ' / ' + max + ' người được yêu cầu.';
+                document.getElementById('transfer_error_' + id).textContent =
+                        count > max ? 'Không được chọn nhiều hơn số người cơ sở yêu cầu.' : '';
+                document.getElementById('transfer_submit_' + id).disabled = !(count >= 1 && count <= max);
+            }
         </script>
     </body>
 </html>

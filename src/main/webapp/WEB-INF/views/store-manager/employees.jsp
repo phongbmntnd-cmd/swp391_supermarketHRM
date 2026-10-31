@@ -1,861 +1,710 @@
+<%-- 
+    Document   : store-manager-employees
+    Created on : Oct 27, 2026, 10:18:16 PM
+    Author     : phong
+--%>
+
 <%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản lý Nhân sự - Store Manager</title>
-    <style>
-        * {
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
-        body {
-            background-color: #f5f5f5;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-            margin-top: 0;
-        }
-        
-        /* Messages */
-        .alert {
-            padding: 12px 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        .alert-success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .alert-danger {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        /* Branch Info Header Layout */
-        .header-action-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #e8f4fc;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .branch-info {
-            flex: 1;
-        }
-        .branch-info strong {
-            color: #2980b9;
-        }
-        .btn-dashboard {
-            background-color: #3498db;
-            color: white;
-            padding: 8px 14px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: bold;
-            white-space: nowrap;
-            transition: background-color 0.3s;
-        }
-        .btn-dashboard:hover {
-            background-color: #2980b9;
-        }
-        
-        /* Filter Section */
-        .filter-section {
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        .filter-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: flex-end;
-        }
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .filter-group label {
-            font-size: 12px;
-            color: #666;
-            font-weight: bold;
-        }
-        .filter-group input,
-        .filter-group select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            min-width: 150px;
-        }
-        .filter-group input:focus,
-        .filter-group select:focus {
-            outline: none;
-            border-color: #3498db;
-        }
-        .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s;
-        }
-        .btn-primary {
-            background-color: #3498db;
-            color: white;
-        }
-        .btn-primary:hover {
-            background-color: #2980b9;
-        }
-        .btn-secondary {
-            background-color: #95a5a6;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background-color: #7f8c8d;
-        }
-        .btn-sm {
-            padding: 5px 10px;
-            font-size: 12px;
-        }
-        
-        /* Table */
-        .table-container {
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-            color: #333;
-            white-space: nowrap;
-        }
-        th a {
-            color: #333;
-            text-decoration: none;
-        }
-        th a:hover {
-            color: #3498db;
-        }
-        th a.active {
-            color: #3498db;
-        }
-        th a.active::after {
-            content: " ▲";
-            font-size: 10px;
-        }
-        th a.active.desc::after {
-            content: " ▼";
-        }
-        tbody tr:hover {
-            background-color: #f8f9fa;
-        }
-        
-        /* Status Badges */
-        .status-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        .status-active {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .status-locked {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        .status-inactive {
-            background-color: #e2e3e5;
-            color: #383d41;
-        }
-        
-        /* Action Buttons */
-        .action-buttons {
-            display: flex;
-            gap: 5px;
-        }
-        .btn-danger {
-            background-color: #e74c3c;
-            color: white;
-        }
-        .btn-danger:hover {
-            background-color: #c0392b;
-        }
-        .btn-success {
-            background-color: #27ae60;
-            color: white;
-        }
-        .btn-success:hover {
-            background-color: #229954;
-        }
-        
-        /* Pagination */
-        .pagination-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #ddd;
-        }
-        .pagination-info {
-            color: #666;
-            font-size: 14px;
-        }
-        .pagination-controls {
-            display: flex;
-            gap: 5px;
-            align-items: center;
-        }
-        .pagination-controls a,
-        .pagination-controls span {
-            padding: 6px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            text-decoration: none;
-            color: #333;
-            font-size: 14px;
-        }
-        .pagination-controls a:hover {
-            background-color: #3498db;
-            color: white;
-            border-color: #3498db;
-        }
-        .pagination-controls .current {
-            background-color: #3498db;
-            color: white;
-            border-color: #3498db;
-        }
-        .pagination-controls .disabled {
-            color: #ccc;
-            pointer-events: none;
-        }
-        .page-size-form {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .page-size-form select {
-            padding: 6px 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        
-        /* =============================================
-           LOCKED EMPLOYEES SECTION
-           ============================================= */
-        .locked-section {
-            margin-top: 40px;
-            padding-top: 30px;
-            border-top: 2px dashed #e0e0e0;
-        }
-        .locked-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-        }
-        .locked-section h2 {
-            color: #c0392b;
-            margin-bottom: 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .locked-section h2 .count {
-            background: #e74c3c;
-            color: white;
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 14px;
-        }
-        .locked-filter {
-            background: #fff5f5;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            display: flex;
-            gap: 12px;
-            align-items: flex-end;
-            flex-wrap: wrap;
-        }
-        .locked-filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            min-width: 180px;
-            flex: 1;
-        }
-        .locked-filter-group label {
-            font-size: 12px;
-            color: #c0392b;
-            font-weight: bold;
-        }
-        .locked-filter-group input {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-            width: 100%;
-        }
-        .locked-filter-group input:focus {
-            outline: none;
-            border-color: #e74c3c;
-        }
-        .locked-filter-buttons {
-            display: flex;
-            gap: 6px;
-            align-items: flex-end;
-        }
-        .table-locked {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .table-locked th {
-            background-color: #ffe6e6;
-            color: #c0392b;
-        }
-        .table-locked td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #ffcccc;
-        }
-        .table-locked tr:hover {
-            background-color: #fff5f5;
-        }
-        .reason-cell {
-            max-width: 200px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .reason-cell:hover {
-            overflow: visible;
-            white-space: normal;
-            word-wrap: break-word;
-        }
-        .locked-pagination {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px solid #ffcccc;
-        }
-        .locked-pagination a,
-        .locked-pagination span {
-            padding: 4px 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            text-decoration: none;
-            color: #333;
-            font-size: 13px;
-        }
-        .locked-pagination a:hover {
-            background-color: #27ae60;
-            color: white;
-            border-color: #27ae60;
-        }
-        .empty-locked {
-            text-align: center;
-            padding: 30px;
-            color: #888;
-            background: #fff5f5;
-            border-radius: 4px;
-        }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 50px;
-            color: #666;
-        }
-        .empty-state h3 {
-            color: #999;
-        }
-        
-        /* Confirmation Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-        .modal-content {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            max-width: 500px;
-            width: 90%;
-        }
-        .modal h3 {
-            margin-top: 0;
-            color: #333;
-        }
-        .modal-buttons {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .modal textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            resize: vertical;
-            min-height: 80px;
-            font-family: inherit;
-        }
-        .modal label {
-            font-weight: bold;
-            margin-bottom: 5px;
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>📋 Quản lý Nhân sự</h1>
-        
-        <!-- Branch Info & Dashboard Button Row -->
-        <div class="header-action-row">
-            <div class="branch-info">
-                <strong>📍 Cơ sở hiện tại:</strong> 
-                <c:choose>
-                    <c:when test="${not empty currentBranch}">
-                        ${currentBranch.name} (${currentBranch.code}) - ${currentBranch.address}
-                    </c:when>
-                    <c:otherwise>
-                        Không xác định được cơ sở của bạn
-                    </c:otherwise>
-                </c:choose>
+<html lang="vi">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Quản lý Nhân sự cơ sở - Store Manager</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                font-family: 'Roboto', sans-serif;
+                background: #f4f7f6;
+                color: #333;
+                display: flex;
+                min-height: 100vh;
+            }
+            /* --- SIDEBAR --- */
+            .sidebar {
+                width: 260px;
+                background: #1e293b;
+                color: #94a3b8;
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                inset: 0 auto 0 0;
+                z-index: 100;
+                box-shadow: 2px 0 10px rgba(0,0,0,.1);
+            }
+            .sidebar-brand {
+                padding: 25px 20px;
+                font-size: 18px;
+                font-weight: 700;
+                color: #fff;
+                background: #0f172a;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .sidebar-brand i {
+                color: #38bdf8;
+                font-size: 22px;
+            }
+            .sidebar-menu {
+                list-style: none;
+                padding: 20px 0;
+                margin: 0;
+                overflow-y: auto;
+            }
+            .sidebar-menu a {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                padding: 14px 25px;
+                color: #94a3b8;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 500;
+                border-left: 4px solid transparent;
+            }
+            .sidebar-menu a:hover, .sidebar-menu .active a {
+                color: #fff;
+                background: rgba(255,255,255,.05);
+                border-left-color: #38bdf8;
+            }
+            .sidebar-menu i {
+                width: 20px;
+                text-align: center;
+            }
+            /* --- MAIN WRAPPER & TOP NAVBAR --- */
+            .main-wrapper {
+                margin-left: 260px;
+                flex: 1;
+                min-width: 0;
+            }
+            .top-navbar {
+                background: #fff;
+                color: #1e293b;
+                padding: 15px 35px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 20px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.05);
+                position: sticky;
+                top: 0;
+                z-index: 99;
+            }
+            .top-navbar h1 {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 500;
+                color: #334155;
+            }
+            .user-info {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                font-size: 14px;
+            }
+            .user-profile {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .user-profile img {
+                width: 35px;
+                height: 35px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid #e2e8f0;
+            }
+            .btn-logout {
+                color: #ef4444;
+                text-decoration: none;
+                background: #ffeeef;
+                padding: 6px 14px;
+                border-radius: 6px;
+                font-weight: 500;
+                font-size: 13px;
+                white-space: nowrap;
+            }
+            .dashboard-container {
+                max-width: 1400px;
+                margin: 30px;
+            }
+            /* --- PAGE HEADER & BRANCH BAR --- */
+            .branch-info-bar {
+                background-color: #eef2ff;
+                border: 1px solid #c7d2fe;
+                color: #3730a3;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-size: 14px;
+                margin-bottom: 25px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-weight: 500;
+            }
+            .branch-info-bar i {
+                color: #2563eb;
+                font-size: 16px;
+            }
+            .page-title {
+                background: linear-gradient(135deg,#0284c7,#0369a1);
+                color: #fff;
+                padding: 25px 30px;
+                border-radius: 12px;
+                margin-bottom: 25px;
+                box-shadow: 0 10px 15px -3px rgba(2,132,199,.2);
+            }
+            .page-title h2 {
+                margin: 0 0 8px;
+                font-size: 24px;
+            }
+            .page-title p {
+                margin: 0;
+                opacity: .9;
+            }
+            .card {
+                border: 0;
+                border-radius: 10px;
+            }
+            .card-header {
+                background: #fff;
+                padding: 16px 20px;
+            }
+            /* Table & Badges */
+            .status-badge {
+                display: inline-block;
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: bold;
+            }
+            .status-active { background-color: #d4edda; color: #155724; }
+            .status-locked { background-color: #f8d7da; color: #721c24; }
+            .status-inactive { background-color: #e2e3e5; color: #383d41; }
+            
+            /* Locked Section Specifics */
+            .locked-section {
+                margin-top: 40px;
+                padding-top: 30px;
+                border-top: 2px dashed #cbd5e1;
+            }
+            .locked-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 20px;
+                background: #fff1f2;
+                border: 1px solid #fecdd3;
+                border-radius: 8px;
+                cursor: pointer;
+                user-select: none;
+            }
+            .locked-section h2 {
+                color: #e11d48;
+                margin: 0;
+                font-size: 18px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .locked-section h2 .count {
+                background: #e11d48;
+                color: white;
+                padding: 2px 10px;
+                border-radius: 12px;
+                font-size: 13px;
+            }
+            .locked-filter {
+                background: #fff5f5;
+                padding: 20px;
+                border-radius: 0 0 8px 8px;
+                border: 1px solid #fecdd3;
+                border-top: none;
+                margin-bottom: 20px;
+            }
+            .table-locked th {
+                background-color: #ffe4e6 !important;
+                color: #be123c !important;
+            }
+            .reason-cell {
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .reason-cell:hover {
+                overflow: visible;
+                white-space: normal;
+                word-wrap: break-word;
+            }
+            /* Modal Styles */
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0; left: 0; width: 100%; height: 100%;
+                background-color: rgba(0,0,0,0.5);
+                z-index: 1000;
+            }
+            .modal-content {
+                position: absolute;
+                top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            }
+            @media (max-width: 900px) {
+                .sidebar { width: 220px; }
+                .main-wrapper { margin-left: 220px; }
+                .dashboard-container { margin: 20px; }
+            }
+            @media (max-width: 650px) {
+                body { display: block; }
+                .sidebar { position: static; width: 100%; }
+                .sidebar-menu { display: flex; overflow-x: auto; padding: 5px 0; }
+                .sidebar-menu li { flex: 0 0 auto; }
+                .main-wrapper { margin-left: 0; }
+                .top-navbar { position: static; flex-wrap: wrap; }
+                .dashboard-container { margin: 15px; }
+            }
+        </style>
+    </head>
+    <body>
+
+        <!-- Sidebar Điều Hướng Trái (Store Manager) -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-store"></i>
+                <span>Store Manager</span>
             </div>
-            <div>
-                <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn-dashboard">← Quay về Dashboard</a>
-            </div>
-        </div>
-        
-        <!-- Messages -->
-        <c:if test="${not empty successMessage}">
-            <div class="alert alert-success">
-                ✅ ${successMessage}
-            </div>
-        </c:if>
-        <c:if test="${not empty errorMessage}">
-            <div class="alert alert-danger">
-                ❌ ${errorMessage}
-            </div>
-        </c:if>
-        
-        <!-- Filter Section -->
-        <div class="filter-section">
-            <form method="GET" action="${pageContext.request.contextPath}/store-manager/employees" id="filterForm">
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label for="search">🔍 Tìm kiếm</label>
-                        <input type="text" id="search" name="search" placeholder="Họ tên, username, email, SĐT..." 
-                               value="${search}">
+            <ul class="sidebar-menu">
+                <li><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
+                <li class="active"><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Nhân sự cơ sở</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clock-rotate-left"></i> Chấm công & Ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-week"></i> Xếp lịch & Phân ca</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/violations"><i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/leave-requests"><i class="fa-solid fa-plane-departure"></i> Duyệt nghỉ phép</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-rotate"></i> Duyệt đổi ca</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <div class="main-wrapper">
+
+            <!-- Top Header -->
+            <header class="top-navbar">
+                <h1>Hệ Thống Quản Lý Siêu Thị - Chi Nhánh Trực Thuộc</h1>
+                <div class="user-info">
+                    <div class="user-profile">
+                        <img src="https://ui-avatars.com/api/?name=${sessionScope.user.username != null ? sessionScope.user.username : 'Store+Manager'}&background=2563eb&color=fff" alt="Avatar">
+                        <span>Xin chào, <b><c:out value="${sessionScope.user.username != null ? sessionScope.user.username : 'Store Manager'}"/></b></span>
                     </div>
-                    <div class="filter-group">
-                        <label for="positionId">📌 Vị trí</label>
-                        <select id="positionId" name="positionId">
-                            <option value="">-- Tất cả --</option>
-                            <c:forEach var="pos" items="${positions}">
-                                <option value="${pos.id}" ${positionId == pos.id ? 'selected' : ''}>${pos.title}</option>
-                            </c:forEach>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="departmentId">🏢 Phòng ban</label>
-                        <select id="departmentId" name="departmentId">
-                            <option value="">-- Tất cả --</option>
-                            <c:forEach var="dept" items="${departments}">
-                                <option value="${dept.id}" ${departmentId == dept.id ? 'selected' : ''}>${dept.name}</option>
-                            </c:forEach>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="employeeType">👤 Loại nhân viên</label>
-                        <select id="employeeType" name="employeeType">
-                            <option value="">-- Tất cả --</option>
-                            <option value="Full-time" ${employeeType == 'FULL_TIME' || employeeType == 'Full-time' ? 'selected' : ''}>Full-time</option>
-                            <option value="Part-time" ${employeeType == 'PART_TIME' || employeeType == 'Part-time' ? 'selected' : ''}>Part-time</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label for="status">📊 Trạng thái</label>
-                        <select id="status" name="status">
-                            <option value="">-- Tất cả --</option>
-                            <option value="ACTIVE" ${status == 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
-                            <option value="INACTIVE" ${status == 'INACTIVE' ? 'selected' : ''}>INACTIVE</option>
-                            <option value="EMERGENCY_LOCKED" ${status == 'EMERGENCY_LOCKED' ? 'selected' : ''}>EMERGENCY_LOCKED</option>
-                        </select>
-                    </div>
-                    <div class="filter-group">
-                        <label>&nbsp;</label>
-                        <div style="display: flex; gap: 5px;">
-                            <button type="submit" class="btn btn-primary">🔍 Lọc</button>
-                            <a href="${pageContext.request.contextPath}/store-manager/employees" class="btn btn-secondary">🗑️ Xóa lọc</a>
-                        </div>
-                    </div>
+                    <a href="${pageContext.request.contextPath}/logout" class="btn-logout">
+                        <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                    </a>
                 </div>
-                <!-- Hidden fields for pagination -->
-                <input type="hidden" name="sort" value="${sortColumn}">
-                <input type="hidden" name="dir" value="${sortDirection}">
-            </form>
-        </div>
-        
-        <!-- Employee Table -->
-        <div class="table-container">
-            <c:choose>
-                <c:when test="${not empty employees}">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>
-                                    <a href="?search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=full_name&dir=${sortColumn == 'full_name' && sortDirection == 'ASC' ? 'DESC' : 'ASC'}&page=1&size=${pageSize}">
-                                        Họ và tên ${sortColumn == 'full_name' ? (sortDirection == 'ASC' ? '▲' : '▼') : ''}
-                                    </a>
-                                </th>
-                                <th>
-                                    <a href="?search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=username&dir=${sortColumn == 'username' && sortDirection == 'ASC' ? 'DESC' : 'ASC'}&page=1&size=${pageSize}">
-                                        Username ${sortColumn == 'username' ? (sortDirection == 'ASC' ? '▲' : '▼') : ''}
-                                    </a>
-                                </th>
-                                <th>Email</th>
-                                <th>Số điện thoại</th>
-                                <th>
-                                    <a href="?search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=position&dir=${sortColumn == 'position' && sortDirection == 'ASC' ? 'DESC' : 'ASC'}&page=1&size=${pageSize}">
-                                        Vị trí ${sortColumn == 'position' ? (sortDirection == 'ASC' ? '▲' : '▼') : ''}
-                                    </a>
-                                </th>
-                                <th>Phòng ban</th>
-                                <th>
-                                    <a href="?search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=type&dir=${sortColumn == 'type' && sortDirection == 'ASC' ? 'DESC' : 'ASC'}&page=1&size=${pageSize}">
-                                        Loại NV ${sortColumn == 'type' ? (sortDirection == 'ASC' ? '▲' : '▼') : ''}
-                                    </a>
-                                </th>
-                                <th>
-                                    <a href="?search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=status&dir=${sortColumn == 'status' && sortDirection == 'ASC' ? 'DESC' : 'ASC'}&page=1&size=${pageSize}">
-                                        Trạng thái ${sortColumn == 'status' ? (sortDirection == 'ASC' ? '▲' : '▼') : ''}
-                                    </a>
-                                </th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <c:forEach var="emp" items="${employees}" varStatus="loop">
-                                <tr>
-                                    <td>${(currentPage - 1) * pageSize + loop.index + 1}</td>
-                                    <td><strong>${emp.fullName}</strong></td>
-                                    <td>${emp.username}</td>
-                                    <td>${emp.email}</td>
-                                    <td>${emp.phone}</td>
-                                    <td>${emp.positionName}</td>
-                                    <td>${emp.departmentName}</td>
-                                    <td>${emp.employeeType}</td>
-                                    <td>
-                                        <c:choose>
-                                            <c:when test="${emp.status == 'ACTIVE'}">
-                                                <span class="status-badge status-active">ACTIVE</span>
-                                            </c:when>
-                                            <c:when test="${emp.status == 'INACTIVE'}">
-                                                <span class="status-badge status-inactive">INACTIVE</span>
-                                            </c:when>
-                                            <c:when test="${emp.status == 'EMERGENCY_LOCKED'}">
-                                                <span class="status-badge status-locked">EMERGENCY_LOCKED</span>
-                                            </c:when>
-                                            <c:otherwise>
-                                                <span class="status-badge status-inactive">${emp.status}</span>
-                                            </c:otherwise>
-                                        </c:choose>
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <c:choose>
-                                                <c:when test="${emp.status == 'ACTIVE'}">
-                                                    <button type="button" class="btn btn-danger btn-sm"
-                                                            onclick="showLockModal(this)"
-                                                            data-userid="${emp.userId}"
-                                                            data-name="${fn:escapeXml(emp.fullName)}">
-                                                        🔒 Khóa
-                                                    </button>
-                                                </c:when>
-                                                <c:when test="${emp.status == 'EMERGENCY_LOCKED'}">
-                                                    <button type="button" class="btn btn-success btn-sm"
-                                                            onclick="showUnlockModal(this)"
-                                                            data-userid="${emp.userId}"
-                                                            data-name="${fn:escapeXml(emp.fullName)}">
-                                                        🔓 Mở khóa
-                                                    </button>
-                                                </c:when>
-                                            </c:choose>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </c:forEach>
-                        </tbody>
-                    </table>
-                </c:when>
-                <c:otherwise>
-                    <div class="empty-state">
-                        <h3>🔍 Không tìm thấy nhân viên nào</h3>
-                        <p>Vui lòng thử thay đổi điều kiện lọc hoặc liên hệ quản trị viên.</p>
+            </header>
+
+            <div class="dashboard-container">
+
+                <!-- Thanh hiển thị Cơ sở hiện tại -->
+                <div class="branch-info-bar">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <span>Cơ sở hiện tại: <b><c:choose>
+                        <c:when test="${not empty currentBranch}">
+                            <c:out value="${currentBranch.name}"/> (<c:out value="${currentBranch.code}"/>) - <c:out value="${currentBranch.address}"/>
+                        </c:when>
+                        <c:otherwise>Không xác định được cơ sở của bạn</c:otherwise>
+                    </c:choose></b></span>
+                </div>
+
+                <!-- Page Header Banner -->
+                <div class="page-title d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="mb-1"><i class="fa-solid fa-users-gear me-2"></i>Quản lý Nhân sự cơ sở</h2>
+                        <p class="mb-0">Xem danh sách nhân viên đang làm việc, theo dõi liên lạc và thực hiện khóa tài khoản khẩn cấp.</p>
                     </div>
-                </c:otherwise>
-            </c:choose>
-        </div>
-        
-        <!-- Pagination -->
-        <c:if test="${not empty employees}">
-            <div class="pagination-container">
-                <div class="pagination-info">
-                    Hiển thị <strong>${(currentPage - 1) * pageSize + 1}</strong> - 
-                    <strong>${displayEnd}</strong> 
-                    trong <strong>${totalRecords}</strong> nhân viên
+                    <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-light text-primary fw-semibold shadow-sm px-3 py-2">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Quay về Dashboard
+                    </a>
                 </div>
                 
-                <div class="pagination-controls">
-                    <!-- Page Size -->
-                    <form method="GET" class="page-size-form" id="pageSizeForm">
-                        <span>Hiển thị:</span>
-                        <select name="size" onchange="document.getElementById('pageSizeForm').submit()">
-                            <c:forEach var="ps" items="${pageSizes}">
-                                <option value="${ps}" ${pageSize == ps ? 'selected' : ''}>${ps}</option>
-                            </c:forEach>
-                        </select>
-                        <!-- Preserve other params -->
-                        <input type="hidden" name="search" value="${search}">
-                        <input type="hidden" name="positionId" value="${positionId}">
-                        <input type="hidden" name="departmentId" value="${departmentId}">
-                        <input type="hidden" name="employeeType" value="${employeeType}">
-                        <input type="hidden" name="status" value="${status}">
-                        <input type="hidden" name="sort" value="${sortColumn}">
-                        <input type="hidden" name="dir" value="${sortDirection}">
-                    </form>
-                    
-                    <!-- Page Numbers -->
-                    <c:if test="${currentPage > 1}">
-                        <a href="?page=1&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">«</a>
-                        <a href="?page=${currentPage - 1}&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">‹</a>
-                    </c:if>
-                    
-                    <c:forEach var="i" begin="${pagerStart}" end="${pagerEnd}">
+                <!-- Messages -->
+                <c:if test="${not empty successMessage}">
+                    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="fa-solid fa-circle-check me-2"></i><c:out value="${successMessage}"/>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </c:if>
+                <c:if test="${not empty errorMessage}">
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="fa-solid fa-circle-exclamation me-2"></i><c:out value="${errorMessage}"/>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </c:if>
+                
+                <!-- Filter Section -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header fw-semibold"><i class="fa-solid fa-filter text-primary me-2"></i>Tìm kiếm & lọc nhân sự</div>
+                    <div class="card-body">
+                        <form method="GET" action="${pageContext.request.contextPath}/store-manager/employees" id="filterForm">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="search" class="form-label">🔍 Tìm kiếm</label>
+                                    <input type="text" id="search" name="search" class="form-control" placeholder="Họ tên, username, email, SĐT..." value="<c:out value='${search}'/>">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="positionId" class="form-label">📌 Vị trí</label>
+                                    <select id="positionId" name="positionId" class="form-select">
+                                        <option value="">-- Tất cả --</option>
+                                        <c:forEach var="pos" items="${positions}">
+                                            <option value="${pos.id}" ${positionId == pos.id ? 'selected' : ''}><c:out value="${pos.title}"/></option>
+                                        </c:forEach>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="departmentId" class="form-label">🏢 Phòng ban</label>
+                                    <select id="departmentId" name="departmentId" class="form-select">
+                                        <option value="">-- Tất cả --</option>
+                                        <c:forEach var="dept" items="${departments}">
+                                            <option value="${dept.id}" ${departmentId == dept.id ? 'selected' : ''}><c:out value="${dept.name}"/></option>
+                                        </c:forEach>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="employeeType" class="form-label">👤 Loại nhân viên</label>
+                                    <select id="employeeType" name="employeeType" class="form-select">
+                                        <option value="">-- Tất cả --</option>
+                                        <option value="Full-time" ${employeeType == 'FULL_TIME' || employeeType == 'Full-time' ? 'selected' : ''}>Full-time</option>
+                                        <option value="Part-time" ${employeeType == 'PART_TIME' || employeeType == 'Part-time' ? 'selected' : ''}>Part-time</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="status" class="form-label">📊 Trạng thái</label>
+                                    <div class="input-group">
+                                        <select id="status" name="status" class="form-select">
+                                            <option value="">-- Tất cả --</option>
+                                            <option value="ACTIVE" ${status == 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
+                                            <option value="INACTIVE" ${status == 'INACTIVE' ? 'selected' : ''}>INACTIVE</option>
+                                            <option value="EMERGENCY_LOCKED" ${status == 'EMERGENCY_LOCKED' ? 'selected' : ''}>EMERGENCY_LOCKED</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                        <a href="${pageContext.request.contextPath}/store-manager/employees" class="btn btn-outline-secondary" title="Xóa lọc"><i class="fa-solid fa-rotate-right"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" name="sort" value="<c:out value='${sortColumn}'/>">
+                            <input type="hidden" name="dir" value="<c:out value='${sortDirection}'/>">
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Employee Table Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="table-responsive">
                         <c:choose>
-                            <c:when test="${i == currentPage}">
-                                <span class="current">${i}</span>
+                            <c:when test="${not empty employees}">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>STT</th>
+                                            <th>
+                                                <a href="?search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=full_name&dir=${sortColumn == 'full_name' && sortDirection == 'ASC' ? 'DESC' : 'ASC'}&page=1&size=${pageSize}" class="text-decoration-none text-dark">
+                                                    Họ và tên ${sortColumn == 'full_name' ? (sortDirection == 'ASC' ? '▲' : '▼') : ''}
+                                                </a>
+                                            </th>
+                                            <th>
+                                                <a href="?search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=username&dir=${sortColumn == 'username' && sortDirection == 'ASC' ? 'DESC' : 'ASC'}&page=1&size=${pageSize}" class="text-decoration-none text-dark">
+                                                    Username ${sortColumn == 'username' ? (sortDirection == 'ASC' ? '▲' : '▼') : ''}
+                                                </a>
+                                            </th>
+                                            <th>Email</th>
+                                            <th>Số điện thoại</th>
+                                            <th>Vị trí</th>
+                                            <th>Phòng ban</th>
+                                            <th>Loại NV</th>
+                                            <th>Trạng thái</th>
+                                            <th class="text-center">Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <c:forEach var="emp" items="${employees}" varStatus="loop">
+                                            <tr>
+                                                <td>${(currentPage - 1) * pageSize + loop.index + 1}</td>
+                                                <td><strong><c:out value="${emp.fullName}"/></strong></td>
+                                                <td><c:out value="${emp.username}"/></td>
+                                                <td><c:out value="${emp.email}"/></td>
+                                                <td><c:out value="${emp.phone}"/></td>
+                                                <td><c:out value="${emp.positionName}"/></td>
+                                                <td><c:out value="${emp.departmentName}"/></td>
+                                                <td><c:out value="${emp.employeeType}"/></td>
+                                                <td>
+                                                    <c:choose>
+                                                        <c:when test="${emp.status == 'ACTIVE'}">
+                                                            <span class="status-badge status-active">ACTIVE</span>
+                                                        </c:when>
+                                                        <c:when test="${emp.status == 'INACTIVE'}">
+                                                            <span class="status-badge status-inactive">INACTIVE</span>
+                                                        </c:when>
+                                                        <c:when test="${emp.status == 'EMERGENCY_LOCKED'}">
+                                                            <span class="status-badge status-locked">EMERGENCY_LOCKED</span>
+                                                        </c:when>
+                                                        <c:otherwise>
+                                                            <span class="status-badge status-inactive"><c:out value="${emp.status}"/></span>
+                                                        </c:otherwise>
+                                                    </c:choose>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="action-buttons justify-content-center">
+                                                        <c:choose>
+                                                            <c:when test="${emp.status == 'ACTIVE'}">
+                                                                <button type="button" class="btn btn-danger btn-sm"
+                                                                        onclick="showLockModal(this)"
+                                                                        data-userid="${emp.userId}"
+                                                                        data-name="${fn:escapeXml(emp.fullName)}">
+                                                                    <i class="fa-solid fa-lock me-1"></i> Khóa
+                                                                </button>
+                                                            </c:when>
+                                                            <c:when test="${emp.status == 'EMERGENCY_LOCKED'}">
+                                                                <button type="button" class="btn btn-success btn-sm"
+                                                                        onclick="showUnlockModal(this)"
+                                                                        data-userid="${emp.userId}"
+                                                                        data-name="${fn:escapeXml(emp.fullName)}">
+                                                                    <i class="fa-solid fa-lock-open me-1"></i> Mở khóa
+                                                                </button>
+                                                            </c:when>
+                                                        </c:choose>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </c:forEach>
+                                    </tbody>
+                                </table>
                             </c:when>
                             <c:otherwise>
-                                <a href="?page=${i}&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">${i}</a>
+                                <div class="text-center py-5">
+                                    <i class="fa-regular fa-folder-open fs-2 mb-2 text-muted"></i>
+                                    <p class="text-secondary mb-0">Không tìm thấy nhân viên nào phù hợp với điều kiện tìm kiếm.</p>
+                                </div>
                             </c:otherwise>
                         </c:choose>
-                    </c:forEach>
-                    
-                    <c:if test="${currentPage < totalPages}">
-                        <a href="?page=${currentPage + 1}&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">›</a>
-                        <a href="?page=${totalPages}&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">»</a>
-                    </c:if>
-                </div>
-            </div>
-        </c:if>
-        
-        <!-- =============================================
-            PHẦN NHÂN VIÊN BỊ KHÓA - LUÔN HIỂN THỊ KHI CÓ
-            ============================================= -->
-        <div class="locked-section" id="lockedEmployeesSection" style="display: none;">
-            <!-- Header có nút click để mở rộng/thu gọn -->
-            <div class="locked-header" onclick="toggleLockedSection()" style="cursor: pointer; user-select: none;">
-                <h2>🔒 Nhân viên đã bị khóa <span class="count" id="lockedCount">0</span></h2>
-                <span id="toggleIcon" style="font-size: 24px;">▼</span>
-            </div>
-
-            <!-- Nội dung bên trong - có thể thu gọn -->
-            <div id="lockedContent">
-
-            <!-- Filter cho locked employees (mở rộng: search theo NV / lý do / người khóa) -->
-            <form method="GET" action="${pageContext.request.contextPath}/store-manager/employees" class="locked-filter">
-                <div class="locked-filter-group">
-                    <label>🔍 Tìm nhân viên</label>
-                    <input type="text" name="lockedSearch" placeholder="Tên, username, email, SĐT..." value="${lockedSearch}">
-                </div>
-                <div class="locked-filter-group">
-                    <label>📝 Lý do khóa</label>
-                    <input type="text" name="lockedReasonSearch" placeholder="Nhập từ khóa trong lý do..." value="${lockedReasonSearch}">
-                </div>
-                <div class="locked-filter-group">
-                    <label>👮 Người khóa</label>
-                    <input type="text" name="lockedBySearch" placeholder="Tên người đã khóa..." value="${lockedBySearch}">
-                </div>
-                <!-- Preserve other filter params -->
-                <input type="hidden" name="search" value="${search}">
-                <input type="hidden" name="positionId" value="${positionId}">
-                <input type="hidden" name="departmentId" value="${departmentId}">
-                <input type="hidden" name="employeeType" value="${employeeType}">
-                <input type="hidden" name="status" value="${status}">
-                <input type="hidden" name="sort" value="${sortColumn}">
-                <input type="hidden" name="dir" value="${sortDirection}">
-                <input type="hidden" name="page" value="${currentPage}">
-                <input type="hidden" name="size" value="${pageSize}">
-                <div class="locked-filter-buttons">
-                    <button type="submit" class="btn btn-primary">🔎 Lọc</button>
-                    <a href="${pageContext.request.contextPath}/store-manager/employees#lockedEmployeesSection" class="btn btn-secondary">🗑️ Xóa lọc</a>
-                </div>
-            </form>
-
-            <!-- Bảng locked employees -->
-            <c:choose>
-                <c:when test="${not empty lockedEmployees}">
-                    <table class="table-locked">
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Họ và tên</th>
-                                <th>Username</th>
-                                <th>Email</th>
-                                <th>SĐT</th>
-                                <th>Vị trí</th>
-                                <th>Phòng ban</th>
-                                <th>Loại NV</th>
-                                <th>Người khóa</th>
-                                <th>Thời gian bị khóa</th>
-                                <th>Lý do</th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <c:forEach var="lock" items="${lockedEmployees}" varStatus="loop">
-                                <tr>
-                                    <td>${(currentLockedPage - 1) * lockedPageSize + loop.index + 1}</td>
-                                    <td><strong>${lock.userName}</strong></td>
-                                    <td>${lock.username}</td>
-                                    <td>${lock.email}</td>
-                                    <td>${lock.phone}</td>
-                                    <td>${lock.positionName}</td>
-                                    <td>${lock.departmentName}</td>
-                                    <td>${lock.employeeType}</td>
-                                    <td>${lock.lockedByName}</td>
-                                    <td><fmt:formatDate value="${lock.lockedAt}" pattern="dd/MM/yyyy HH:mm"/></td>
-                                    <td class="reason-cell" title="${lock.reason}">
-                                        <c:choose>
-                                            <c:when test="${not empty lock.reason}">${lock.reason}</c:when>
-                                            <c:otherwise><em style="color: #999;">Không có</em></c:otherwise>
-                                        </c:choose>
-                                    </td>
-                                    <td>
-                                        <button type="button" class="btn btn-success btn-sm"
-                                                onclick="showUnlockModalFromLocked(this)"
-                                                data-userid="${lock.userId}"
-                                                data-name="${fn:escapeXml(lock.userName)}">
-                                            🔓 Mở khóa
-                                        </button>
-                                    </td>
-                                </tr>
-                            </c:forEach>
-                        </tbody>
-                    </table>
-
-                    <!-- Pagination cho locked -->
-                    <c:if test="${totalLockedPages > 1}">
-                        <div class="locked-pagination">
-                            <span style="color: #666; font-size: 13px;">
-                                Trang ${currentLockedPage}/${totalLockedPages} (${totalLockedRecords} nhân viên bị khóa)
-                            </span>
-                            <div style="display: flex; gap: 5px;">
-                                <c:if test="${currentLockedPage > 1}">
-                                    <a href="?lockedPage=1&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">«</a>
-                                    <a href="?lockedPage=${currentLockedPage - 1}&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">‹</a>
-                                </c:if>
-
-                                <c:forEach var="i" begin="${lockedPagerStart}" end="${lockedPagerEnd}">
-                                    <c:choose>
-                                        <c:when test="${i == currentLockedPage}">
-                                            <span style="background: #e74c3c; color: white;">${i}</span>
-                                        </c:when>
-                                        <c:otherwise>
-                                            <a href="?lockedPage=${i}&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">${i}</a>
-                                        </c:otherwise>
-                                    </c:choose>
-                                </c:forEach>
-
-                                <c:if test="${currentLockedPage < totalLockedPages}">
-                                    <a href="?lockedPage=${currentLockedPage + 1}&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">›</a>
-                                    <a href="?lockedPage=${totalLockedPages}&lockedSearch=${lockedSearch}&lockedReasonSearch=${lockedReasonSearch}&lockedBySearch=${lockedBySearch}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}&page=${currentPage}&size=${pageSize}#lockedEmployeesSection">»</a>
-                                </c:if>
-                            </div>
-                        </div>
-                    </c:if>
-                </c:when>
-                <c:otherwise>
-                    <div class="empty-locked">
-                        <p style="margin: 0;">✅ Không có nhân viên nào bị khóa</p>
                     </div>
-                </c:otherwise>
-            </c:choose>
+                </div>
+                
+                <!-- Pagination -->
+                <c:if test="${not empty employees}">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="text-muted small">
+                            Hiển thị <strong>${(currentPage - 1) * pageSize + 1}</strong> - <strong>${displayEnd}</strong> trong tổng số <strong>${totalRecords}</strong> nhân viên
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <form method="GET" class="d-flex align-items-center gap-2" id="pageSizeForm">
+                                <span class="small text-muted">Hiển thị:</span>
+                                <select name="size" class="form-select form-select-sm" onchange="document.getElementById('pageSizeForm').submit()">
+                                    <c:forEach var="ps" items="${pageSizes}">
+                                        <option value="${ps}" ${pageSize == ps ? 'selected' : ''}>${ps}</option>
+                                    </c:forEach>
+                                </select>
+                                <input type="hidden" name="search" value="<c:out value='${search}'/>">
+                                <input type="hidden" name="positionId" value="${positionId}">
+                                <input type="hidden" name="departmentId" value="${departmentId}">
+                                <input type="hidden" name="employeeType" value="${employeeType}">
+                                <input type="hidden" name="status" value="<c:out value='${status}'/>">
+                                <input type="hidden" name="sort" value="<c:out value='${sortColumn}'/>">
+                                <input type="hidden" name="dir" value="<c:out value='${sortDirection}'/>">
+                            </form>
+                            
+                            <ul class="pagination pagination-sm mb-0">
+                                <c:if test="${currentPage > 1}">
+                                    <li class="page-item"><a class="page-link" href="?page=1&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">«</a></li>
+                                    <li class="page-item"><a class="page-link" href="?page=${currentPage - 1}&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">‹</a></li>
+                                </c:if>
+                                <c:forEach var="i" begin="${pagerStart}" end="${pagerEnd}">
+                                    <li class="page-item ${i == currentPage ? 'active' : ''}">
+                                        <c:choose>
+                                            <c:when test="${i == currentPage}">
+                                                <span class="page-link">${i}</span>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <a class="page-link" href="?page=${i}&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">${i}</a>
+                                            </c:otherwise>
+                                        </c:choose>
+                                    </li>
+                                </c:forEach>
+                                <c:if test="${currentPage < totalPages}">
+                                    <li class="page-item"><a class="page-link" href="?page=${currentPage + 1}&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">›</a></li>
+                                    <li class="page-item"><a class="page-link" href="?page=${totalPages}&size=${pageSize}&search=${search}&positionId=${positionId}&departmentId=${departmentId}&employeeType=${employeeType}&status=${status}&sort=${sortColumn}&dir=${sortDirection}">»</a></li>
+                                </c:if>
+                            </ul>
+                        </div>
+                    </div>
+                </c:if>
+                
+                <!-- LOCKED EMPLOYEES SECTION -->
+                <div class="locked-section" id="lockedEmployeesSection" style="display: none;">
+                    <div class="locked-header" onclick="toggleLockedSection()">
+                        <h2><i class="fa-solid fa-triangle-exclamation"></i> Nhân viên đã bị khóa <span class="count" id="lockedCount">0</span></h2>
+                        <span id="toggleIcon" class="fw-bold">▼</span>
+                    </div>
+
+                    <div id="lockedContent" class="card shadow-sm border-top-0 rounded-bottom">
+                        <form method="GET" action="${pageContext.request.contextPath}/store-manager/employees" class="locked-filter">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label text-danger fw-bold small">🔍 Tìm nhân viên</label>
+                                    <input type="text" name="lockedSearch" class="form-control form-control-sm" placeholder="Tên, username, email..." value="<c:out value='${lockedSearch}'/>">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label text-danger fw-bold small">📝 Lý do khóa</label>
+                                    <input type="text" name="lockedReasonSearch" class="form-control form-control-sm" placeholder="Từ khóa trong lý do..." value="<c:out value='${lockedReasonSearch}'/>">
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end gap-2">
+                                    <div class="flex-grow-1">
+                                        <label class="form-label text-danger fw-bold small">👮 Người khóa</label>
+                                        <input type="text" name="lockedBySearch" class="form-control form-control-sm" placeholder="Tên người khóa..." value="<c:out value='${lockedBySearch}'/>">
+                                    </div>
+                                    <button type="submit" class="btn btn-sm btn-danger"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                    <a href="${pageContext.request.contextPath}/store-manager/employees#lockedEmployeesSection" class="btn btn-sm btn-outline-secondary" title="Xóa lọc"><i class="fa-solid fa-rotate-right"></i></a>
+                                </div>
+                            </div>
+                            <input type="hidden" name="search" value="<c:out value='${search}'/>">
+                            <input type="hidden" name="positionId" value="${positionId}">
+                            <input type="hidden" name="departmentId" value="${departmentId}">
+                            <input type="hidden" name="employeeType" value="${employeeType}">
+                            <input type="hidden" name="status" value="<c:out value='${status}'/>">
+                            <input type="hidden" name="sort" value="<c:out value='${sortColumn}'/>">
+                            <input type="hidden" name="dir" value="<c:out value='${sortDirection}'/>">
+                            <input type="hidden" name="page" value="${currentPage}">
+                            <input type="hidden" name="size" value="${pageSize}">
+                        </form>
+
+                        <div class="table-responsive">
+                            <c:choose>
+                                <c:when test="${not empty lockedEmployees}">
+                                    <table class="table table-hover align-middle mb-0 table-locked">
+                                        <thead>
+                                            <tr>
+                                                <th>STT</th>
+                                                <th>Họ và tên</th>
+                                                <th>Username</th>
+                                                <th>Email</th>
+                                                <th>SĐT</th>
+                                                <th>Vị trí</th>
+                                                <th>Phòng ban</th>
+                                                <th>Người khóa</th>
+                                                <th>Thời gian khóa</th>
+                                                <th>Lý do</th>
+                                                <th class="text-center">Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <c:forEach var="lock" items="${lockedEmployees}" varStatus="loop">
+                                                <tr>
+                                                    <td>${(currentLockedPage - 1) * lockedPageSize + loop.index + 1}</td>
+                                                    <td><strong><c:out value="${lock.userName}"/></strong></td>
+                                                    <td><c:out value="${lock.username}"/></td>
+                                                    <td><c:out value="${lock.email}"/></td>
+                                                    <td><c:out value="${lock.phone}"/></td>
+                                                    <td><c:out value="${lock.positionName}"/></td>
+                                                    <td><c:out value="${lock.departmentName}"/></td>
+                                                    <td><c:out value="${lock.lockedByName}"/></td>
+                                                    <td><fmt:formatDate value="${lock.lockedAt}" pattern="dd/MM/yyyy HH:mm"/></td>
+                                                    <td class="reason-cell" title="<c:out value='${lock.reason}'/>">
+                                                        <c:choose>
+                                                            <c:when test="${not empty lock.reason}"><c:out value="${lock.reason}"/></c:when>
+                                                            <c:otherwise><em class="text-muted">Không có</em></c:otherwise>
+                                                        </c:choose>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <button type="button" class="btn btn-success btn-sm"
+                                                                onclick="showUnlockModalFromLocked(this)"
+                                                                data-userid="${lock.userId}"
+                                                                data-name="${fn:escapeXml(lock.userName)}">
+                                                            <i class="fa-solid fa-lock-open me-1"></i> Mở khóa
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </c:forEach>
+                                        </tbody>
+                                    </table>
+                                </c:when>
+                                <c:otherwise>
+                                    <div class="text-center py-4 text-muted bg-white">
+                                        <i class="fa-solid fa-circle-check text-success fs-4 mb-1"></i>
+                                        <p class="mb-0">Không có nhân viên nào bị khóa phù hợp với bộ lọc.</p>
+                                    </div>
+                                </c:otherwise>
+                            </c:choose>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
-        </div><!-- đóng lockedContent -->
         
-        <!-- Hiển thị phần locked nếu có nhân viên bị khóa -->
+        <!-- Lock Confirmation Modal -->
+        <div id="lockModal" class="modal" onclick="closeLockModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <h3 class="h5 text-danger mb-3"><i class="fa-solid fa-lock me-2"></i>Xác nhận Khóa Khẩn cấp</h3>
+                <p class="mb-3">Bạn có chắc chắn muốn khóa tài khoản nhân viên <strong id="lockEmployeeName"></strong>?</p>
+                <form method="POST" action="${pageContext.request.contextPath}/store-manager/employees">
+                    <input type="hidden" name="action" value="lock">
+                    <input type="hidden" name="userId" id="lockUserId">
+                    <div class="mb-3">
+                        <label for="lockReason" class="form-label small fw-bold">Lý do khóa (tùy chọn):</label>
+                        <textarea name="reason" id="lockReason" class="form-control" rows="3" placeholder="Nhập lý do khóa tài khoản..."></textarea>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="closeLockModal()">Hủy</button>
+                        <button type="submit" class="btn btn-danger btn-sm">Xác nhận Khóa</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Unlock Confirmation Modal -->
+        <div id="unlockModal" class="modal" onclick="closeUnlockModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <h3 class="h5 text-success mb-3"><i class="fa-solid fa-lock-open me-2"></i>Xác nhận Mở khóa</h3>
+                <p class="mb-3">Bạn có chắc chắn muốn mở khóa tài khoản nhân viên <strong id="unlockEmployeeName"></strong>?</p>
+                <form method="POST" action="${pageContext.request.contextPath}/store-manager/employees">
+                    <input type="hidden" name="action" value="unlock">
+                    <input type="hidden" name="userId" id="unlockUserId">
+                    <div class="d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="closeUnlockModal()">Hủy</button>
+                        <button type="submit" class="btn btn-success btn-sm">Xác nhận Mở khóa</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
             var totalLocked = ${totalLockedRecords != null ? totalLockedRecords : 0};
             if (totalLocked > 0) {
                 var section = document.getElementById('lockedEmployeesSection');
                 section.style.display = 'block';
                 document.getElementById('lockedCount').textContent = totalLocked;
-                // Mặc định mở rộng khi có nhân viên bị khóa (theo yêu cầu: hiện ra ngay sau khi khóa)
                 var content = document.getElementById('lockedContent');
                 content.style.display = 'block';
                 document.getElementById('toggleIcon').textContent = '▼';
             }
 
-            // Toggle thu gọn/mở rộng phần locked
             function toggleLockedSection() {
                 var content = document.getElementById('lockedContent');
                 var icon = document.getElementById('toggleIcon');
@@ -867,97 +716,42 @@
                     icon.textContent = '▶';
                 }
             }
-        </script>
-    </div>
-    
-    <!-- Lock Confirmation Modal -->
-    <div id="lockModal" class="modal" onclick="closeLockModal()">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <h3>🔒 Xác nhận Khóa Khẩn cấp</h3>
-            <p>Bạn có chắc chắn muốn khóa tài khoản nhân viên <strong id="lockEmployeeName"></strong>?</p>
-            <form method="POST" action="${pageContext.request.contextPath}/store-manager/employees">
-                <input type="hidden" name="action" value="lock">
-                <input type="hidden" name="userId" id="lockUserId">
-                <div style="margin-top: 15px;">
-                    <label for="lockReason">Lý do khóa (tùy chọn):</label>
-                    <textarea name="reason" id="lockReason" placeholder="Nhập lý do khóa tài khoản..."></textarea>
-                </div>
-                <div class="modal-buttons">
-                    <button type="button" class="btn btn-secondary" onclick="closeLockModal()">Hủy</button>
-                    <button type="submit" class="btn btn-danger">Xác nhận Khóa</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Unlock Confirmation Modal -->
-    <div id="unlockModal" class="modal" onclick="closeUnlockModal()">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <h3>🔓 Xác nhận Mở khóa</h3>
-            <p>Bạn có chắc chắn muốn mở khóa tài khoản nhân viên <strong id="unlockEmployeeName"></strong>?</p>
-            <form method="POST" action="${pageContext.request.contextPath}/store-manager/employees">
-                <input type="hidden" name="action" value="unlock">
-                <input type="hidden" name="userId" id="unlockUserId">
-                <div class="modal-buttons">
-                    <button type="button" class="btn btn-secondary" onclick="closeUnlockModal()">Hủy</button>
-                    <button type="submit" class="btn btn-success">Xác nhận Mở khóa</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <script>
-        // =============================================
-        // GLOBAL FUNCTIONS - Đặt RA NGOÀI để onclick gọi được
-        // =============================================
-        
-        function showLockModal(btn) {
-            var userId = btn.getAttribute('data-userid');
-            var fullName = btn.getAttribute('data-name');
-            document.getElementById('lockUserId').value = userId;
-            document.getElementById('lockEmployeeName').textContent = fullName || 'Nhân viên';
-            document.getElementById('lockModal').style.display = 'block';
-        }
-
-        function closeLockModal() {
-            document.getElementById('lockModal').style.display = 'none';
-        }
-
-        function showUnlockModal(btn) {
-            var userId = btn.getAttribute('data-userid');
-            var fullName = btn.getAttribute('data-name');
-            document.getElementById('unlockUserId').value = userId;
-            document.getElementById('unlockEmployeeName').textContent = fullName || 'Nhân viên';
-            document.getElementById('unlockModal').style.display = 'block';
-        }
-
-        function showUnlockModalFromLocked(btn) {
-            showUnlockModal(btn);
-        }
-        
-        function closeUnlockModal() {
-            document.getElementById('unlockModal').style.display = 'none';
-        }
-        
-        // =============================================
-        // INITIALIZATION - Chạy khi DOM ready
-        // =============================================
-        document.addEventListener('DOMContentLoaded', function() {
             
-            // Close modal when clicking outside
+            function showLockModal(btn) {
+                var userId = btn.getAttribute('data-userid');
+                var fullName = btn.getAttribute('data-name');
+                document.getElementById('lockUserId').value = userId;
+                document.getElementById('lockEmployeeName').textContent = fullName || 'Nhân viên';
+                document.getElementById('lockModal').style.display = 'block';
+            }
+
+            function closeLockModal() {
+                document.getElementById('lockModal').style.display = 'none';
+            }
+
+            function showUnlockModal(btn) {
+                var userId = btn.getAttribute('data-userid');
+                var fullName = btn.getAttribute('data-name');
+                document.getElementById('unlockUserId').value = userId;
+                document.getElementById('unlockEmployeeName').textContent = fullName || 'Nhân viên';
+                document.getElementById('unlockModal').style.display = 'block';
+            }
+
+            function showUnlockModalFromLocked(btn) {
+                showUnlockModal(btn);
+            }
+            
+            function closeUnlockModal() {
+                document.getElementById('unlockModal').style.display = 'none';
+            }
+            
             document.addEventListener('click', function(event) {
                 var lockModal = document.getElementById('lockModal');
                 var unlockModal = document.getElementById('unlockModal');
-                
-                if (event.target === lockModal) {
-                    closeLockModal();
-                }
-                if (event.target === unlockModal) {
-                    closeUnlockModal();
-                }
+                if (event.target === lockModal) closeLockModal();
+                if (event.target === unlockModal) closeUnlockModal();
             });
             
-            // Close modal with Escape key
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape') {
                     closeLockModal();
@@ -965,17 +759,13 @@
                 }
             });
             
-            // Auto-hide alerts after 5 seconds
             setTimeout(function() {
                 var alerts = document.querySelectorAll('.alert');
                 alerts.forEach(function(alert) {
                     alert.style.opacity = '0';
-                    setTimeout(function() {
-                        alert.style.display = 'none';
-                    }, 300);
+                    setTimeout(function() { alert.style.display = 'none'; }, 300);
                 });
             }, 5000);
-        });
-    </script>
-</body>
+        </script>
+    </body>
 </html>

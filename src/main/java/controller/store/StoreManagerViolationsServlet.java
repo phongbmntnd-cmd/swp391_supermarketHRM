@@ -2,6 +2,8 @@ package controller.store;
 
 import controller.base.BaseServlet;
 import dao.ViolationDAO;
+import dao.BranchDAO;
+import model.Branch;
 import model.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -17,6 +19,7 @@ import java.time.format.DateTimeParseException;
 public class StoreManagerViolationsServlet extends BaseServlet {
 
     private final ViolationDAO violationDAO = new ViolationDAO();
+    private final BranchDAO branchDAO = new BranchDAO();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -30,10 +33,23 @@ public class StoreManagerViolationsServlet extends BaseServlet {
             sendForbidden(request, response, "Chỉ quản lý cửa hàng có cơ sở hợp lệ mới được báo cáo vi phạm.");
             return;
         }
+
         try {
+            // Lấy thông tin chi tiết chi nhánh để hiển thị lên giao diện
+            int branchId = user.getHomeBranchId();
+            Branch currentBranch = branchDAO.getBranchById(branchId);
+            if (currentBranch == null) {
+                currentBranch = new Branch();
+                currentBranch.setId(branchId);
+                currentBranch.setName("Chi nhánh mặc định");
+                currentBranch.setCode("BRANCH-" + branchId);
+                currentBranch.setAddress("Đang cập nhật");
+            }
+            request.setAttribute("currentBranch", currentBranch);
+
             request.setAttribute("today", LocalDate.now().toString());
-            request.setAttribute("employees", violationDAO.getBranchEmployees(user.getHomeBranchId()));
-            request.setAttribute("violations", violationDAO.getByBranch(user.getHomeBranchId()));
+            request.setAttribute("employees", violationDAO.getBranchEmployees(branchId));
+            request.setAttribute("violations", violationDAO.getByBranch(branchId));
             request.setAttribute("successMessage", getAndClearSuccessMessage(request));
             request.setAttribute("errorMessage", getAndClearErrorMessage(request));
             request.getRequestDispatcher("/WEB-INF/views/store-manager/violations.jsp").forward(request, response);

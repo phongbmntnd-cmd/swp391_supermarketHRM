@@ -16,6 +16,40 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Table structure for table `attendance_adjustment_history`
+--
+
+DROP TABLE IF EXISTS `attendance_adjustment_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `attendance_adjustment_history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `attendance_id` int NOT NULL,
+  `adjusted_by` int NOT NULL,
+  `previous_check_in` datetime DEFAULT NULL,
+  `previous_check_out` datetime DEFAULT NULL,
+  `adjusted_check_in` datetime DEFAULT NULL,
+  `adjusted_check_out` datetime DEFAULT NULL,
+  `adjustment_note` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `attendance_id` (`attendance_id`),
+  KEY `adjusted_by` (`adjusted_by`),
+  CONSTRAINT `attendance_adjustment_history_ibfk_1` FOREIGN KEY (`attendance_id`) REFERENCES `attendances` (`id`),
+  CONSTRAINT `attendance_adjustment_history_ibfk_2` FOREIGN KEY (`adjusted_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `attendance_adjustment_history`
+--
+
+LOCK TABLES `attendance_adjustment_history` WRITE;
+/*!40000 ALTER TABLE `attendance_adjustment_history` DISABLE KEYS */;
+/*!40000 ALTER TABLE `attendance_adjustment_history` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `attendances`
 --
 
@@ -28,8 +62,8 @@ CREATE TABLE `attendances` (
   `shift_schedule_id` int NOT NULL,
   `check_in` datetime DEFAULT NULL,
   `check_out` datetime DEFAULT NULL,
-  `method` enum('WIFI','DYNAMIC_QR') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` enum('VALID','INVALID','ADJUSTED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'VALID',
+  `method` enum('WIFI','DYNAMIC_QR','WEB') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('VALID','INVALID','ADJUSTED','PENDING') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'VALID',
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
   KEY `shift_schedule_id` (`shift_schedule_id`),
@@ -1230,7 +1264,7 @@ CREATE TABLE `violations` (
   CONSTRAINT `violations_ibfk_2` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
   CONSTRAINT `violations_reported_by_fk` FOREIGN KEY (`reported_by`) REFERENCES `users` (`id`) ON DELETE SET NULL,
   CONSTRAINT `violations_reviewed_by_fk` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1239,6 +1273,7 @@ CREATE TABLE `violations` (
 
 LOCK TABLES `violations` WRITE;
 /*!40000 ALTER TABLE `violations` DISABLE KEYS */;
+INSERT INTO `violations` VALUES (1,13,2,'vi phạm','nhìn hơi ngu',NULL,0.00,'2026-10-31 20:46:21','WORK_PERFORMANCE','2026-10-30',6,'APPROVED','lần sau bớt ngu nhé.','chấm dứt hợp đồng',3,'2026-10-31 20:47:29'),(2,12,2,'ddfd','dfdf',NULL,0.00,'2026-10-31 20:54:19','OPERATIONAL','2026-10-24',6,'PENDING_REVIEW',NULL,NULL,NULL,NULL),(3,14,3,'sdsdsd','sdssd',NULL,0.00,'2026-10-31 20:55:04','WORK_PERFORMANCE','2026-10-29',7,'PENDING_REVIEW',NULL,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `violations` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1269,4 +1304,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-28 19:05:07
+-- Dump completed on 2026-10-31 21:43:18

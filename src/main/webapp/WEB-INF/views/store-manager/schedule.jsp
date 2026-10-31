@@ -1,6 +1,6 @@
 <%-- 
-    Document    : schedule
-    Author      : phong
+    Document   : schedule
+    Author     : phong
 --%>
 
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
@@ -10,38 +10,170 @@
 <%@ page import="model.Shift" %>
 <%@ page import="dao.ShiftScheduleDAO" %>
 
-<html>
+<!DOCTYPE html>
+<html lang="vi">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Quản Lý Lịch Trực & Phân Công Ca - Store Manager</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            body {
-                font-family: 'Roboto', sans-serif;
-                background-color: #f4f7f6;
-                color: #333;
+            * {
+                box-sizing: border-box;
             }
-            .top-navbar {
-                background-color: #2c3e50;
-                color: white;
-                padding: 15px 30px;
+            body {
+                margin: 0;
+                font-family: 'Roboto', sans-serif;
+                background: #f4f7f6;
+                color: #1e293b;
+                display: flex;
+                min-height: 100vh;
+            }
+            /* --- SIDEBAR --- */
+            .sidebar {
+                width: 260px;
+                background: #1e293b;
+                color: #94a3b8;
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                inset: 0 auto 0 0;
+                z-index: 100;
+                box-shadow: 2px 0 10px rgba(0,0,0,.1);
+            }
+            .sidebar-brand {
+                padding: 25px 20px;
+                font-size: 18px;
+                font-weight: 700;
+                color: #fff;
+                background: #0f172a;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .sidebar-brand i {
+                color: #38bdf8;
+                font-size: 22px;
+            }
+            .sidebar-menu {
+                list-style: none;
+                padding: 20px 0;
+                margin: 0;
+                overflow-y: auto;
+                flex-grow: 1;
+            }
+            .sidebar-menu a {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                padding: 14px 25px;
+                color: #94a3b8;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 500;
+                border-left: 4px solid transparent;
+                transition: all 0.3s ease;
+            }
+            .sidebar-menu a:hover, .sidebar-menu .active a {
+                color: #fff;
+                background: rgba(255,255,255,.05);
+                border-left-color: #38bdf8;
+            }
+            .sidebar-menu i {
+                width: 20px;
+                text-align: center;
+            }
+
+            /* --- MAIN WRAPPER & TOPBAR --- */
+            .main-wrapper {
+                margin-left: 260px;
+                flex: 1;
+                min-width: 0;
+                display: flex;
+                flex-direction: column;
+            }
+            .topbar {
+                background: #fff;
+                color: #1e293b;
+                padding: 15px 35px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                gap: 20px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.05);
+                position: sticky;
+                top: 0;
+                z-index: 99;
             }
-            .main-container {
-                max-width: 1350px;
-                margin: 40px auto;
-                padding: 0 20px;
+            .topbar h1 {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 500;
+                color: #334155;
+            }
+            .user-info {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                font-size: 14px;
+            }
+            .user-profile {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .user-profile img {
+                width: 35px;
+                height: 35px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 2px solid #e2e8f0;
+            }
+            .logout {
+                color: #ef4444;
+                text-decoration: none;
+                background: #ffeeef;
+                padding: 6px 14px;
+                border-radius: 6px;
+                font-weight: 500;
+                font-size: 13px;
+                white-space: nowrap;
+                transition: all 0.2s;
+            }
+            .logout:hover {
+                background: #ef4444;
+                color: white;
+            }
+
+            /* --- CONTAINER & CONTENT --- */
+            .dashboard-container {
+                max-width: 1400px;
+                margin: 30px;
+            }
+            .branch-info-bar {
+                background-color: #eef2ff;
+                border: 1px solid #c7d2fe;
+                color: #3730a3;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-size: 14px;
+                margin-bottom: 25px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-weight: 500;
+            }
+            .branch-info-bar i {
+                color: #2563eb;
+                font-size: 16px;
             }
             .card-custom {
                 background: white;
                 border-radius: 12px;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-                border: none;
+                border: 1px solid #f1f5f9;
                 overflow: hidden;
                 margin-bottom: 30px;
             }
@@ -126,8 +258,6 @@
             .employee-tag.assigned strong {
                 color: #0f5132;
             }
-
-            /* CSS khóa tương tác khi đã Published */
             .published-locked .employee-tag {
                 cursor: not-allowed;
                 opacity: 0.85;
@@ -135,8 +265,6 @@
             .published-locked .employee-tag:hover {
                 background: #ffffff;
             }
-
-            /* Cảnh báo thiếu nhân sự */
             .staff-shortage-trigger {
                 border: 0;
                 border-radius: 6px;
@@ -186,223 +314,309 @@
             .modal .form-label {
                 font-weight: 600;
             }
+            @media (max-width: 900px) {
+                .sidebar { width: 220px; }
+                .main-wrapper { margin-left: 220px; }
+                .dashboard-container { margin: 20px; }
+            }
+            @media (max-width: 650px) {
+                body { display: block; }
+                .sidebar { position: static; width: 100%; }
+                .sidebar-menu { display: flex; overflow-x: auto; padding: 5px 0; }
+                .sidebar-menu li { flex: 0 0 auto; }
+                .main-wrapper { margin-left: 0; }
+                .topbar { position: static; flex-wrap: wrap; }
+                .dashboard-container { margin: 15px; }
+            }
         </style>
     </head>
     <body>
 
-        <div class="top-navbar">
-            <h1><i class="fa-solid fa-store me-2"></i> Quản Lý Phân Công Lịch Trực Theo Vị Trí</h1>
-            <a href="dashboard" class="text-white text-decoration-none fw-medium"><i class="fa-solid fa-arrow-left me-1"></i> Quay lại Dashboard</a>
-        </div>
+        <!-- Sidebar Điều Hướng Trái -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-store"></i>
+                <span>Store Manager</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Nhân sự cơ sở</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clock-rotate-left"></i> Chấm công & Ca làm</a></li>
+                <li class="active"><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-week"></i> Xếp lịch & Phân ca</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/violations"><i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/leave-requests"><i class="fa-solid fa-plane-departure"></i> Duyệt nghỉ phép</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-rotate"></i> Duyệt đổi ca</a></li>
+            </ul>
+        </aside>
 
-        <div class="main-container">
-            <%-- Thông báo phản hồi chuyển hướng từ TransferRequestsServlet --%>
-            <c:if test="${not empty sessionScope.transferMessage}">
-                <div class="alert alert-success alert-dismissible fade show shadow-sm mb-4" role="alert">
-                    <i class="fa-solid fa-circle-check me-2"></i><c:out value="${sessionScope.transferMessage}"/>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-                <% session.removeAttribute("transferMessage"); %>
-            </c:if>
-            <c:if test="${not empty sessionScope.transferError}">
-                <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-4" role="alert">
-                    <i class="fa-solid fa-triangle-exclamation me-2"></i><c:out value="${sessionScope.transferError}"/>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-                <% session.removeAttribute("transferError"); %>
-            </c:if>
-
-            <c:if test="${param.success eq 'published'}">
-                <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã công bố (Publish) lịch làm việc tuần này thành công! Nhân viên đã có thể xem lịch trên hệ thống.</div>
-            </c:if>
-            <c:if test="${param.success eq 'supplementary_opened'}">
-                <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã mở đăng ký bổ sung. Nhân viên phù hợp có thể đăng ký tại trang lịch rảnh.</div>
-            </c:if>
-            <c:if test="${param.error eq 'supplementary_open_failed'}">
-                <div class="alert alert-danger shadow-sm mb-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Không thể mở đăng ký. Hãy kiểm tra ca còn thiếu nhân sự, chưa publish và hạn đăng ký hợp lệ.</div>
-            </c:if>
-
-            <div class="card card-custom">
-                <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <div>
-                        <h2><i class="fa-solid fa-calendar-check me-2"></i> Bảng Phân Công Ca Làm Việc</h2>
-                        <p class="mb-0 small mt-1"><i class="fa-solid fa-clock-rotate-left me-1"></i> Áp dụng từ: <strong>${startDate}</strong> đến <strong>${endDate}</strong></p>
+        <!-- Main Wrapper -->
+        <div class="main-wrapper">
+            <header class="topbar">
+                <h1>Hệ Thống Quản Lý Siêu Thị - Chi Nhánh Trực Thuộc</h1>
+                <div class="user-info">
+                    <div class="user-profile">
+                        <img src="https://ui-avatars.com/api/?name=${sessionScope.user.username != null ? sessionScope.user.username : (sessionScope.account.username != null ? sessionScope.account.username : 'Store+Manager')}&background=2563eb&color=fff" alt="Avatar">
+                        <span>Xin chào, <b><c:out value="${sessionScope.user.username != null ? sessionScope.user.username : (sessionScope.account.username != null ? sessionScope.account.username : 'Store Manager')}"/></b></span>
                     </div>
+                    <a class="logout" href="${pageContext.request.contextPath}/logout">
+                        <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                    </a>
+                </div>
+            </header>
 
-                    <div class="d-flex align-items-center gap-3">
-                        <%-- Nút điều hướng Tuần trước / Tuần sau --%>
-                        <div class="btn-group" role="group">
-                            <a href="schedule?startDate=${prevWeekDate}" class="btn btn-outline-light btn-sm px-3">
-                                <i class="fa-solid fa-chevron-left me-1"></i> Tuần trước
-                            </a>
-                            <a href="schedule?startDate=${nextWeekDate}" class="btn btn-outline-light btn-sm px-3">
-                                Tuần sau <i class="fa-solid fa-chevron-right ms-1"></i>
-                            </a>
+            <div class="dashboard-container">
+
+                <!-- Thanh hiển thị Cơ sở hiện tại -->
+                <div class="branch-info-bar">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <span>Cơ sở hiện tại: <b><c:choose>
+                        <c:when test="${not empty currentBranch}">
+                            <c:out value="${currentBranch.name}"/> (<c:out value="${currentBranch.code}"/>) - <c:out value="${currentBranch.address}"/>
+                        </c:when>
+                        <c:otherwise>Không xác định được cơ sở của bạn</c:otherwise>
+                    </c:choose></b></span>
+                </div>
+
+                <%-- Thông báo phản hồi chuyển hướng từ TransferRequestsServlet --%>
+                <c:if test="${not empty sessionScope.transferMessage}">
+                    <div class="alert alert-success alert-dismissible fade show shadow-sm mb-4" role="alert">
+                        <i class="fa-solid fa-circle-check me-2"></i><c:out value="${sessionScope.transferMessage}"/>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    <% session.removeAttribute("transferMessage"); %>
+                </c:if>
+                <c:if test="${not empty sessionScope.transferError}">
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm mb-4" role="alert">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i><c:out value="${sessionScope.transferError}"/>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    <% session.removeAttribute("transferError"); %>
+                </c:if>
+
+                <c:if test="${param.success eq 'published'}">
+                    <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã công bố (Publish) lịch làm việc tuần này thành công! Nhân viên đã có thể xem lịch trên hệ thống.</div>
+                </c:if>
+                <c:if test="${param.success eq 'supplementary_opened'}">
+                    <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã mở đăng ký bổ sung. Nhân viên phù hợp có thể đăng ký tại trang lịch rảnh.</div>
+                </c:if>
+                <c:if test="${param.error eq 'supplementary_open_failed'}">
+                    <div class="alert alert-danger shadow-sm mb-4"><i class="fa-solid fa-triangle-exclamation me-2"></i> Không thể mở đăng ký. Hãy kiểm tra ca còn thiếu nhân sự, chưa publish và hạn đăng ký hợp lệ.</div>
+                </c:if>
+
+                <div class="card card-custom">
+                    <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div>
+                            <h2><i class="fa-solid fa-calendar-check me-2"></i> Bảng Phân Công Ca Làm Việc</h2>
+                            <p class="mb-0 small mt-1"><i class="fa-solid fa-clock-rotate-left me-1"></i> Áp dụng từ: <strong>${startDate}</strong> đến <strong>${endDate}</strong></p>
                         </div>
 
-                        <%-- Kiểm tra trạng thái đã Publish hay chưa để ẩn/hiện nút --%>
-                        <c:choose>
-                            <c:when test="${isPublished}">
-                                <span class="badge bg-success p-2 px-3" style="font-size: 13px;">
-                                    <i class="fa-solid fa-circle-check me-1"></i> Đã Publish Lịch
-                                </span>
-                            </c:when>
-                            <c:otherwise>
-                                <form action="schedule" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn công bố (Publish) toàn bộ lịch làm việc đã chọn cho nhân viên cơ sở không?');" class="mb-0">
-                                    <input type="hidden" name="action" value="publish">
-                                    <input type="hidden" name="branchId" value="${managerBranchId}">
-                                    <input type="hidden" name="startDate" value="${startDateRaw}">
-                                    <button type="submit" class="btn btn-publish">
-                                        <i class="fa-solid fa-bullhorn me-2"></i> Publish Lịch Trực
-                                    </button>
-                                </form>
-                            </c:otherwise>
-                        </c:choose>
-                    </div>
-                </div>
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <%-- Nút Quay lại Bảng điều khiển --%>
+                            <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-light btn-sm text-secondary fw-medium px-3">
+                                <i class="fa-solid fa-arrow-left me-1"></i> Quay lại Bảng điều khiển
+                            </a>
 
-                <div class="p-4">
-                    <p class="text-muted mb-4"><i class="fa-solid fa-circle-info me-1"></i> Bấm trực tiếp vào tên nhân viên để chọn hoặc hủy chọn phân công ca. Dữ liệu sẽ tự động lưu và chỉ hiển thị cho nhân viên khi bạn bấm <strong>Publish</strong>.</p>
+                            <%-- Nút điều hướng Tuần trước / Tuần sau --%>
+                            <div class="btn-group" role="group">
+                                <a href="schedule?startDate=${prevWeekDate}" class="btn btn-outline-light btn-sm px-3">
+                                    <i class="fa-solid fa-chevron-left me-1"></i> Tuần trước
+                                </a>
+                                <a href="schedule?startDate=${nextWeekDate}" class="btn btn-outline-light btn-sm px-3">
+                                    Tuần sau <i class="fa-solid fa-chevron-right ms-1"></i>
+                                </a>
+                            </div>
 
-                    <%-- Duyệt qua từng Vị trí công việc trong cửa hàng --%>
-                    <c:forEach var="pos" items="${positions}">
-                        <div class="position-section-header">
-                            <i class="fa-solid fa-briefcase me-2"></i> Vị trí: ${pos.title}
+                            <%-- Kiểm tra trạng thái đã Publish hay chưa để ẩn/hiện nút --%>
+                            <c:choose>
+                                <c:when test="${isPublished}">
+                                    <span class="badge bg-success p-2 px-3" style="font-size: 13px;">
+                                        <i class="fa-solid fa-circle-check me-1"></i> Đã Publish Lịch
+                                    </span>
+                                </c:when>
+                                <c:otherwise>
+                                    <form action="schedule" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn công bố (Publish) toàn bộ lịch làm việc đã chọn cho nhân viên cơ sở không?');" class="mb-0">
+                                        <input type="hidden" name="action" value="publish">
+                                        <input type="hidden" name="branchId" value="${managerBranchId}">
+                                        <input type="hidden" name="startDate" value="${startDateRaw}">
+                                        <button type="submit" class="btn btn-publish">
+                                            <i class="fa-solid fa-bullhorn me-2"></i> Publish Lịch Trực
+                                        </button>
+                                    </form>
+                                </c:otherwise>
+                            </c:choose>
                         </div>
+                    </div>
 
-                        <div class="table-responsive mb-5">
-                            <table class="table table-bordered text-center align-middle ${isPublished ? 'published-locked' : ''}">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 15%;">Ca Làm Việc</th>
+                    <div class="p-4">
+                        <p class="text-muted mb-4"><i class="fa-solid fa-circle-info me-1"></i> Bấm trực tiếp vào tên nhân viên để chọn hoặc hủy chọn phân công ca. Dữ liệu sẽ tự động lưu và chỉ hiển thị cho nhân viên khi bạn bấm <strong>Publish</strong>.</p>
+
+                        <%-- Duyệt qua từng Vị trí công việc trong cửa hàng --%>
+                        <c:forEach var="pos" items="${positions}">
+                            <div class="position-section-header">
+                                <i class="fa-solid fa-briefcase me-2"></i> Vị trí: ${pos.title}
+                            </div>
+
+                            <div class="table-responsive mb-5">
+                                <table class="table table-bordered text-center align-middle ${isPublished ? 'published-locked' : ''}">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">Ca Làm Việc</th>
                                             <c:forEach var="dName" items="${dayNames}">
                                             <th>${dName}</th>
                                             </c:forEach>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <c:forEach var="shift" items="${shifts}">
-                                        <tr>
-                                            <td style="text-align: left; padding-left: 15px;">
-                                                <span class="shift-info">
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <c:forEach var="shift" items="${shifts}">
+                                            <tr>
+                                                <td style="text-align: left; padding-left: 15px;">
+                                                    <span class="shift-info">
+                                                        <c:choose>
+                                                            <c:when test="${shift.name.toLowerCase().contains('sáng')}">
+                                                                <i class="fa-solid fa-sun text-warning me-1"></i>
+                                                            </c:when>
+                                                            <c:when test="${shift.name.toLowerCase().contains('chiều')}">
+                                                                <i class="fa-solid fa-cloud-sun text-info me-1"></i>
+                                                            </c:when>
+                                                            <c:otherwise>
+                                                                <i class="fa-solid fa-moon text-primary me-1"></i>
+                                                            </c:otherwise>
+                                                        </c:choose>
+                                                        ${shift.name}
+                                                    </span>
+                                                    <span class="shift-time">${shift.startTime} - ${shift.endTime}</span>
+                                                </td>
+
+                                                <%-- Duyệt các ngày trong tuần cho từng ca của vị trí này --%>
+                                                <c:forEach var="day" items="${days}">
+                                                    <c:set var="workDate" value="${dayDateMap[day]}" />
+                                                    <c:set var="reqKey" value="${workDate}_${pos.id}_${shift.id}" />
+
+                                                    <%-- Lấy định mức từ DB hoặc gọi hàm gợi ý thông minh --%>
+                                                    <c:set var="reqData" value="${weeklyRequirements[reqKey]}" />
                                                     <c:choose>
-                                                        <c:when test="${shift.name.toLowerCase().contains('sáng')}">
-                                                            <i class="fa-solid fa-sun text-warning me-1"></i>
-                                                        </c:when>
-                                                        <c:when test="${shift.name.toLowerCase().contains('chiều')}">
-                                                            <i class="fa-solid fa-cloud-sun text-info me-1"></i>
+                                                        <c:when test="${not empty reqData}">
+                                                            <c:set var="requiredCount" value="${reqData.requiredCount}" />
                                                         </c:when>
                                                         <c:otherwise>
-                                                            <i class="fa-solid fa-moon text-primary me-1"></i>
+                                                            <%
+                                                                String wDate = (String) pageContext.getAttribute("workDate");
+                                                                int pId = Integer.parseInt(String.valueOf(((Map)pageContext.getAttribute("pos")).get("id")));
+                                                                int sId = ((Shift)pageContext.getAttribute("shift")).getId();
+                                                                ShiftScheduleDAO tempDao = new ShiftScheduleDAO();
+                                                                int smartCount = tempDao.getSmartDefaultRequirement(wDate, pId, sId);
+                                                                pageContext.setAttribute("requiredCount", smartCount);
+                                                            %>
                                                         </c:otherwise>
                                                     </c:choose>
-                                                    ${shift.name}
-                                                </span>
-                                                <span class="shift-time">${shift.startTime} - ${shift.endTime}</span>
-                                            </td>
 
-                                            <%-- Duyệt các ngày trong tuần cho từng ca của vị trí này --%>
-                                            <c:forEach var="day" items="${days}">
-                                                <c:set var="workDate" value="${dayDateMap[day]}" />
-                                                <c:set var="reqKey" value="${workDate}_${pos.id}_${shift.id}" />
+                                                    <%-- Lấy số lượng thực tế đã được xếp --%>
+                                                    <c:set var="assignedCount" value="${weeklyAssignedCounts[reqKey]}" />
+                                                    <c:if test="${empty assignedCount}">
+                                                        <c:set var="assignedCount" value="0" />
+                                                    </c:if>
 
-                                                <%-- Lấy định mức từ DB hoặc gọi hàm gợi ý thông minh --%>
-                                                <c:set var="reqData" value="${weeklyRequirements[reqKey]}" />
-                                                <c:choose>
-                                                    <c:when test="${not empty reqData}">
-                                                        <c:set var="requiredCount" value="${reqData.requiredCount}" />
-                                                    </c:when>
-                                                    <c:otherwise>
-                                                        <%
-                                                            String wDate = (String) pageContext.getAttribute("workDate");
-                                                            int pId = Integer.parseInt(String.valueOf(((Map)pageContext.getAttribute("pos")).get("id")));
-                                                            int sId = ((Shift)pageContext.getAttribute("shift")).getId();
-                                                            ShiftScheduleDAO tempDao = new ShiftScheduleDAO();
-                                                            int smartCount = tempDao.getSmartDefaultRequirement(wDate, pId, sId);
-                                                            pageContext.setAttribute("requiredCount", smartCount);
-                                                        %>
-                                                    </c:otherwise>
-                                                </c:choose>
+                                                    <%-- Kiểm tra trạng thái đã gửi/mở từ Servlet --%>
+                                                    <c:set var="isSupplementaryOpened" value="${supplementaryOpenedMap[reqKey]}" />
+                                                    <c:set var="isTransferProposed" value="${transferProposedMap[reqKey]}" />
 
-                                                <%-- Lấy số lượng thực tế đã được xếp --%>
-                                                <c:set var="assignedCount" value="${weeklyAssignedCounts[reqKey]}" />
-                                                <c:if test="${empty assignedCount}">
-                                                    <c:set var="assignedCount" value="0" />
-                                                </c:if>
+                                                    <%-- Trạng thái nhân sự: 0 người = đỏ; thiếu một phần = vàng; đủ người = xanh --%>
+                                                    <c:set var="shortageClass" value="warning-red" />
+                                                    <c:set var="shortageMessage" value="Chưa có nhân sự. Bấm để tạo đề xuất điều chuyển." />
+                                                    <c:if test="${isTransferProposed}">
+                                                        <c:set var="shortageClass" value="status-sent" />
+                                                        <c:set var="shortageMessage" value="Đã gửi đề xuất điều chuyển." />
+                                                    </c:if>
 
-                                                <%-- Kiểm tra trạng thái đã gửi/mở từ Servlet --%>
-                                                <c:set var="isSupplementaryOpened" value="${supplementaryOpenedMap[reqKey]}" />
-                                                <c:set var="isTransferProposed" value="${transferProposedMap[reqKey]}" />
+                                                    <c:if test="${assignedCount gt 0 and assignedCount lt requiredCount}">
+                                                        <c:choose>
+                                                            <c:when test="${isSupplementaryOpened}">
+                                                                <c:set var="shortageClass" value="status-sent" />
+                                                                <c:set var="shortageMessage" value="Đã mở đăng ký bổ sung." />
+                                                            </c:when>
+                                                            <c:otherwise>
+                                                                <c:set var="shortageClass" value="warning-yellow" />
+                                                                <c:set var="shortageMessage" value="Chưa đủ nhân sự. Bấm để mở đăng ký bổ sung." />
+                                                            </c:otherwise>
+                                                        </c:choose>
+                                                    </c:if>
 
-                                                <%-- Trạng thái nhân sự: 0 người = đỏ; thiếu một phần = vàng; đủ người = xanh --%>
-                                                <c:set var="shortageClass" value="warning-red" />
-                                                <c:set var="shortageMessage" value="Chưa có nhân sự. Bấm để tạo đề xuất điều chuyển." />
-                                                <c:if test="${isTransferProposed}">
-                                                    <c:set var="shortageClass" value="status-sent" />
-                                                    <c:set var="shortageMessage" value="Đã gửi đề xuất điều chuyển." />
-                                                </c:if>
+                                                    <c:if test="${assignedCount ge requiredCount}">
+                                                        <c:set var="shortageClass" value="warning-green" />
+                                                        <c:set var="shortageMessage" value="Đã đủ số lượng nhân sự." />
+                                                    </c:if>
 
-                                                <c:if test="${assignedCount gt 0 and assignedCount lt requiredCount}">
-                                                    <c:choose>
-                                                        <c:when test="${isSupplementaryOpened}">
-                                                            <c:set var="shortageClass" value="status-sent" />
-                                                            <c:set var="shortageMessage" value="Đã mở đăng ký bổ sung." />
-                                                        </c:when>
-                                                        <c:otherwise>
-                                                            <c:set var="shortageClass" value="warning-yellow" />
-                                                            <c:set var="shortageMessage" value="Chưa đủ nhân sự. Bấm để mở đăng ký bổ sung." />
-                                                        </c:otherwise>
-                                                    </c:choose>
-                                                </c:if>
-
-                                                <c:if test="${assignedCount ge requiredCount}">
-                                                    <c:set var="shortageClass" value="warning-green" />
-                                                    <c:set var="shortageMessage" value="Đã đủ số lượng nhân sự." />
-                                                </c:if>
-
-                                                <td style="background-color: #fafbfc; min-width: 140px; vertical-align: top;">
-                                                    <%-- Header hiển thị Đã xếp / Cần --%>
-                                                    <div class="d-flex justify-content-between align-items-center mb-2 px-1 border-bottom pb-1">
-                                                        <button type="button"
-                                                                class="staff-shortage-trigger ${shortageClass}"
-                                                                title="${shortageMessage}"
-                                                                aria-label="Trạng thái nhân sự ${assignedCount} trên ${requiredCount}"
-                                                                <c:if test="${isPublished or assignedCount ge requiredCount or isSupplementaryOpened or isTransferProposed}">disabled</c:if>
-                                                                onclick="openShortageModal('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}', '${assignedCount}', '${pos.title}', '${shift.name}')">
-                                                            ${assignedCount} / ${requiredCount}
-                                                        </button>
-                                                        <c:if test="${!isPublished}">
-                                                            <button type="button" class="btn btn-sm btn-link p-0 text-muted" style="font-size: 11px;" 
-                                                                    onclick="openRequirementPrompt('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}')">
-                                                                <i class="fa-solid fa-pen"></i>
+                                                    <td style="background-color: #fafbfc; min-width: 140px; vertical-align: top;">
+                                                        <%-- Header hiển thị Đã xếp / Cần --%>
+                                                        <div class="d-flex justify-content-between align-items-center mb-2 px-1 border-bottom pb-1">
+                                                            <button type="button"
+                                                                    class="staff-shortage-trigger ${shortageClass}"
+                                                                    title="${shortageMessage}"
+                                                                    aria-label="Trạng thái nhân sự ${assignedCount} trên ${requiredCount}"
+                                                                    <c:if test="${isPublished or assignedCount ge requiredCount or isSupplementaryOpened or isTransferProposed}">disabled</c:if>
+                                                                    onclick="openShortageModal('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}', '${assignedCount}', '${pos.title}', '${shift.name}')">
+                                                                ${assignedCount} / ${requiredCount}
                                                             </button>
-                                                        </c:if>
-                                                    </div>
+                                                            <c:if test="${!isPublished}">
+                                                                <button type="button" class="btn btn-sm btn-link p-0 text-muted" style="font-size: 11px;" 
+                                                                        onclick="openRequirementPrompt('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}')">
+                                                                    <i class="fa-solid fa-pen"></i>
+                                                                </button>
+                                                            </c:if>
+                                                        </div>
 
-                                                    <c:set var="hasEmployee" value="false" />
+                                                        <c:set var="hasEmployee" value="false" />
 
-                                                    <%-- PHÂN TÁC CA: Nếu ca là ca Full-time thì chỉ hiển thị nhân viên Full-time (đã lọc theo shiftType cố định) --%>
-                                                    <c:choose>
-                                                        <c:when test="${shift.name.toLowerCase().contains('full-time') || shift.name.toLowerCase().contains('full time')}">
-                                                            <c:forEach var="ft" items="${fullTimeEmployees}">
-                                                                <c:if test="${ft.positionTitle eq pos.title}">
-                                                                    <%-- Lọc ràng buộc cố định ca --%>
-                                                                    <c:set var="ftShiftType" value="${not empty ft.shiftType ? fn:toUpperCase(ft.shiftType) : ''}" />
-                                                                    <c:set var="showFt" value="true" />
-                                                                    <c:set var="shiftNameLower" value="${fn:toLowerCase(shift.name)}" />
+                                                        <%-- PHÂN TÁC CA: Nếu ca là ca Full-time thì chỉ hiển thị nhân viên Full-time (đã lọc theo shiftType cố định) --%>
+                                                        <c:choose>
+                                                            <c:when test="${shift.name.toLowerCase().contains('full-time') || shift.name.toLowerCase().contains('full time')}">
+                                                                <c:forEach var="ft" items="${fullTimeEmployees}">
+                                                                    <c:if test="${ft.positionTitle eq pos.title}">
+                                                                        <%-- Lọc ràng buộc cố định ca --%>
+                                                                        <c:set var="ftShiftType" value="${not empty ft.shiftType ? fn:toUpperCase(ft.shiftType) : ''}" />
+                                                                        <c:set var="showFt" value="true" />
+                                                                        <c:set var="shiftNameLower" value="${fn:toLowerCase(shift.name)}" />
 
-                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_MORNING' and not fn:contains(shiftNameLower, 'sáng')}">
-                                                                        <c:set var="showFt" value="false" />
+                                                                        <c:if test="${ftShiftType eq 'FT_FIXED_MORNING' and not fn:contains(shiftNameLower, 'sáng')}">
+                                                                            <c:set var="showFt" value="false" />
+                                                                        </c:if>
+                                                                        <c:if test="${ftShiftType eq 'FT_FIXED_AFTERNOON' and not fn:contains(shiftNameLower, 'chiều')}">
+                                                                            <c:set var="showFt" value="false" />
+                                                                        </c:if>
+                                                                        <c:if test="${ftShiftType eq 'FT_FIXED_EVENING' and not fn:contains(shiftNameLower, 'tối')}">
+                                                                            <c:set var="showFt" value="false" />
+                                                                        </c:if>
+
+                                                                        <c:if test="${showFt}">
+                                                                            <c:set var="currentKey" value="${ft.userId}_${shift.id}_${workDate}" />
+                                                                            <c:set var="isAssigned" value="false" />
+                                                                            <c:forEach var="asg" items="${assignedList}">
+                                                                                <c:if test="${asg eq currentKey}">
+                                                                                    <c:set var="isAssigned" value="true" />
+                                                                                </c:if>
+                                                                            </c:forEach>
+
+                                                                            <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
+                                                                                 onclick="toggleAssignment(this, '${ft.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
+                                                                                <div>
+                                                                                    <strong>${ft.fullName}</strong> <span class="badge bg-info text-dark" style="font-size: 9px;">FT</span>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
+                                                                                </div>
+                                                                            </div>
+                                                                            <c:set var="hasEmployee" value="true" />
+                                                                        </c:if>
                                                                     </c:if>
-                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_AFTERNOON' and not fn:contains(shiftNameLower, 'chiều')}">
-                                                                        <c:set var="showFt" value="false" />
-                                                                    </c:if>
-                                                                    <c:if test="${ftShiftType eq 'FT_FIXED_EVENING' and not fn:contains(shiftNameLower, 'tối')}">
-                                                                        <c:set var="showFt" value="false" />
-                                                                    </c:if>
-
-                                                                    <c:if test="${showFt}">
-                                                                        <c:set var="currentKey" value="${ft.userId}_${shift.id}_${workDate}" />
+                                                                </c:forEach>
+                                                            </c:when>
+                                                            <c:otherwise>
+                                                                <%-- Nếu là ca thường (Part-time / Casual), chỉ hiển thị nhân viên đã đăng ký lịch rảnh --%>
+                                                                <c:forEach var="reg" items="${branchRegistrations}">
+                                                                    <c:if test="${reg.positionTitle eq pos.title and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
+                                                                        <c:set var="currentKey" value="${reg.userId}_${shift.id}_${workDate}" />
                                                                         <c:set var="isAssigned" value="false" />
                                                                         <c:forEach var="asg" items="${assignedList}">
                                                                             <c:if test="${asg eq currentKey}">
@@ -411,9 +625,13 @@
                                                                         </c:forEach>
 
                                                                         <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
-                                                                             onclick="toggleAssignment(this, '${ft.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
+                                                                             onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
                                                                             <div>
-                                                                                <strong>${ft.fullName}</strong> <span class="badge bg-info text-dark" style="font-size: 9px;">FT</span>
+                                                                                <strong>${reg.fullName}</strong>
+                                                                                <c:choose>
+                                                                                    <c:when test="${reg.registrationType eq 'SUPPLEMENTARY'}"><span class="badge bg-warning text-dark" style="font-size: 9px;">Đăng ký bổ sung</span></c:when>
+                                                                                    <c:otherwise><span class="badge bg-light text-dark" style="font-size: 9px;">PT</span></c:otherwise>
+                                                                                </c:choose>
                                                                             </div>
                                                                             <div>
                                                                                 <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
@@ -421,65 +639,36 @@
                                                                         </div>
                                                                         <c:set var="hasEmployee" value="true" />
                                                                     </c:if>
-                                                                </c:if>
-                                                            </c:forEach>
-                                                        </c:when>
-                                                        <c:otherwise>
-                                                            <%-- Nếu là ca thường (Part-time / Casual), chỉ hiển thị nhân viên đã đăng ký lịch rảnh --%>
-                                                            <c:forEach var="reg" items="${branchRegistrations}">
-                                                                <c:if test="${reg.positionTitle eq pos.title and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
-                                                                    <c:set var="currentKey" value="${reg.userId}_${shift.id}_${workDate}" />
-                                                                    <c:set var="isAssigned" value="false" />
-                                                                    <c:forEach var="asg" items="${assignedList}">
-                                                                        <c:if test="${asg eq currentKey}">
-                                                                            <c:set var="isAssigned" value="true" />
-                                                                        </c:if>
-                                                                    </c:forEach>
+                                                                </c:forEach>
+                                                            </c:otherwise>
+                                                        </c:choose>
 
-                                                                    <div class="employee-tag ${isAssigned ? 'assigned' : ''}" 
-                                                                         onclick="toggleAssignment(this, '${reg.userId}', '${shift.id}', '${managerBranchId}', '${workDate}', '${pos.id}')">
-                                                                        <div>
-                                                                            <strong>${reg.fullName}</strong>
-                                                                            <c:choose>
-                                                                                <c:when test="${reg.registrationType eq 'SUPPLEMENTARY'}"><span class="badge bg-warning text-dark" style="font-size: 9px;">Đăng ký bổ sung</span></c:when>
-                                                                                <c:otherwise><span class="badge bg-light text-dark" style="font-size: 9px;">PT</span></c:otherwise>
-                                                                            </c:choose>
-                                                                        </div>
-                                                                        <div>
-                                                                            <i class="fa-solid ${isAssigned ? 'fa-check-circle text-success' : 'fa-circle text-muted'} check-icon"></i>
-                                                                        </div>
-                                                                    </div>
-                                                                    <c:set var="hasEmployee" value="true" />
-                                                                </c:if>
-                                                            </c:forEach>
-                                                        </c:otherwise>
-                                                    </c:choose>
+                                                        <c:forEach var="borrowed" items="${borrowedAssignments[reqKey]}">
+                                                            <div class="employee-tag assigned" style="border:2px solid #0d6efd;background:#e7f1ff;cursor:default">
+                                                                <span><strong><c:out value="${borrowed.fullName}"/></strong><small class="d-block text-primary">Điều chuyển · <c:out value="${borrowed.sourceBranchName}"/></small></span>
+                                                                <i class="fa-solid fa-arrow-right-arrow-left text-primary"></i>
+                                                            </div>
+                                                            <c:set var="hasEmployee" value="true" />
+                                                        </c:forEach>
+                                                        <c:if test="${!hasEmployee}">
+                                                            <div class="text-muted small fst-italic py-2">Không có nhân sự</div>
+                                                        </c:if>
+                                                        <c:if test="${assignedCount lt requiredCount and !isPublished}">
+                                                            <div class="shortage-message ${assignedCount eq 0 ? (isTransferProposed ? 'muted' : 'red') : (isSupplementaryOpened ? 'muted' : 'yellow')}">
+                                                                <i class="fa-solid ${assignedCount eq 0 ? (isTransferProposed ? 'fa-circle-check' : 'fa-circle-exclamation') : (isSupplementaryOpened ? 'fa-circle-check' : 'fa-triangle-exclamation')} me-1"></i>
+                                                                <c:out value="${shortageMessage}" />
+                                                            </div>
+                                                        </c:if>
+                                                    </td>
+                                                </c:forEach>
+                                            </tr>
+                                        </c:forEach>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </c:forEach>
 
-                                                    <c:forEach var="borrowed" items="${borrowedAssignments[reqKey]}">
-                                                        <div class="employee-tag assigned" style="border:2px solid #0d6efd;background:#e7f1ff;cursor:default">
-                                                            <span><strong><c:out value="${borrowed.fullName}"/></strong><small class="d-block text-primary">Điều chuyển · <c:out value="${borrowed.sourceBranchName}"/></small></span>
-                                                            <i class="fa-solid fa-arrow-right-arrow-left text-primary"></i>
-                                                        </div>
-                                                        <c:set var="hasEmployee" value="true" />
-                                                    </c:forEach>
-                                                    <c:if test="${!hasEmployee}">
-                                                        <div class="text-muted small fst-italic py-2">Không có nhân sự</div>
-                                                    </c:if>
-                                                    <c:if test="${assignedCount lt requiredCount and !isPublished}">
-                                                        <div class="shortage-message ${assignedCount eq 0 ? (isTransferProposed ? 'muted' : 'red') : (isSupplementaryOpened ? 'muted' : 'yellow')}">
-                                                            <i class="fa-solid ${assignedCount eq 0 ? (isTransferProposed ? 'fa-circle-check' : 'fa-circle-exclamation') : (isSupplementaryOpened ? 'fa-circle-check' : 'fa-triangle-exclamation')} me-1"></i>
-                                                            <c:out value="${shortageMessage}" />
-                                                        </div>
-                                                    </c:if>
-                                                </td>
-                                            </c:forEach>
-                                        </tr>
-                                    </c:forEach>
-                                </tbody>
-                            </table>
-                        </div>
-                    </c:forEach>
-
+                    </div>
                 </div>
             </div>
         </div>
@@ -593,7 +782,6 @@
                                 </div>
                                 <div class="col-12">
                                     <label for="sourceStoreId" class="form-label">Cơ sở đề nghị cho mượn</label>
-                                    <%-- Thẻ select này sẽ gửi đúng ID của cơ sở cho mượn lên Servlet vào tham số sourceStoreId --%>
                                     <select class="form-select" id="sourceStoreId" name="sourceStoreId" required>
                                         <option value="" disabled selected>-- Chọn cơ sở cho mượn --</option>
                                         <c:forEach var="branch" items="${allBranches}">
@@ -619,182 +807,180 @@
             </div>
         </div>
 
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-                                                                             const isPublished = ${isPublished};
+            const isPublished = ${isPublished};
 
-                                                                             function openShortageModal(branchId, positionId, shiftId, workDate, requiredCount, assignedCount, positionTitle, shiftName) {
-                                                                                 if (isPublished) {
-                                                                                     alert('Lịch làm việc tuần này đã được Publish. Không thể mở đăng ký bổ sung hoặc tạo đề xuất điều chuyển.');
-                                                                                     return;
-                                                                                 }
+            function openShortageModal(branchId, positionId, shiftId, workDate, requiredCount, assignedCount, positionTitle, shiftName) {
+                if (isPublished) {
+                    alert('Lịch làm việc tuần này đã được Publish. Không thể mở đăng ký bổ sung hoặc tạo đề xuất điều chuyển.');
+                    return;
+                }
 
-                                                                                 const required = parseInt(requiredCount, 10) || 0;
-                                                                                 const assigned = parseInt(assignedCount, 10) || 0;
-                                                                                 const dateText = workDate || '';
+                const required = parseInt(requiredCount, 10) || 0;
+                const assigned = parseInt(assignedCount, 10) || 0;
+                const dateText = workDate || '';
 
-                                                                                 if (assigned >= required) {
-                                                                                     alert('Ca này đã đủ số lượng nhân sự.');
-                                                                                     return;
-                                                                                 }
+                if (assigned >= required) {
+                    alert('Ca này đã đủ số lượng nhân sự.');
+                    return;
+                }
 
-                                                                                 if (assigned === 0) {
-                                                                                     // Không cần set destination store vì Servlet tự lấy branch hiện tại
-                                                                                     document.getElementById('transferPositionId').value = positionId;
-                                                                                     document.getElementById('transferShiftId').value = shiftId;
-                                                                                     document.getElementById('transferWorkDate').value = dateText;
-                                                                                     document.getElementById('transferPositionTitle').value = positionTitle;
-                                                                                     document.getElementById('transferShiftName').value = shiftName;
-                                                                                     document.getElementById('transferDateDisplay').value = dateText;
-                                                                                     document.getElementById('transferAssignedDisplay').value = assigned;
-                                                                                     document.getElementById('transferRequiredDisplay').value = required;
-                                                                                     document.getElementById('requestedCount').max = Math.max(1, required - assigned);
-                                                                                     document.getElementById('requestedCount').value = 1;
-                                                                                     bootstrap.Modal.getOrCreateInstance(document.getElementById('transferProposalModal')).show();
-                                                                                 } else {
-                                                                                     document.getElementById('suppBranchId').value = branchId;
-                                                                                     document.getElementById('suppPositionId').value = positionId;
-                                                                                     document.getElementById('suppShiftId').value = shiftId;
-                                                                                     document.getElementById('suppWorkDate').value = dateText;
-                                                                                     document.getElementById('suppRequiredCount').value = requiredCount;
-                                                                                     document.getElementById('suppAssignedCount').value = assignedCount;
-                                                                                     document.getElementById('suppPositionTitle').value = positionTitle;
-                                                                                     document.getElementById('suppShiftName').value = shiftName;
-                                                                                     document.getElementById('suppDateDisplay').value = dateText;
-                                                                                     document.getElementById('suppAssignedDisplay').value = assigned;
-                                                                                     document.getElementById('suppRequiredDisplay').value = required;
-                                                                                     bootstrap.Modal.getOrCreateInstance(document.getElementById('supplementaryModal')).show();
-                                                                                 }
-                                                                             }
+                if (assigned === 0) {
+                    document.getElementById('transferPositionId').value = positionId;
+                    document.getElementById('transferShiftId').value = shiftId;
+                    document.getElementById('transferWorkDate').value = dateText;
+                    document.getElementById('transferPositionTitle').value = positionTitle;
+                    document.getElementById('transferShiftName').value = shiftName;
+                    document.getElementById('transferDateDisplay').value = dateText;
+                    document.getElementById('transferAssignedDisplay').value = assigned;
+                    document.getElementById('transferRequiredDisplay').value = required;
+                    document.getElementById('requestedCount').max = Math.max(1, required - assigned);
+                    document.getElementById('requestedCount').value = 1;
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('transferProposalModal')).show();
+                } else {
+                    document.getElementById('suppBranchId').value = branchId;
+                    document.getElementById('suppPositionId').value = positionId;
+                    document.getElementById('suppShiftId').value = shiftId;
+                    document.getElementById('suppWorkDate').value = dateText;
+                    document.getElementById('suppRequiredCount').value = requiredCount;
+                    document.getElementById('suppAssignedCount').value = assignedCount;
+                    document.getElementById('suppPositionTitle').value = positionTitle;
+                    document.getElementById('suppShiftName').value = shiftName;
+                    document.getElementById('suppDateDisplay').value = dateText;
+                    document.getElementById('suppAssignedDisplay').value = assigned;
+                    document.getElementById('suppRequiredDisplay').value = required;
+                    bootstrap.Modal.getOrCreateInstance(document.getElementById('supplementaryModal')).show();
+                }
+            }
 
-                                                                             document.getElementById('supplementaryForm').addEventListener('submit', function (event) {
-                                                                                 const deadline = document.getElementById('supplementaryDeadline').value;
-                                                                                 if (!deadline || new Date(deadline).getTime() <= Date.now()) {
-                                                                                     event.preventDefault();
-                                                                                     alert('Hạn đăng ký phải là thời điểm trong tương lai.');
-                                                                                 }
-                                                                             });
+            document.getElementById('supplementaryForm').addEventListener('submit', function (event) {
+                const deadline = document.getElementById('supplementaryDeadline').value;
+                if (!deadline || new Date(deadline).getTime() <= Date.now()) {
+                    event.preventDefault();
+                    alert('Hạn đăng ký phải là thời điểm trong tương lai.');
+                }
+            });
 
-                                                                             document.getElementById('transferProposalForm').addEventListener('submit', function (event) {
-                                                                                 const sourceStoreId = document.getElementById('sourceStoreId').value.trim();
-                                                                                 const destinationStoreId = document.getElementById('transferDestinationStoreId').value.trim();
-                                                                                 if (!sourceStoreId || sourceStoreId === destinationStoreId) {
-                                                                                     event.preventDefault();
-                                                                                     alert('Vui lòng chọn một cơ sở cho mượn khác cơ sở đang quản lý.');
-                                                                                     return;
-                                                                                 }
-                                                                                 if (!document.getElementById('transferReason').value.trim()) {
-                                                                                     event.preventDefault();
-                                                                                     alert('Vui lòng nhập lý do cần điều chuyển.');
-                                                                                 }
-                                                                             });
+            document.getElementById('transferProposalForm').addEventListener('submit', function (event) {
+                const sourceStoreId = document.getElementById('sourceStoreId').value.trim();
+                if (!sourceStoreId) {
+                    event.preventDefault();
+                    alert('Vui lòng chọn một cơ sở cho mượn.');
+                    return;
+                }
+                if (!document.getElementById('transferReason').value.trim()) {
+                    event.preventDefault();
+                    alert('Vui lòng nhập lý do cần điều chuyển.');
+                }
+            });
 
-                                                                             function toggleAssignment(element, userId, shiftId, branchId, workDate, positionId) {
-                                                                                 if (isPublished) {
-                                                                                     alert('Lịch làm việc tuần này đã được Publish. Không thể thay đổi phân công ca!');
-                                                                                     return;
-                                                                                 }
+            function toggleAssignment(element, userId, shiftId, branchId, workDate, positionId) {
+                if (isPublished) {
+                    alert('Lịch làm việc tuần này đã được Publish. Không thể thay đổi phân công ca!');
+                    return;
+                }
 
-                                                                                 const formData = new URLSearchParams();
-                                                                                 formData.append('action', 'assign');
-                                                                                 formData.append('userId', userId);
-                                                                                 formData.append('positionId', positionId);
-                                                                                 formData.append('shiftId', shiftId);
-                                                                                 formData.append('branchId', branchId);
-                                                                                 formData.append('workDate', workDate);
+                const formData = new URLSearchParams();
+                formData.append('action', 'assign');
+                formData.append('userId', userId);
+                formData.append('positionId', positionId);
+                formData.append('shiftId', shiftId);
+                formData.append('branchId', branchId);
+                formData.append('workDate', workDate);
 
-                                                                                 fetch('schedule', {
-                                                                                     method: 'POST',
-                                                                                     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                                                                                     body: formData.toString()
-                                                                                 })
-                                                                                         .then(response => {
-                                                                                             if (response.ok)
-                                                                                                 return response.text();
-                                                                                             throw new Error('Lỗi kết nối server.');
-                                                                                         })
-                                                                                         .then(result => {
-                                                                                             if (result.trim() === 'published_locked') {
-                                                                                                 alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
-                                                                                                 location.reload();
-                                                                                                 return;
-                                                                                             }
-                                                                                             const icon = element.querySelector('.check-icon');
-                                                                                             if (result.trim() === 'on_leave') {
-                                                                                                 alert('Nhân viên đang nghỉ phép (đơn đã duyệt) trong ngày này. Không thể xếp hoặc bỏ xếp ca.');
-                                                                                                 location.reload();
-                                                                                                 return;
-                                                                                             }
-                                                                                             if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
-                                                                                                 alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
-                                                                                                 location.reload();
-                                                                                                 return;
-                                                                                             }
-                                                                                             if (result.trim() === 'added') {
-                                                                                                 element.classList.add('assigned');
-                                                                                                 icon.className = 'fa-solid fa-check-circle text-success check-icon';
-                                                                                             } else if (result.trim() === 'removed') {
-                                                                                                 element.classList.remove('assigned');
-                                                                                                 icon.className = 'fa-solid fa-circle text-muted check-icon';
-                                                                                             }
-                                                                                             setTimeout(() => location.reload(), 300);
-                                                                                         })
-                                                                                         .catch(error => {
-                                                                                             console.error('Error:', error);
-                                                                                             alert('Có lỗi xảy ra khi lưu phân công.');
-                                                                                         });
-                                                                             }
+                fetch('schedule', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: formData.toString()
+                })
+                .then(response => {
+                    if (response.ok)
+                        return response.text();
+                    throw new Error('Lỗi kết nối server.');
+                })
+                .then(result => {
+                    if (result.trim() === 'published_locked') {
+                        alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
+                        location.reload();
+                        return;
+                    }
+                    const icon = element.querySelector('.check-icon');
+                    if (result.trim() === 'on_leave') {
+                        alert('Nhân viên đang nghỉ phép (đơn đã duyệt) trong ngày này. Không thể xếp hoặc bỏ xếp ca.');
+                        location.reload();
+                        return;
+                    }
+                    if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
+                        alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
+                        location.reload();
+                        return;
+                    }
+                    if (result.trim() === 'added') {
+                        element.classList.add('assigned');
+                        icon.className = 'fa-solid fa-check-circle text-success check-icon';
+                    } else if (result.trim() === 'removed') {
+                        element.classList.remove('assigned');
+                        icon.className = 'fa-solid fa-circle text-muted check-icon';
+                    }
+                    setTimeout(() => location.reload(), 300);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi lưu phân công.');
+                });
+            }
 
-                                                                             function openRequirementPrompt(branchId, positionId, shiftId, workDate, currentCount) {
-                                                                                 if (isPublished) {
-                                                                                     alert('Lịch làm việc tuần này đã được Publish. Không thể chỉnh sửa định mức!');
-                                                                                     return;
-                                                                                 }
+            function openRequirementPrompt(branchId, positionId, shiftId, workDate, currentCount) {
+                if (isPublished) {
+                    alert('Lịch làm việc tuần này đã được Publish. Không thể chỉnh sửa định mức!');
+                    return;
+                }
 
-                                                                                 let newCount = prompt("Nhập số lượng nhân sự yêu cầu cho ca này:", currentCount);
-                                                                                 if (newCount !== null && newCount.trim() !== "") {
-                                                                                     let parsedCount = parseInt(newCount);
-                                                                                     if (isNaN(parsedCount) || parsedCount < 1) {
-                                                                                         alert("Số lượng yêu cầu phải là số nguyên lớn hơn hoặc bằng 1!");
-                                                                                         return;
-                                                                                     }
+                let newCount = prompt("Nhập số lượng nhân sự yêu cầu cho ca này:", currentCount);
+                if (newCount !== null && newCount.trim() !== "") {
+                    let parsedCount = parseInt(newCount);
+                    if (isNaN(parsedCount) || parsedCount < 1) {
+                        alert("Số lượng yêu cầu phải là số nguyên lớn hơn hoặc bằng 1!");
+                        return;
+                    }
 
-                                                                                     const formData = new URLSearchParams();
-                                                                                     formData.append('action', 'updateRequirement');
-                                                                                     formData.append('branchId', branchId);
-                                                                                     formData.append('positionId', positionId);
-                                                                                     formData.append('shiftId', shiftId);
-                                                                                     formData.append('workDate', workDate);
-                                                                                     formData.append('requiredCount', parsedCount);
+                    const formData = new URLSearchParams();
+                    formData.append('action', 'updateRequirement');
+                    formData.append('branchId', branchId);
+                    formData.append('positionId', positionId);
+                    formData.append('shiftId', shiftId);
+                    formData.append('workDate', workDate);
+                    formData.append('requiredCount', parsedCount);
 
-                                                                                     fetch('schedule', {
-                                                                                         method: 'POST',
-                                                                                         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                                                                                         body: formData.toString()
-                                                                                     })
-                                                                                             .then(response => {
-                                                                                                 if (response.ok)
-                                                                                                     return response.text();
-                                                                                                 throw new Error('Lỗi cập nhật định mức.');
-                                                                                             })
-                                                                                             .then(result => {
-                                                                                                 if (result.trim() === 'published_locked') {
-                                                                                                     alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
-                                                                                                     location.reload();
-                                                                                                     return;
-                                                                                                 }
-                                                                                                 if (result.trim() === 'success') {
-                                                                                                     location.reload();
-                                                                                                 } else {
-                                                                                                     alert('Không thể cập nhật định mức.');
-                                                                                                 }
-                                                                                             })
-                                                                                             .catch(error => {
-                                                                                                 console.error('Error:', error);
-                                                                                                 alert('Có lỗi xảy ra khi kết nối server.');
-                                                                                             });
-                                                                                 }
-                                                                             }
+                    fetch('schedule', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: formData.toString()
+                    })
+                    .then(response => {
+                        if (response.ok)
+                            return response.text();
+                        throw new Error('Lỗi cập nhật định mức.');
+                    })
+                    .then(result => {
+                        if (result.trim() === 'published_locked') {
+                            alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
+                            location.reload();
+                            return;
+                        }
+                        if (result.trim() === 'success') {
+                            location.reload();
+                        } else {
+                            alert('Không thể cập nhật định mức.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Có lỗi xảy ra khi kết nối server.');
+                    });
+                }
+            }
         </script>
     </body>
 </html>

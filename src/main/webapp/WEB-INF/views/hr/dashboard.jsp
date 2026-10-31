@@ -329,9 +329,10 @@
                 <li class="active"><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
-                <li><a href="${pageContext.request.contextPath}/hr/employee-management"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+
             </ul>
         </div>
 
@@ -445,7 +446,7 @@
                             </div>
                             <p>Thêm mới, cập nhật thông tin chi tiết, theo dõi hợp đồng lao động và thông tin liên lạc của nhân viên trên toàn hệ thống các cơ sở.</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/hr/employee-management" class="card-link">Quản lý nhân sự <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/hr/employee-list" class="card-link">Quản lý nhân sự <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
                     <!-- Tính năng 3: Quản lý chấm công & ca làm -->
@@ -461,7 +462,7 @@
                         </div>
                         <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
-                    
+
                     <!-- Tính năng 4: Quản lý vi phạm -->
                     <div class="card-custom">
                         <div>

@@ -107,21 +107,29 @@
                 padding: 30px;
             }
 
-            /* --- THANH HIỂN THỊ CƠ SỞ & VỊ TRÍ --- */
+            /* --- THANH HIỂN THỊ CƠ SỞ & VỊ TRÍ (ĐÃ TINH CHỈNH) --- */
             .branch-info-bar {
-                background-color: #e2f8eb;
-                border: 1px solid #bbf7d0;
-                color: #166534;
-                padding: 12px 20px;
-                border-radius: 6px;
+                background-color: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-left: 4px solid #16a34a;
+                color: #334155;
+                padding: 15px 20px;
+                border-radius: 8px;
                 font-size: 14px;
                 margin-bottom: 25px;
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                font-weight: 500;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 15px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.02);
             }
-            .branch-info-bar i {
+            .branch-info-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .branch-info-item i {
                 color: #16a34a;
                 font-size: 16px;
             }
@@ -282,8 +290,20 @@
     </head>
     <body>
 
-        <!-- Sidebar Điều Hướng Trái (Nhân viên dùng chung qua fragment) -->
-        <jsp:include page="/WEB-INF/views/fragments/employee-sidebar.jsp"/>
+        <!-- Sidebar Điều Hướng Trái (Nhân viên) -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-id-badge"></i>
+                <span>Employee Portal</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="active"><a href="${pageContext.request.contextPath}/employee/dashboard"><i class="fa-solid fa-house"></i> Trang chủ</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/availability"><i class="fa-solid fa-calendar-plus"></i> Khai báo lịch rảnh</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/my-schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/attendance"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/forms"><i class="fa-solid fa-file-lines"></i> Đơn từ & Khiếu nại</a></li>
+            </ul>
+        </div>
 
         <!-- Main Content Wrapper -->
         <div class="main-wrapper">
@@ -307,10 +327,16 @@
 
             <div class="container">
 
-                <!-- Thanh hiển thị Cơ sở làm việc và Vị trí của nhân viên -->
+                <!-- Thanh hiển thị Cơ sở làm việc và Vị trí của nhân viên được làm mới đẹp hơn -->
                 <div class="branch-info-bar">
-                    <i class="fa-solid fa-location-dot"></i>
-                    <span>Cơ sở làm việc: <b>${emp != null && emp.branchName != null ? emp.branchName : 'Chưa phân công'}</b> \vert{} Vị trí: <b>${emp != null && emp.positionTitle != null ? emp.positionTitle : 'Nhân viên vận hành'}</b></span>
+                    <div class="branch-info-item">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <span>Cơ sở làm việc: <b>${emp != null && emp.branchName != null ? emp.branchName : 'Chưa phân công'}</b></span>
+                    </div>
+                    <div class="branch-info-item">
+                        <i class="fa-solid fa-briefcase"></i>
+                        <span>Vị trí: <b>${emp != null && emp.positionTitle != null ? emp.positionTitle : 'Nhân viên vận hành'}</b></span>
+                    </div>
                 </div>
 
                 <!-- Banner chào mừng -->
@@ -347,7 +373,7 @@
                         </div>
                         <div class="stat-info">
                             <h4>Trạng Thái Chấm Công</h4>
-                            <span>Chưa Check-in</span>
+                            <span><c:out value="${attendanceStatus}"/></span>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -421,7 +447,7 @@
                             </div>
                             <p>Thực hiện thao tác điểm danh check-in và check-out vào ca làm việc hằng ngày tại cơ sở của bạn.</p>
                         </div>
-                        <a href="#" class="card-link">Truy cập chấm công <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/employee/attendance" class="card-link">Truy cập chấm công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
                     <!-- Tính năng 4: Gửi đơn xin nghỉ / đổi ca -->
@@ -442,7 +468,7 @@
             </div>
         </div>
 
-    <script src="${pageContext.request.contextPath}/js/sidebar.js"></script>
+        <script src="${pageContext.request.contextPath}/js/sidebar.js"></script>
 
     </body>
 </html>

@@ -2,15 +2,17 @@ package controller.store;
 
 import controller.base.BaseServlet;
 import dao.AttendanceDAO;
-import model.Attendance;
+import dao.BranchDAO;
+import model.Branch;
 import model.User;
-
 import java.io.IOException;
+import java.sql.Date;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Map;
-
+import model.Attendance;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,130 +35,249 @@ import jakarta.servlet.http.HttpServletResponse;
         urlPatterns = {"/store-manager/attendance"})
 public class StoreManagerAttendanceServlet extends BaseServlet {
 
-    /** Số ngày mặc định hiển thị khi không có bộ lọc. */
-    private static final int DEFAULT_RANGE_DAYS = 30;
+    private final AttendanceDAO attendanceDAO = new AttendanceDAO();
+    private final BranchDAO branchDAO = new BranchDAO();
 
     @Override
     protected void doGet(HttpServletRequest request,
                          HttpServletResponse response)
             throws ServletException, IOException {
-
-        // 1. Kiểm tra đăng nhập
-        User currentUser = getCurrentUser(request);
-        if (currentUser == null) {
+        User user = getCurrentUser(request);
+        if (user == null) {
             redirectToLogin(request, response);
             return;
         }
-
-        // 2. Kiểm tra phân quyền: Store Manager hoặc Admin
-        if (currentUser.getRoleId() != ROLE_STORE_MANAGER
-                && currentUser.getRoleId() != ROLE_ADMIN) {
-            sendForbidden(request, response,
-                    "Bạn không có quyền truy cập trang Chấm công cửa hàng!");
+        if (user.getRoleId() != ROLE_STORE_MANAGER && user.getRoleId() != ROLE_ADMIN) {
+            sendForbidden(request, response, "Bạn không có quyền truy cập bảng chấm công cửa hàng.");
+            return;
+        }
+        if (user.getRoleId() == ROLE_STORE_MANAGER && user.getHomeBranchId() <= 0) {
+            sendForbidden(request, response, "Tài khoản quản lý chưa được gán chi nhánh.");
             return;
         }
 
-        // 3. Xác định chi nhánh
-        //    - Admin: xem tất cả (branchId = -1 => không lọc chi nhánh)
-        //    - Store Manager: chỉ chi nhánh của mình
-        int branchId = currentUser.getRoleId() == ROLE_ADMIN
-                ? -1
-                : currentUser.getHomeBranchId();
+        // Lấy thông tin cơ sở hiện tại để hiển thị đầy đủ tên, mã và địa chỉ lên thanh thông báo
+        int branchId = getBranchId(user);
+        Branch currentBranch = null;
+        if (branchId > 0) {
+            currentBranch = branchDAO.getBranchById(branchId);
+        }
+        if (currentBranch == null) {
+            currentBranch = new Branch();
+            currentBranch.setId(branchId > 0 ? branchId : 1);
+            currentBranch.setName("Hệ thống quản lý chung");
+            currentBranch.setCode("ALL-BRANCH");
+            currentBranch.setAddress("Áp dụng toàn hệ thống");
+        }
+        request.setAttribute("currentBranch", currentBranch);
 
-        // 4. Đọc bộ lọc ngày (parse an toàn, không để lỗi 500)
-        LocalDate today = LocalDate.now();
-        LocalDate to = parseDate(request.getParameter("to"), today);
-        LocalDate from = parseDate(request.getParameter("from"),
-                to.minusDays(DEFAULT_RANGE_DAYS - 1));
-
-        // from > to -> đảo chiều cho hợp lý
-        if (from.isAfter(to)) {
-            LocalDate tmp = from;
-            from = to;
-            to = tmp;
+        String adjustmentId = request.getParameter("adjustmentId");
+        if (adjustmentId != null) {
+            showAdjustmentPage(request, response, user, adjustmentId);
+            return;
         }
 
-        String statusFilter = trimToNull(request.getParameter("status"));
-
-        // 5. Load dữ liệu
-        AttendanceDAO dao = new AttendanceDAO();
-        List<Attendance> attendances;
-        Map<LocalDate, Map<String, Object>> dailySummary;
+        LocalDate workDate = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        String dateParam = request.getParameter("date");
+        String dateError = null;
+        if (dateParam != null && !dateParam.trim().isEmpty()) {
+            try {
+                workDate = LocalDate.parse(dateParam);
+            } catch (DateTimeParseException e) {
+                dateError = "Ngày lọc không hợp lệ. Đang hiển thị chấm công hôm nay.";
+            }
+        }
 
         try {
-            attendances = dao.getAttendanceByBranch(branchId, from, to);
-            dailySummary = dao.getDailySummary(branchId, from, to);
+            List<Attendance> attendances = attendanceDAO.getBranchAttendance(
+                    branchId, Date.valueOf(workDate));
+            request.setAttribute("attendances", attendances);
+            request.setAttribute("selectedDate", workDate.toString());
+            request.setAttribute("successMessage", getAndClearSuccessMessage(request));
+            request.setAttribute("errorMessage", getAndClearErrorMessage(request));
+            request.setAttribute("dateError", dateError);
+            request.getRequestDispatcher("/WEB-INF/views/store-manager/attendance.jsp").forward(request, response);
         } catch (Exception e) {
-            throw new ServletException(
-                    "Cannot load attendance records", e);
+            throw new ServletException("Không thể tải bảng chấm công của chi nhánh.", e);
         }
-
-        // 6. Lọc theo trạng thái (sau khi load, vì trạng thái nằm
-        //    trên bản ghi chứ không phải điều kiện lọc SQL bắt buộc)
-        if (statusFilter != null) {
-            attendances = attendances.stream()
-                    .filter(a -> statusFilter.equalsIgnoreCase(a.getStatus()))
-                    .collect(java.util.stream.Collectors.toList());
-        }
-
-        // 7. Thống kê tổng quan
-        int totalRecords = attendances.size();
-        int completeRecords = (int) attendances.stream()
-                .filter(Attendance::isComplete)
-                .count();
-        double totalHours = attendances.stream()
-                .mapToDouble(Attendance::getWorkedHours)
-                .sum();
-
-        request.setAttribute("attendanceList", attendances);
-        request.setAttribute("dailySummary", dailySummary);
-        request.setAttribute("from", from.toString());
-        request.setAttribute("to", to.toString());
-        request.setAttribute("statusFilter",
-                statusFilter == null ? "" : statusFilter);
-        request.setAttribute("totalRecords", totalRecords);
-        request.setAttribute("completeRecords", completeRecords);
-        request.setAttribute("totalHours", round2(totalHours));
-        request.setAttribute("isAdminView",
-                currentUser.getRoleId() == ROLE_ADMIN);
-
-        request.getRequestDispatcher(
-                "/WEB-INF/views/store-manager/attendance.jsp")
-                .forward(request, response);
     }
 
-    /**
-     * Parse ngày theo định dạng yyyy-MM-dd.
-     *
-     * <p>Trả về {@code fallback} nếu tham số rỗng hoặc sai định dạng -
-     * nhờ vậy người dùng nhập sai không gây HTTP 500.
-     */
-    private LocalDate parseDate(String raw, LocalDate fallback) {
-        if (raw == null || raw.trim().isEmpty()) {
-            return fallback;
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        request.setCharacterEncoding("UTF-8");
+        User user = getCurrentUser(request);
+        if (user == null) {
+            redirectToLogin(request, response);
+            return;
+        }
+        if (user.getRoleId() != ROLE_STORE_MANAGER && user.getRoleId() != ROLE_ADMIN) {
+            sendForbidden(request, response, "Bạn không có quyền xử lý chấm công.");
+            return;
+        }
+        if (user.getRoleId() == ROLE_STORE_MANAGER && user.getHomeBranchId() <= 0) {
+            sendForbidden(request, response, "Tài khoản quản lý chưa được gán chi nhánh.");
+            return;
+        }
+
+        if ("adjust".equals(request.getParameter("action"))) {
+            adjustAttendance(request, response, user);
+            return;
+        }
+
+        int attendanceId;
+        try {
+            attendanceId = Integer.parseInt(request.getParameter("attendanceId"));
+        } catch (NumberFormatException | NullPointerException e) {
+            setErrorMessage(request, "Bản ghi chấm công không hợp lệ.");
+            redirectToSelectedDate(request, response);
+            return;
+        }
+        String status = request.getParameter("status");
+        if (attendanceId <= 0 || (!"VALID".equals(status) && !"INVALID".equals(status))) {
+            setErrorMessage(request, "Kết quả duyệt chấm công không hợp lệ.");
+            redirectToSelectedDate(request, response);
+            return;
+        }
+
+        try {
+            boolean updated = attendanceDAO.reviewAttendance(attendanceId,
+                    getBranchId(user), status);
+            if (updated) {
+                setSuccessMessage(request, "Đã cập nhật kết quả duyệt chấm công.");
+            } else {
+                setErrorMessage(request, "Không tìm thấy bản ghi thuộc chi nhánh của bạn.");
+            }
+        } catch (Exception e) {
+            throw new ServletException("Không thể duyệt bản ghi chấm công.", e);
+        }
+        redirectToSelectedDate(request, response);
+    }
+
+    private void showAdjustmentPage(HttpServletRequest request, HttpServletResponse response,
+            User user, String idParam) throws ServletException, IOException {
+        int attendanceId;
+        try {
+            attendanceId = Integer.parseInt(idParam);
+        } catch (NumberFormatException e) {
+            redirectToSelectedDate(request, response);
+            return;
+        }
+        if (attendanceId <= 0) {
+            redirectToSelectedDate(request, response);
+            return;
+        }
+
+        try {
+            int branchId = getBranchId(user);
+            Attendance attendance = attendanceDAO.getAttendanceForStoreManagerById(attendanceId, branchId);
+            if (attendance == null) {
+                setErrorMessage(request, "Không tìm thấy bản ghi thuộc chi nhánh của bạn.");
+                redirectToSelectedDate(request, response);
+                return;
+            }
+
+            // Gắn thông tin chi nhánh cho trang adjustment
+            Branch currentBranch = branchId > 0 ? branchDAO.getBranchById(branchId) : null;
+            if (currentBranch == null) {
+                currentBranch = new Branch();
+                currentBranch.setId(branchId > 0 ? branchId : 1);
+                currentBranch.setName("Hệ thống quản lý chung");
+                currentBranch.setCode("ALL-BRANCH");
+                currentBranch.setAddress("Áp dụng toàn hệ thống");
+            }
+            request.setAttribute("currentBranch", currentBranch);
+
+            request.setAttribute("attendance", attendance);
+            request.setAttribute("selectedDate", getSelectedDate(request));
+            request.setAttribute("errorMessage", getAndClearErrorMessage(request));
+            request.getRequestDispatcher("/WEB-INF/views/store-manager/attendance-adjustment.jsp")
+                    .forward(request, response);
+        } catch (Exception e) {
+            throw new ServletException("Không thể tải trang điều chỉnh chấm công.", e);
+        }
+    }
+
+    private void adjustAttendance(HttpServletRequest request, HttpServletResponse response, User user)
+            throws ServletException, IOException {
+        int attendanceId;
+        LocalTime checkIn;
+        LocalTime checkOut;
+        String note = request.getParameter("adjustmentNote");
+        if (note != null) {
+            note = note.trim();
         }
         try {
-            return LocalDate.parse(raw.trim());
+            attendanceId = Integer.parseInt(request.getParameter("attendanceId"));
+            checkIn = parseTime(request.getParameter("checkIn"));
+            checkOut = parseTime(request.getParameter("checkOut"));
+        } catch (NumberFormatException | DateTimeParseException | NullPointerException e) {
+            setErrorMessage(request, "Giờ chấm công hoặc bản ghi được chọn không hợp lệ.");
+            redirectToAdjustment(request, response);
+            return;
+        }
+
+        if (attendanceId <= 0 || note == null || note.isEmpty() || note.length() > 1000
+                || (checkIn == null && checkOut == null)
+                || (checkIn != null && checkOut != null && !checkOut.isAfter(checkIn))) {
+            setErrorMessage(request, "Hãy nhập giờ chấm công hợp lệ và ghi rõ lý do điều chỉnh.");
+            redirectToAdjustment(request, response);
+            return;
+        }
+
+        try {
+            boolean adjusted = attendanceDAO.adjustAttendance(attendanceId, getBranchId(user), user.getId(),
+                    checkIn, checkOut, note);
+            if (adjusted) {
+                setSuccessMessage(request, "Đã điều chỉnh giờ chấm công và lưu lý do xử lý.");
+                redirectToSelectedDate(request, response);
+            } else {
+                setErrorMessage(request, "Không tìm thấy bản ghi thuộc chi nhánh của bạn.");
+                redirectToAdjustment(request, response);
+            }
+        } catch (IllegalArgumentException e) {
+            setErrorMessage(request, e.getMessage());
+            redirectToAdjustment(request, response);
+        } catch (Exception e) {
+            throw new ServletException("Không thể lưu điều chỉnh chấm công.", e);
+        }
+    }
+
+    private LocalTime parseTime(String value) {
+        return value == null || value.trim().isEmpty() ? null : LocalTime.parse(value);
+    }
+
+    private int getBranchId(User user) {
+        return user.getRoleId() == ROLE_ADMIN ? 0 : user.getHomeBranchId();
+    }
+
+    private void redirectToAdjustment(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        String id = request.getParameter("attendanceId");
+        if (id == null || !id.matches("\\d+")) {
+            redirectToSelectedDate(request, response);
+            return;
+        }
+        response.sendRedirect(request.getContextPath() + "/store-manager/attendance?adjustmentId="
+                + id + "&date=" + getSelectedDate(request));
+    }
+
+    private void redirectToSelectedDate(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+        response.sendRedirect(request.getContextPath()
+                + "/store-manager/attendance?date=" + getSelectedDate(request));
+    }
+
+    private String getSelectedDate(HttpServletRequest request) {
+        String date = request.getParameter("date");
+        LocalDate selectedDate;
+        try {
+            selectedDate = date == null
+                    ? LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"))
+                    : LocalDate.parse(date);
         } catch (DateTimeParseException e) {
-            return fallback;
+            selectedDate = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         }
-    }
-
-    /**
-     * Chuẩn hóa chuỗi: bỏ khoảng trắng thừa, trả null nếu rỗng.
-     */
-    private String trimToNull(String s) {
-        if (s == null) {
-            return null;
-        }
-        String t = s.trim();
-        return t.isEmpty() ? null : t;
-    }
-
-    /**
-     * Làm tròn 2 chữ số thập phân (để hiển thị số giờ).
-     */
-    private double round2(double v) {
-        return Math.round(v * 100.0) / 100.0;
+        return selectedDate.toString();
     }
 }
