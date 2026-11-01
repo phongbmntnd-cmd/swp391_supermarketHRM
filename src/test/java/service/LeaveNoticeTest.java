@@ -13,11 +13,10 @@ import java.util.Map;
  * Chạy: mvn -o test-compile exec:java -Dexec.mainClass=service.LeaveNoticeTest
  * hoặc: java -cp target/classes;mysql-connector.jar service.LeaveNoticeTest
  *
- * Cần cấu hình leave_types trong DB (xem Database/migration_leave_same_day.sql):
- *   ANNUAL  : notice 48h (full) / 48h (part-time), same_day = 0
- *   UNPAID  : notice 24h (full) / 48h (part-time), same_day = 0
- *   SICK    : notice  4h, same_day = 1
- *   FUNERAL : notice  0h, same_day = 1
+ * Cần cấu hình leave_types trong DB (xem
+ * Database/migration_leave_same_day.sql): ANNUAL : notice 48h (full) / 48h
+ * (part-time), same_day = 0 UNPAID : notice 24h (full) / 48h (part-time),
+ * same_day = 0 SICK : notice 4h, same_day = 1 FUNERAL : notice 0h, same_day = 1
  */
 public class LeaveNoticeTest {
 

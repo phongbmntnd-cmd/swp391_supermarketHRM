@@ -221,7 +221,11 @@
                 </div>
                 <c:if test="${not empty successMessage}"><div class="alert alert-success"><c:out value="${successMessage}"/></div></c:if>
                 <c:if test="${not empty errorMessage}"><div class="alert alert-danger"><c:out value="${errorMessage}"/></div></c:if>
+<<<<<<< HEAD
                     <div class="alert alert-info"><i class="fa-solid fa-circle-info me-2"></i>Báo cáo chờ xác minh chưa phải kết luận vi phạm; hệ thống không tự động trừ tiền.</div>
+=======
+                    <div class="alert alert-info"><i class="fa-solid fa-circle-info me-2"></i>Khoản khấu trừ đã được ghi nhận cùng báo cáo và không phụ thuộc vào bước HR xác minh. HR chỉ xác minh nội dung và lưu kết quả xử lý.</div>
+>>>>>>> origin/update_luồng_vi_phạm
                     <h2 class="h5 mb-3">Đang chờ xử lý</h2>
                 <c:forEach items="${pendingViolations}" var="v">
                     <article class="card shadow-sm mb-3">
@@ -230,9 +234,16 @@
                             <p class="mb-1"><strong>Nhân viên:</strong> <c:out value="${v.employeeName}"/> — <c:out value="${v.branchName}"/></p>
                             <p class="mb-1"><strong>Người báo cáo:</strong> <c:out value="${v.reporterName}"/></p>
                             <p class="mb-2"><strong>Mô tả:</strong> <c:out value="${v.description}"/></p>
+<<<<<<< HEAD
                             <c:if test="${not empty v.evidenceUrl}"><p><strong>Bằng chứng:</strong> <a href="<c:out value='${v.evidenceUrl}'/>" target="_blank" rel="noopener noreferrer">Mở liên kết</a></p></c:if>
                                 <div class="row g-3">
                                     <div class="col-lg-6"><form method="post" action="${pageContext.request.contextPath}/hr/violations" class="border rounded p-3 h-100"><input type="hidden" name="violationId" value="${v.id}"><input type="hidden" name="action" value="approve"><label class="form-label" for="disciplinary-${v.id}">Kết luận / hình thức xử lý</label><textarea class="form-control mb-2" id="disciplinary-${v.id}" name="disciplinaryAction" rows="3" maxlength="1000" required placeholder="Ghi rõ quyết định xử lý."></textarea><label class="form-label" for="note-approve-${v.id}">Ghi chú cho nhân viên (không bắt buộc)</label><textarea class="form-control mb-3" id="note-approve-${v.id}" name="reviewNote" rows="2" maxlength="1000"></textarea><button class="btn btn-success" type="submit"><i class="fa-solid fa-check me-1"></i>Xác minh và lưu quyết định</button></form></div>
+=======
+                            <p class="mb-2"><strong>Khoản khấu trừ đã ghi nhận:</strong> <c:out value="${v.deductionAmount}"/> đ <span class="text-secondary">(nếu từ chối báo cáo, khoản này không được tính vào lương)</span></p>
+                            <c:if test="${not empty v.evidenceUrl}"><p><strong>Bằng chứng:</strong> <a href="<c:out value='${v.evidenceUrl}'/>" target="_blank" rel="noopener noreferrer">Mở liên kết</a></p></c:if>
+                                <div class="row g-3">
+                                    <div class="col-lg-6"><form method="post" action="${pageContext.request.contextPath}/hr/violations" class="border rounded p-3 h-100" onsubmit="return !this.querySelector('[name=terminateEmployment]').checked || confirm('Xác nhận chấm dứt hợp đồng và vô hiệu hóa tài khoản nhân viên này?')"><input type="hidden" name="violationId" value="${v.id}"><input type="hidden" name="action" value="approve"><label class="form-label" for="disciplinary-${v.id}">Kết luận / hình thức xử lý</label><textarea class="form-control mb-2" id="disciplinary-${v.id}" name="disciplinaryAction" rows="3" maxlength="1000" required placeholder="Ghi rõ quyết định xử lý."></textarea><div class="form-check border rounded p-3 mb-3"><input class="form-check-input" type="checkbox" id="terminate-${v.id}" name="terminateEmployment" value="true"><label class="form-check-label fw-semibold text-danger" for="terminate-${v.id}">Chấm dứt hợp đồng do vi phạm nghiêm trọng</label><div class="form-text">Chỉ chọn với lỗi nghiêm trọng. Khi duyệt, hợp đồng đang hiệu lực sẽ kết thúc và tài khoản nhân viên bị vô hiệu hóa.</div></div><label class="form-label" for="note-approve-${v.id}">Ghi chú cho nhân viên (không bắt buộc)</label><textarea class="form-control mb-3" id="note-approve-${v.id}" name="reviewNote" rows="2" maxlength="1000"></textarea><button class="btn btn-success" type="submit"><i class="fa-solid fa-check me-1"></i>Xác minh và lưu quyết định</button></form></div>
+>>>>>>> origin/update_luồng_vi_phạm
                                 <div class="col-lg-6"><form method="post" action="${pageContext.request.contextPath}/hr/violations" class="border rounded p-3 h-100"><input type="hidden" name="violationId" value="${v.id}"><input type="hidden" name="action" value="reject"><label class="form-label" for="note-reject-${v.id}">Lý do từ chối báo cáo</label><textarea class="form-control mb-3" id="note-reject-${v.id}" name="reviewNote" rows="4" maxlength="1000" required></textarea><button class="btn btn-outline-danger" type="submit"><i class="fa-solid fa-xmark me-1"></i>Từ chối báo cáo</button></form></div>
                             </div>
                         </div>
@@ -241,7 +252,11 @@
                 <c:if test="${empty pendingViolations}"><div class="alert alert-info">Không có báo cáo nào đang chờ HR xác minh.</div></c:if>
                     <details class="card shadow-sm mt-4">
                         <summary class="card-header fw-semibold"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i>Lịch sử quyết định</summary>
+<<<<<<< HEAD
                         <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Ngày xảy ra</th><th>Nhân viên / chi nhánh</th><th>Sự việc</th><th>Trạng thái</th><th>Quyết định / lý do</th><th>Người duyệt</th></tr></thead><tbody><c:forEach items="${reviewedViolations}" var="v"><tr><td><c:out value="${v.violationDate}"/></td><td><c:out value="${v.employeeName}"/> / <c:out value="${v.branchName}"/></td><td><c:out value="${v.categoryLabel}"/> — <c:out value="${v.title}"/></td><td><c:out value="${v.status}"/></td><td><c:out value="${v.disciplinaryAction}"/><c:if test="${not empty v.reviewNote}"><br><small><c:out value="${v.reviewNote}"/></small></c:if></td><td><c:out value="${v.reviewerName}"/></td></tr></c:forEach><c:if test="${empty reviewedViolations}"><tr><td colspan="6" class="text-center text-secondary py-3">Chưa có quyết định trước đây.</td></tr></c:if></tbody></table></div>
+=======
+                        <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead class="table-light"><tr><th>Ngày xảy ra</th><th>Nhân viên / chi nhánh</th><th>Sự việc</th><th>Trạng thái</th><th>Quyết định / lý do</th><th>Khấu trừ lương</th><th>Người duyệt</th></tr></thead><tbody><c:forEach items="${reviewedViolations}" var="v"><tr><td><c:out value="${v.violationDate}"/></td><td><c:out value="${v.employeeName}"/> / <c:out value="${v.branchName}"/></td><td><c:out value="${v.categoryLabel}"/> — <c:out value="${v.title}"/></td><td><c:out value="${v.status}"/></td><td><c:out value="${v.disciplinaryAction}"/><c:if test="${not empty v.reviewNote}"><br><small><c:out value="${v.reviewNote}"/></small></c:if></td><td><c:choose><c:when test="${v.deductionAmount > 0}"><c:out value="${v.deductionAmount}"/> đ</c:when><c:otherwise>—</c:otherwise></c:choose></td><td><c:out value="${v.reviewerName}"/></td></tr></c:forEach><c:if test="${empty reviewedViolations}"><tr><td colspan="7" class="text-center text-secondary py-3">Chưa có quyết định trước đây.</td></tr></c:if></tbody></table></div>
+>>>>>>> origin/update_luồng_vi_phạm
                 </details>
             </main>
         </div>

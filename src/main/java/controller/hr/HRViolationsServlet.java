@@ -56,8 +56,19 @@ public class HRViolationsServlet extends BaseServlet {
         String reviewNote = getStringParameter(request, "reviewNote");
         String disciplinaryAction = getStringParameter(request, "disciplinaryAction");
         boolean approved = "approve".equals(action);
+<<<<<<< HEAD
         if (id <= 0 || (!approved && !"reject".equals(action))
                 || (approved && (disciplinaryAction == null || disciplinaryAction.length() > 1000))
+=======
+        boolean terminateEmployment = "true".equals(request.getParameter("terminateEmployment"));
+        String savedDisciplinaryAction = terminateEmployment
+                ? "Chấm dứt hợp đồng do vi phạm nghiêm trọng. " + (disciplinaryAction == null ? "" : disciplinaryAction)
+                : disciplinaryAction;
+        if (id <= 0 || (!approved && !"reject".equals(action))
+                || (approved && (disciplinaryAction == null || disciplinaryAction.length() > 1000))
+                || (approved && terminateEmployment && savedDisciplinaryAction.length() > 1000)
+                || (!approved && terminateEmployment)
+>>>>>>> origin/update_luồng_vi_phạm
                 || (reviewNote != null && reviewNote.length() > 1000)
                 || (!approved && reviewNote == null)) {
             setErrorMessage(request, "Thông tin xét duyệt chưa hợp lệ. Khi từ chối, HR cần ghi rõ lý do.");
@@ -66,12 +77,27 @@ public class HRViolationsServlet extends BaseServlet {
         }
 
         try {
+<<<<<<< HEAD
             boolean updated = violationDAO.review(id, user.getId(), approved, reviewNote,
                     approved ? disciplinaryAction : null);
             if (updated) {
                 setSuccessMessage(request, approved
                         ? "Đã xác minh và lưu quyết định xử lý. Nhân viên có thể xem kết quả trong tài khoản."
                         : "Đã từ chối báo cáo và lưu lý do. Nhân viên có thể xem kết quả trong tài khoản.");
+=======
+            ViolationDAO.ReviewResult result = violationDAO.review(id, user.getId(), approved, reviewNote,
+                    approved ? savedDisciplinaryAction : null, terminateEmployment);
+            if (result.isUpdated()) {
+                if (result.getTerminatedEmployeeId() > 0) {
+                    request.getServletContext().removeAttribute(
+                            "user_token_" + result.getTerminatedEmployeeId());
+                    setSuccessMessage(request, "Đã chấm dứt hợp đồng và vô hiệu hóa tài khoản do vi phạm nghiêm trọng.");
+                } else {
+                    setSuccessMessage(request, approved
+                            ? "Đã xác minh và lưu quyết định xử lý. Khoản khấu trừ đã được ghi nhận từ lúc tạo báo cáo."
+                            : "Đã từ chối báo cáo và lưu lý do. Nhân viên có thể xem kết quả trong tài khoản.");
+                }
+>>>>>>> origin/update_luồng_vi_phạm
             } else {
                 setErrorMessage(request, "Báo cáo không tồn tại hoặc đã được HR xử lý trước đó.");
             }

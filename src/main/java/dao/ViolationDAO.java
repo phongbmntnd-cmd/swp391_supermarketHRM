@@ -13,10 +13,30 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.math.BigDecimal;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ViolationDAO {
+
+    public static final class ReviewResult {
+        private final boolean updated;
+        private final int terminatedEmployeeId;
+
+        private ReviewResult(boolean updated, int terminatedEmployeeId) {
+            this.updated = updated;
+            this.terminatedEmployeeId = terminatedEmployeeId;
+        }
+
+        public boolean isUpdated() {
+            return updated;
+        }
+
+        public int getTerminatedEmployeeId() {
+            return terminatedEmployeeId;
+        }
+    }
 
     private static final String SELECT_COLUMNS
             = "SELECT v.*, ep.full_name AS employee_name, b.name AS branch_name, "
@@ -107,15 +127,18 @@ public class ViolationDAO {
         violation.setReviewNote(rs.getString("review_note"));
         violation.setDisciplinaryAction(rs.getString("disciplinary_action"));
         violation.setReviewedAt(rs.getTimestamp("reviewed_at"));
+        BigDecimal deductionAmount = rs.getBigDecimal("deduction_amount");
+        violation.setDeductionAmount(deductionAmount == null ? BigDecimal.ZERO : deductionAmount);
         return violation;
     }
 
     public boolean createReport(int employeeId, int branchId, int reporterId, String title,
-            String category, String description, String evidenceUrl, Date violationDate) throws SQLException {
+            String category, String description, String evidenceUrl, Date violationDate,
+            BigDecimal deductionAmount) throws SQLException {
         String sql = "INSERT INTO violations "
                 + "(user_id, branch_id, title, category, description, evidence_url, violation_date, "
                 + "reported_by, status, deduction_amount) "
-                + "SELECT u.id, ep.home_branch_id, ?, ?, ?, ?, ?, ?, 'PENDING_REVIEW', 0 "
+                + "SELECT u.id, ep.home_branch_id, ?, ?, ?, ?, ?, ?, 'PENDING_REVIEW', ? "
                 + "FROM users u JOIN employee_profiles ep ON ep.user_id = u.id "
                 + "WHERE u.id = ? AND u.role_id = 5 AND u.status = 'ACTIVE' AND ep.home_branch_id = ?";
         try (Connection conn = connection(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -129,25 +152,105 @@ public class ViolationDAO {
             }
             ps.setDate(5, violationDate);
             ps.setInt(6, reporterId);
-            ps.setInt(7, employeeId);
-            ps.setInt(8, branchId);
+            ps.setBigDecimal(7, deductionAmount);
+            ps.setInt(8, employeeId);
+            ps.setInt(9, branchId);
             return ps.executeUpdate() == 1;
         }
     }
 
-    public boolean review(int violationId, int reviewerId, boolean approved,
-            String reviewNote, String disciplinaryAction) throws SQLException {
-        String sql = "UPDATE violations SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, "
+    public ReviewResult review(int violationId, int reviewerId, boolean approved,
+            String reviewNote, String disciplinaryAction, boolean terminateEmployment) throws SQLException {
+        String findSql = "SELECT v.user_id, u.status, u.role_id FROM violations v "
+                + "JOIN users u ON u.id = v.user_id "
+                + "WHERE v.id = ? AND v.status = 'PENDING_REVIEW' FOR UPDATE";
+        String reviewSql = "UPDATE violations SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, "
                 + "review_note = ?, disciplinary_action = ? "
                 + "WHERE id = ? AND status = 'PENDING_REVIEW'";
+        String terminateContractsSql = "UPDATE contracts SET status = 'TERMINATED', "
+                + "end_date = CASE WHEN end_date IS NULL OR end_date > CURRENT_DATE "
+                + "THEN CURRENT_DATE ELSE end_date END "
+                + "WHERE user_id = ? AND status = 'ACTIVE'";
+        String deactivateUserSql = "UPDATE users SET status = 'INACTIVE' WHERE id = ? AND status = 'ACTIVE'";
+
+        try (Connection conn = connection()) {
+            conn.setAutoCommit(false);
+            try {
+                int employeeId;
+                String employeeStatus;
+                int employeeRoleId;
+                try (PreparedStatement ps = conn.prepareStatement(findSql)) {
+                    ps.setInt(1, violationId);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            conn.rollback();
+                            return new ReviewResult(false, 0);
+                        }
+                        employeeId = rs.getInt("user_id");
+                        employeeStatus = rs.getString("status");
+                        employeeRoleId = rs.getInt("role_id");
+                    }
+                }
+
+                if (terminateEmployment
+                        && (employeeRoleId != 5 || !"ACTIVE".equals(employeeStatus))) {
+                    throw new SQLException("Chỉ có thể chấm dứt việc làm của tài khoản nhân viên đang hoạt động.");
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(reviewSql)) {
+                    ps.setString(1, approved ? "APPROVED" : "REJECTED");
+                    ps.setInt(2, reviewerId);
+                    ps.setString(3, reviewNote);
+                    ps.setString(4, disciplinaryAction);
+                    ps.setInt(5, violationId);
+                    if (ps.executeUpdate() != 1) {
+                        conn.rollback();
+                        return new ReviewResult(false, 0);
+                    }
+                }
+
+                if (terminateEmployment) {
+                    try (PreparedStatement ps = conn.prepareStatement(terminateContractsSql)) {
+                        ps.setInt(1, employeeId);
+                        ps.executeUpdate();
+                    }
+                    try (PreparedStatement ps = conn.prepareStatement(deactivateUserSql)) {
+                        ps.setInt(1, employeeId);
+                        if (ps.executeUpdate() != 1) {
+                            throw new SQLException("Không thể khóa tài khoản nhân viên sau khi chấm dứt hợp đồng.");
+                        }
+                    }
+                }
+
+                conn.commit();
+                return new ReviewResult(true, terminateEmployment ? employeeId : 0);
+            } catch (SQLException | RuntimeException e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackError) {
+                    e.addSuppressed(rollbackError);
+                }
+                throw e;
+            }
+        }
+    }
+
+    public BigDecimal getDeductionTotalForPayroll(int employeeId, int month, int year) throws SQLException {
+        YearMonth payrollMonth = YearMonth.of(year, month);
+        String sql = "SELECT COALESCE(SUM(deduction_amount), 0) AS total_deduction "
+                + "FROM violations WHERE user_id = ? AND status <> 'REJECTED' "
+                + "AND violation_date >= ? AND violation_date < ?";
         try (Connection conn = connection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, approved ? "APPROVED" : "REJECTED");
-            ps.setInt(2, reviewerId);
-            ps.setString(3, reviewNote);
-            ps.setString(4, disciplinaryAction);
-            ps.setInt(5, violationId);
-            return ps.executeUpdate() == 1;
+            ps.setInt(1, employeeId);
+            ps.setDate(2, Date.valueOf(payrollMonth.atDay(1)));
+            ps.setDate(3, Date.valueOf(payrollMonth.plusMonths(1).atDay(1)));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("Không thể tính tổng khấu trừ vi phạm cho kỳ lương.");
+                }
+                BigDecimal total = rs.getBigDecimal("total_deduction");
+                return total == null ? BigDecimal.ZERO : total;
+            }
         }
     }
 }
-

@@ -69,7 +69,7 @@ CREATE TABLE `attendances` (
   KEY `shift_schedule_id` (`shift_schedule_id`),
   CONSTRAINT `attendances_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `attendances_ibfk_2` FOREIGN KEY (`shift_schedule_id`) REFERENCES `shift_schedules` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -78,6 +78,7 @@ CREATE TABLE `attendances` (
 
 LOCK TABLES `attendances` WRITE;
 /*!40000 ALTER TABLE `attendances` DISABLE KEYS */;
+INSERT INTO `attendances` VALUES (1,13,80,'2026-11-30 07:05:35','2026-11-30 12:01:19','WEB','VALID');
 /*!40000 ALTER TABLE `attendances` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -274,7 +275,7 @@ CREATE TABLE `employee_availabilities` (
   KEY `shift_id` (`shift_id`),
   CONSTRAINT `employee_availabilities_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `employee_availabilities_ibfk_2` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=36 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=62 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -283,7 +284,7 @@ CREATE TABLE `employee_availabilities` (
 
 LOCK TABLES `employee_availabilities` WRITE;
 /*!40000 ALTER TABLE `employee_availabilities` DISABLE KEYS */;
-INSERT INTO `employee_availabilities` VALUES (2,16,'TUESDAY',1,'2026-10-26'),(3,16,'WEDNESDAY',1,'2026-10-26'),(4,16,'THURSDAY',1,'2026-10-26'),(5,16,'FRIDAY',1,'2026-10-26'),(6,16,'SATURDAY',1,'2026-10-26'),(7,16,'SUNDAY',1,'2026-10-26'),(8,15,'MONDAY',1,'2026-10-26'),(9,15,'TUESDAY',1,'2026-10-26'),(10,15,'WEDNESDAY',1,'2026-10-26'),(11,15,'THURSDAY',1,'2026-10-26'),(12,15,'FRIDAY',1,'2026-10-26'),(13,15,'SATURDAY',1,'2026-10-26'),(14,15,'SUNDAY',1,'2026-10-26'),(15,15,'MONDAY',2,'2026-10-26'),(16,15,'TUESDAY',2,'2026-10-26'),(17,15,'WEDNESDAY',2,'2026-10-26'),(18,15,'THURSDAY',2,'2026-10-26'),(19,15,'FRIDAY',2,'2026-10-26'),(20,15,'SATURDAY',2,'2026-10-26'),(21,15,'SUNDAY',2,'2026-10-26'),(22,13,'MONDAY',1,'2026-10-26'),(23,13,'TUESDAY',1,'2026-10-26'),(24,13,'WEDNESDAY',1,'2026-10-26'),(25,13,'THURSDAY',1,'2026-10-26'),(26,13,'FRIDAY',1,'2026-10-26'),(27,13,'SATURDAY',1,'2026-10-26'),(28,13,'SUNDAY',1,'2026-10-26'),(29,12,'MONDAY',1,'2026-10-26'),(30,12,'TUESDAY',1,'2026-10-26'),(31,12,'WEDNESDAY',1,'2026-10-26'),(32,12,'THURSDAY',1,'2026-10-26'),(33,12,'FRIDAY',1,'2026-10-26'),(34,12,'SATURDAY',1,'2026-10-26'),(35,12,'SUNDAY',1,'2026-10-26');
+INSERT INTO `employee_availabilities` VALUES (2,16,'TUESDAY',1,'2026-10-26'),(3,16,'WEDNESDAY',1,'2026-10-26'),(4,16,'THURSDAY',1,'2026-10-26'),(5,16,'FRIDAY',1,'2026-10-26'),(6,16,'SATURDAY',1,'2026-10-26'),(7,16,'SUNDAY',1,'2026-10-26'),(8,15,'MONDAY',1,'2026-10-26'),(9,15,'TUESDAY',1,'2026-10-26'),(10,15,'WEDNESDAY',1,'2026-10-26'),(11,15,'THURSDAY',1,'2026-10-26'),(12,15,'FRIDAY',1,'2026-10-26'),(13,15,'SATURDAY',1,'2026-10-26'),(14,15,'SUNDAY',1,'2026-10-26'),(15,15,'MONDAY',2,'2026-10-26'),(16,15,'TUESDAY',2,'2026-10-26'),(17,15,'WEDNESDAY',2,'2026-10-26'),(18,15,'THURSDAY',2,'2026-10-26'),(19,15,'FRIDAY',2,'2026-10-26'),(20,15,'SATURDAY',2,'2026-10-26'),(21,15,'SUNDAY',2,'2026-10-26'),(22,13,'MONDAY',1,'2026-10-26'),(23,13,'TUESDAY',1,'2026-10-26'),(24,13,'WEDNESDAY',1,'2026-10-26'),(25,13,'THURSDAY',1,'2026-10-26'),(26,13,'FRIDAY',1,'2026-10-26'),(27,13,'SATURDAY',1,'2026-10-26'),(28,13,'SUNDAY',1,'2026-10-26'),(29,12,'MONDAY',1,'2026-10-26'),(30,12,'TUESDAY',1,'2026-10-26'),(31,12,'WEDNESDAY',1,'2026-10-26'),(32,12,'THURSDAY',1,'2026-10-26'),(33,12,'FRIDAY',1,'2026-10-26'),(34,12,'SATURDAY',1,'2026-10-26'),(35,12,'SUNDAY',1,'2026-10-26'),(36,13,'MONDAY',1,'2026-11-30'),(37,13,'TUESDAY',1,'2026-11-30'),(38,13,'WEDNESDAY',1,'2026-11-30'),(39,13,'THURSDAY',1,'2026-11-30'),(40,13,'FRIDAY',1,'2026-11-30'),(41,13,'SATURDAY',1,'2026-11-30'),(42,13,'SUNDAY',1,'2026-11-30'),(43,16,'MONDAY',1,'2026-11-30'),(44,16,'TUESDAY',1,'2026-11-30'),(45,16,'WEDNESDAY',1,'2026-11-30'),(46,16,'THURSDAY',1,'2026-11-30'),(47,16,'FRIDAY',1,'2026-11-30'),(48,16,'SATURDAY',1,'2026-11-30'),(49,16,'SUNDAY',1,'2026-11-30'),(50,15,'MONDAY',1,'2026-11-30'),(51,15,'TUESDAY',1,'2026-11-30'),(52,15,'WEDNESDAY',1,'2026-11-30'),(53,15,'THURSDAY',1,'2026-11-30'),(54,15,'FRIDAY',1,'2026-11-30'),(55,15,'SATURDAY',1,'2026-11-30'),(56,15,'SUNDAY',1,'2026-11-30'),(57,12,'MONDAY',1,'2026-11-30'),(58,12,'TUESDAY',1,'2026-11-30'),(59,12,'WEDNESDAY',1,'2026-11-30'),(60,12,'THURSDAY',1,'2026-11-30'),(61,12,'FRIDAY',1,'2026-11-30');
 /*!40000 ALTER TABLE `employee_availabilities` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -364,6 +365,36 @@ LOCK TABLES `employee_profiles` WRITE;
 /*!40000 ALTER TABLE `employee_profiles` DISABLE KEYS */;
 INSERT INTO `employee_profiles` VALUES (1,'Quản Trị Viên Hệ Thống','0901111111','001090000001',1,3,3,'FULL_TIME',NULL,10.00),(2,'Giám Đốc Chuỗi','0902222222','001090000002',1,1,1,'FULL_TIME',NULL,10.00),(3,'Quản Lý Nhân Sự','0903333333','001090000003',1,2,2,'FULL_TIME',NULL,10.00),(4,'Quản Lý Cửa Hàng CS1','0904444444','001090000004',1,4,4,'FULL_TIME',NULL,10.00),(5,'Nhân Viên Bán Hàng CS1','0905555555','001090000005',1,6,5,'FULL_TIME',NULL,10.00),(6,'Quản Lý Cửa Hàng CS2','0906666666','001090000006',2,4,4,'FULL_TIME',NULL,10.00),(7,'Quản Lý Cửa Hàng CS3','0907777777','001090000007',3,4,4,'FULL_TIME',NULL,10.00),(8,'Trần Văn Test1','0900000001','090000000001',1,7,5,'FULL_TIME','FT_ROTATING',10.00),(9,'Trần Văn Test2','0900000002','090000000002',1,7,5,'PART_TIME','PT_FLEXIBLE',10.00),(10,'Trần Văn Test3','0900000003','090000000003',1,7,5,'PART_TIME','PT_FIXED_MORNING',10.00),(11,'Trần Văn Test4','0900000004','090000000004',2,7,5,'FULL_TIME','FT_ROTATING',10.00),(12,'Trần Văn Test5','0900000005','090000000005',2,7,5,'PART_TIME','PT_FLEXIBLE',10.00),(13,'Trần Văn Test6','0900000006','090000000006',2,7,5,'PART_TIME','PT_FIXED_MORNING',10.00),(14,'Trần Văn Test7','0900000007','090000000007',3,7,5,'FULL_TIME','FT_ROTATING',10.00),(15,'Trần Văn Test8','0900000008','090000000008',3,7,5,'PART_TIME','PT_FLEXIBLE',10.00),(16,'Trần Văn Test9','0900000009','090000000009',3,7,5,'PART_TIME','PT_FIXED_MORNING',10.00);
 /*!40000 ALTER TABLE `employee_profiles` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `employee_salary_configs`
+--
+
+DROP TABLE IF EXISTS `employee_salary_configs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `employee_salary_configs` (
+  `user_id` int NOT NULL,
+  `monthly_salary` decimal(12,2) DEFAULT NULL,
+  `hourly_rate` decimal(12,2) NOT NULL,
+  `monthly_allowance` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `updated_by` int NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  KEY `updated_by` (`updated_by`),
+  CONSTRAINT `employee_salary_configs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `employee_salary_configs_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `employee_salary_configs`
+--
+
+LOCK TABLES `employee_salary_configs` WRITE;
+/*!40000 ALTER TABLE `employee_salary_configs` DISABLE KEYS */;
+/*!40000 ALTER TABLE `employee_salary_configs` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -616,6 +647,7 @@ CREATE TABLE `payroll_periods` (
   `finalized_by` int DEFAULT NULL,
   `finalized_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_payroll_period_month_year` (`month`,`year`),
   KEY `finalized_by` (`finalized_by`),
   CONSTRAINT `payroll_periods_ibfk_1` FOREIGN KEY (`finalized_by`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -642,12 +674,17 @@ CREATE TABLE `payslips` (
   `payroll_period_id` int NOT NULL,
   `user_id` int NOT NULL,
   `total_hours` decimal(6,2) NOT NULL,
+  `regular_hours` decimal(8,2) NOT NULL DEFAULT '0.00',
+  `paid_leave_hours` decimal(8,2) NOT NULL DEFAULT '0.00',
+  `overtime_hours` decimal(8,2) NOT NULL DEFAULT '0.00',
   `base_salary` decimal(12,2) NOT NULL,
   `bonus` decimal(12,2) DEFAULT '0.00',
+  `allowances` decimal(12,2) NOT NULL DEFAULT '0.00',
   `deductions` decimal(12,2) DEFAULT '0.00',
   `net_salary` decimal(12,2) NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_payslip_period_employee` (`payroll_period_id`,`user_id`),
   KEY `payroll_period_id` (`payroll_period_id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `payslips_ibfk_1` FOREIGN KEY (`payroll_period_id`) REFERENCES `payroll_periods` (`id`),
@@ -939,7 +976,7 @@ CREATE TABLE `shift_requirements` (
   CONSTRAINT `shift_requirements_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`id`),
   CONSTRAINT `shift_requirements_ibfk_2` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`),
   CONSTRAINT `shift_requirements_ibfk_3` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -948,7 +985,7 @@ CREATE TABLE `shift_requirements` (
 
 LOCK TABLES `shift_requirements` WRITE;
 /*!40000 ALTER TABLE `shift_requirements` DISABLE KEYS */;
-INSERT INTO `shift_requirements` VALUES (1,2,7,1,1,'2026-10-26');
+INSERT INTO `shift_requirements` VALUES (1,2,7,1,1,'2026-10-26'),(2,2,7,1,1,'2026-11-30');
 /*!40000 ALTER TABLE `shift_requirements` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -966,7 +1003,7 @@ CREATE TABLE `shift_schedules` (
   `shift_id` int NOT NULL,
   `work_date` date NOT NULL,
   `position_id` int DEFAULT NULL,
-  `status` enum('DRAFT','PUBLISHED') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'DRAFT',
+  `status` enum('DRAFT','PUBLISHED','ON_LEAVE') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'DRAFT',
   `temporary_transfer_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `branch_id` (`branch_id`),
@@ -979,7 +1016,7 @@ CREATE TABLE `shift_schedules` (
   CONSTRAINT `shift_schedules_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `shift_schedules_ibfk_3` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`id`),
   CONSTRAINT `shift_schedules_ibfk_4` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=62 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -988,7 +1025,7 @@ CREATE TABLE `shift_schedules` (
 
 LOCK TABLES `shift_schedules` WRITE;
 /*!40000 ALTER TABLE `shift_schedules` DISABLE KEYS */;
-INSERT INTO `shift_schedules` VALUES (13,2,13,1,'2026-10-26',7,'DRAFT',NULL),(14,3,12,1,'2026-10-26',7,'PUBLISHED',2),(25,2,12,1,'2026-10-27',7,'DRAFT',NULL),(26,2,12,1,'2026-10-28',7,'DRAFT',NULL),(27,2,12,1,'2026-10-29',7,'DRAFT',NULL),(28,2,12,1,'2026-10-30',7,'DRAFT',NULL),(29,2,12,1,'2026-11-01',7,'DRAFT',NULL),(37,3,15,1,'2026-10-26',7,'PUBLISHED',NULL),(38,3,15,1,'2026-10-27',7,'PUBLISHED',NULL),(39,3,15,1,'2026-10-28',7,'PUBLISHED',NULL),(40,3,15,1,'2026-10-29',7,'PUBLISHED',NULL),(41,3,15,1,'2026-10-30',7,'PUBLISHED',NULL),(42,3,15,1,'2026-10-31',7,'PUBLISHED',NULL),(43,3,15,1,'2026-11-01',7,'PUBLISHED',NULL),(52,3,16,1,'2026-10-26',7,'PUBLISHED',NULL),(53,3,16,1,'2026-10-27',7,'PUBLISHED',NULL),(54,3,16,1,'2026-10-28',7,'PUBLISHED',NULL),(58,3,16,1,'2026-10-29',7,'PUBLISHED',NULL),(59,3,16,1,'2026-10-30',7,'PUBLISHED',NULL),(60,3,16,1,'2026-10-31',7,'PUBLISHED',NULL),(61,3,16,1,'2026-11-01',7,'PUBLISHED',NULL);
+INSERT INTO `shift_schedules` VALUES (13,2,13,1,'2026-10-26',7,'DRAFT',NULL),(14,3,12,1,'2026-10-26',7,'PUBLISHED',2),(25,2,12,1,'2026-10-27',7,'DRAFT',NULL),(26,2,12,1,'2026-10-28',7,'DRAFT',NULL),(27,2,12,1,'2026-10-29',7,'DRAFT',NULL),(28,2,12,1,'2026-10-30',7,'DRAFT',NULL),(29,2,12,1,'2026-11-01',7,'DRAFT',NULL),(37,3,15,1,'2026-10-26',7,'PUBLISHED',NULL),(38,3,15,1,'2026-10-27',7,'PUBLISHED',NULL),(39,3,15,1,'2026-10-28',7,'PUBLISHED',NULL),(40,3,15,1,'2026-10-29',7,'PUBLISHED',NULL),(41,3,15,1,'2026-10-30',7,'PUBLISHED',NULL),(42,3,15,1,'2026-10-31',7,'PUBLISHED',NULL),(43,3,15,1,'2026-11-01',7,'PUBLISHED',NULL),(52,3,16,1,'2026-10-26',7,'PUBLISHED',NULL),(53,3,16,1,'2026-10-27',7,'PUBLISHED',NULL),(54,3,16,1,'2026-10-28',7,'PUBLISHED',NULL),(58,3,16,1,'2026-10-29',7,'PUBLISHED',NULL),(59,3,16,1,'2026-10-30',7,'PUBLISHED',NULL),(60,3,16,1,'2026-10-31',7,'PUBLISHED',NULL),(61,3,16,1,'2026-11-01',7,'PUBLISHED',NULL),(70,3,14,4,'2026-11-03',7,'DRAFT',NULL),(79,2,12,1,'2026-11-30',7,'DRAFT',NULL),(80,3,13,1,'2026-11-30',7,'PUBLISHED',7),(81,3,16,1,'2026-11-30',7,'PUBLISHED',NULL),(82,3,15,1,'2026-11-30',7,'PUBLISHED',NULL),(83,3,16,1,'2026-12-01',7,'PUBLISHED',NULL),(84,3,16,1,'2026-12-02',7,'PUBLISHED',NULL),(85,3,15,1,'2026-12-01',7,'PUBLISHED',NULL),(86,3,15,1,'2026-12-02',7,'PUBLISHED',NULL),(87,3,16,1,'2026-12-03',7,'PUBLISHED',NULL),(88,3,15,1,'2026-12-03',7,'PUBLISHED',NULL),(89,3,16,1,'2026-12-04',7,'PUBLISHED',NULL),(90,3,15,1,'2026-12-04',7,'PUBLISHED',NULL),(91,3,16,1,'2026-12-05',7,'PUBLISHED',NULL),(92,3,15,1,'2026-12-05',7,'PUBLISHED',NULL),(93,3,16,1,'2026-12-06',7,'PUBLISHED',NULL),(94,3,15,1,'2026-12-06',7,'PUBLISHED',NULL);
 /*!40000 ALTER TABLE `shift_schedules` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1106,7 +1143,7 @@ CREATE TABLE `temporary_transfer_employees` (
   KEY `idx_transfer_employee_user` (`employee_id`),
   CONSTRAINT `fk_transfer_employee_request` FOREIGN KEY (`transfer_id`) REFERENCES `temporary_transfers` (`id`),
   CONSTRAINT `fk_transfer_employee_user` FOREIGN KEY (`employee_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1115,7 +1152,7 @@ CREATE TABLE `temporary_transfer_employees` (
 
 LOCK TABLES `temporary_transfer_employees` WRITE;
 /*!40000 ALTER TABLE `temporary_transfer_employees` DISABLE KEYS */;
-INSERT INTO `temporary_transfer_employees` VALUES (1,2,12,'APPROVED','2026-10-19 10:47:31');
+INSERT INTO `temporary_transfer_employees` VALUES (1,2,12,'APPROVED','2026-10-19 10:47:31'),(2,7,13,'APPROVED','2026-11-24 10:01:32');
 /*!40000 ALTER TABLE `temporary_transfer_employees` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1158,7 +1195,7 @@ CREATE TABLE `temporary_transfers` (
   CONSTRAINT `temporary_transfers_ibfk_4` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`),
   CONSTRAINT `temporary_transfers_ibfk_5` FOREIGN KEY (`shift_id`) REFERENCES `shifts` (`id`),
   CONSTRAINT `temporary_transfers_ibfk_6` FOREIGN KEY (`employee_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1167,7 +1204,7 @@ CREATE TABLE `temporary_transfers` (
 
 LOCK TABLES `temporary_transfers` WRITE;
 /*!40000 ALTER TABLE `temporary_transfers` DISABLE KEYS */;
-INSERT INTO `temporary_transfers` VALUES (1,7,3,2,7,1,'2026-10-26',3,NULL,'test','đang thiếu nhân viên','REJECTED_MANAGER','2026-10-19 10:22:29','2026-10-19 10:25:24',1,NULL,NULL,NULL),(2,7,3,2,7,1,'2026-10-26',3,NULL,'test',NULL,'APPROVED','2026-10-19 10:26:06','2026-10-19 10:51:26',2,'2026-10-19 17:47:31',3,'2026-10-19 17:51:26'),(3,7,3,2,7,1,'2026-10-28',3,NULL,'ygi',NULL,'PENDING_MANAGER','2026-10-22 15:40:45','2026-10-22 15:40:45',1,NULL,NULL,NULL),(4,7,3,1,7,1,'2026-10-28',3,NULL,'yy',NULL,'PENDING_MANAGER','2026-10-22 15:54:12','2026-10-22 15:54:12',1,NULL,NULL,NULL),(5,7,3,2,7,2,'2026-11-01',4,NULL,'test',NULL,'PENDING_MANAGER','2026-10-25 14:38:42','2026-10-25 14:38:42',1,NULL,NULL,NULL),(6,7,3,2,7,4,'2026-11-01',4,NULL,'test2',NULL,'PENDING_MANAGER','2026-10-25 15:37:55','2026-10-25 15:37:55',1,NULL,NULL,NULL);
+INSERT INTO `temporary_transfers` VALUES (1,7,3,2,7,1,'2026-10-26',3,NULL,'test','đang thiếu nhân viên','REJECTED_MANAGER','2026-10-19 10:22:29','2026-10-19 10:25:24',1,NULL,NULL,NULL),(2,7,3,2,7,1,'2026-10-26',3,NULL,'test',NULL,'APPROVED','2026-10-19 10:26:06','2026-10-19 10:51:26',2,'2026-10-19 17:47:31',3,'2026-10-19 17:51:26'),(3,7,3,2,7,1,'2026-10-28',3,NULL,'ygi',NULL,'PENDING_MANAGER','2026-10-22 15:40:45','2026-10-22 15:40:45',1,NULL,NULL,NULL),(4,7,3,1,7,1,'2026-10-28',3,NULL,'yy',NULL,'PENDING_MANAGER','2026-10-22 15:54:12','2026-10-22 15:54:12',1,NULL,NULL,NULL),(5,7,3,2,7,2,'2026-11-01',4,NULL,'test',NULL,'PENDING_MANAGER','2026-10-25 14:38:42','2026-10-25 14:38:42',1,NULL,NULL,NULL),(6,7,3,2,7,4,'2026-11-01',4,NULL,'test2',NULL,'PENDING_MANAGER','2026-10-25 15:37:55','2026-10-25 15:37:55',1,NULL,NULL,NULL),(7,7,3,2,7,1,'2026-11-30',3,NULL,'test',NULL,'APPROVED','2026-11-24 09:58:29','2026-11-24 10:02:22',1,'2026-11-24 17:01:32',3,'2026-11-24 17:02:22');
 /*!40000 ALTER TABLE `temporary_transfers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1304,4 +1341,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-10-31 21:43:18
+-- Dump completed on 2026-11-01 21:21:02
