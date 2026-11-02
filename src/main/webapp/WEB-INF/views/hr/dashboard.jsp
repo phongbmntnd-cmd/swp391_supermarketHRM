@@ -329,8 +329,15 @@
                 <li class="active"><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
+<<<<<<< Updated upstream
                 <li><a href="${pageContext.request.contextPath}/hr/employee-management"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
+=======
+                <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
+
+>>>>>>> Stashed changes
             </ul>
         </div>
 
@@ -359,7 +366,7 @@
                 <!-- Banner chào mừng -->
                 <div class="welcome-banner">
                     <h2>Khu Vực Quản Lý Nhân Sự Toàn Hệ Thống</h2>
-                    <p>Chào mừng bạn đến với bảng điều khiển nhân sự cấp cao. Từ đây, bạn có thể thực hiện kiểm duyệt các đề xuất tuyển dụng từ các chi nhánh, quản lý hồ sơ toàn bộ nhân viên, theo dõi hợp đồng lao động và giám sát chấm công chuỗi.</p>
+                    <p>Chào mừng bạn đến với bảng điều khiển nhân sự cấp cao. Từ đây, bạn có thể kiểm duyệt đề xuất tuyển dụng, quản lý hồ sơ và hợp đồng lao động trên toàn hệ thống.</p>
                 </div>
 
                 <!-- Thống kê nhanh KPI toàn hệ thống -->
@@ -447,6 +454,7 @@
                         <a href="${pageContext.request.contextPath}/hr/employee-management" class="card-link">Quản lý nhân sự <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+<<<<<<< Updated upstream
                     <!-- Tính năng 3: Quản lý chấm công & ca làm -->
                     <div class="card-custom">
                         <div>
@@ -461,6 +469,23 @@
                         <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+=======
+                    <!-- Tính năng 3: Quản lý vi phạm -->
+                    <div class="card-custom">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #ef4444;">
+                                    <i class="fa-solid fa-scale-balanced"></i>
+                                </div>
+                                <h3>Quản Lý Vi Phạm</h3>
+                            </div>
+                            <p>HR xem xét thông tin, lưu quyết định và lịch sử xử lý minh bạch.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/hr/violations" class="card-link">Xác nhận vi phạm <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
+
+>>>>>>> Stashed changes
                 </div>
 
                 <!-- Section Tích hợp Bảng Phê Duyệt Điều Chuyển Nhân Sự Ngay Trên Dashboard -->

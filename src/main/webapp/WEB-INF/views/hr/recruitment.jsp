@@ -3,6 +3,7 @@
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <!DOCTYPE html>
 <html lang="vi">
+<<<<<<< Updated upstream
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,6 +11,204 @@
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
 </head>
 <body>
+=======
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Phê duyệt đề xuất tiếp nhận nhân sự - HR Management</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                font-family: 'Roboto', sans-serif;
+                background: #f4f7f6;
+                color: #333;
+                display: flex;
+                min-height: 100vh;
+            }
+            .sidebar {
+                width: 260px;
+                background: #1e293b;
+                color: #94a3b8;
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                inset: 0 auto 0 0;
+                z-index: 100;
+                box-shadow: 2px 0 10px rgba(0,0,0,.1);
+            }
+            .sidebar-brand {
+                padding: 25px 20px;
+                font-size: 18px;
+                font-weight: 700;
+                color: #fff;
+                background: #0f172a;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .sidebar-brand i {
+                color: #38bdf8;
+                font-size: 22px;
+            }
+            .sidebar-menu {
+                list-style: none;
+                padding: 20px 0;
+                margin: 0;
+                overflow-y: auto;
+            }
+            .sidebar-menu a {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                padding: 14px 25px;
+                color: #94a3b8;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 500;
+                border-left: 4px solid transparent;
+            }
+            .sidebar-menu a:hover, .sidebar-menu .active a {
+                color: #fff;
+                background: rgba(255,255,255,.05);
+                border-left-color: #38bdf8;
+            }
+            .sidebar-menu i {
+                width: 20px;
+                text-align: center;
+            }
+            .main-wrapper {
+                margin-left: 260px;
+                flex: 1;
+                min-width: 0;
+            }
+            .top-navbar {
+                background: #fff;
+                color: #1e293b;
+                padding: 15px 35px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 20px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.05);
+                position: sticky;
+                top: 0;
+                z-index: 99;
+            }
+            .top-navbar h1 {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 500;
+                color: #334155;
+            }
+            .user-info {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                font-size: 14px;
+            }
+            .btn-logout {
+                color: #ef4444;
+                text-decoration: none;
+                background: #ffeeef;
+                padding: 6px 14px;
+                border-radius: 6px;
+                font-weight: 500;
+                font-size: 13px;
+                white-space: nowrap;
+            }
+            .page-content {
+                max-width: 1400px;
+                margin: 30px;
+            }
+            .page-title {
+                background: linear-gradient(135deg,#0284c7,#0369a1);
+                color: #fff;
+                padding: 25px 30px;
+                border-radius: 12px;
+                margin-bottom: 25px;
+                box-shadow: 0 10px 15px -3px rgba(2,132,199,.2);
+            }
+            .page-title h2 {
+                margin: 0 0 8px;
+                font-size: 24px;
+            }
+            .page-title p {
+                margin: 0;
+                opacity: .9;
+            }
+            .card {
+                border: 0;
+                border-radius: 10px;
+            }
+            .card-header {
+                background: #fff;
+                padding: 16px 20px;
+            }
+            @media (max-width: 900px) {
+                .sidebar {
+                    width: 220px;
+                }
+                .main-wrapper {
+                    margin-left: 220px;
+                }
+                .top-navbar {
+                    padding: 14px 20px;
+                }
+                .page-content {
+                    margin: 20px;
+                }
+            }
+            @media (max-width: 650px) {
+                body {
+                    display: block;
+                }
+                .sidebar {
+                    position: static;
+                    width: 100%;
+                }
+                .sidebar-menu {
+                    display: flex;
+                    overflow-x: auto;
+                    padding: 5px 0;
+                }
+                .sidebar-menu li {
+                    flex: 0 0 auto;
+                }
+                .sidebar-menu a {
+                    padding: 12px;
+                }
+                .main-wrapper {
+                    margin-left: 0;
+                }
+                .top-navbar {
+                    position: static;
+                    flex-wrap: wrap;
+                }
+                .page-content {
+                    margin: 15px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <aside class="sidebar">
+            <div class="sidebar-brand"><i class="fa-solid fa-user-tie"></i><span>HR Management</span></div>
+            <ul class="sidebar-menu">
+                <li><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
+                <li class="active"><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/employee-management"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
+            </ul>
+        </aside>
+>>>>>>> Stashed changes
 
 <div class="topbar">
     <a class="back-link" href="${pageContext.request.contextPath}/hr/dashboard">&larr; Dashboard</a>

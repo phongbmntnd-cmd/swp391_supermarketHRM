@@ -324,8 +324,14 @@
                 <li class="active"><a href="${pageContext.request.contextPath}/employee/dashboard"><i class="fa-solid fa-house"></i> Trang chủ</a></li>
                 <li><a href="${pageContext.request.contextPath}/employee/availability"><i class="fa-solid fa-calendar-plus"></i> Khai báo lịch rảnh</a></li>
                 <li><a href="${pageContext.request.contextPath}/employee/my-schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
+<<<<<<< Updated upstream
                 <li><a href="#"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
                 <li><a href="#"><i class="fa-solid fa-file-lines"></i> Đơn từ & Khiếu nại</a></li>
+=======
+                <li><a href="${pageContext.request.contextPath}/employee/attendance"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/payroll"><i class="fa-solid fa-money-bill-wave"></i> Phiếu lương</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/forms"><i class="fa-solid fa-file-lines"></i> Đơn từ & Khiếu nại</a></li>
+>>>>>>> Stashed changes
             </ul>
         </div>
 
