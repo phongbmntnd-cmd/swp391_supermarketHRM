@@ -975,8 +975,14 @@ public class LeaveRequestDAO {
             allowed.add(d.getWorkDate() + "#" + d.getShiftId());
         }
 
+        // Tìm ca trống ĐÃ CÓ để liên kết, không tạo bản trùng.
+        // BẮT BUỘC so cả position_id: nếu không, ca trống vị trí A sẽ
+        // bị gộp nhầm vào ca trống vị trí B (cùng ca, cùng ngày),
+        // khiến ca của NV vị trí B không tồn tại và liên kết
+        // leave_request_id bị ghi đè.
         String findExisting = "SELECT id FROM open_shifts "
                 + "WHERE branch_id = ? AND shift_id = ? AND work_date = ? "
+                + "AND position_id = ? "
                 + "AND status = 'OPEN' "
                 + "ORDER BY id LIMIT 1";
 
@@ -1017,11 +1023,13 @@ public class LeaveRequestDAO {
 
                 int branch = schBranchId > 0 ? schBranchId : branchId;
 
-                // Đã có ca trống cùng ca/ngày? -> liên kết, không tạo trùng.
+                // Đã có ca trống cùng ca/ngày/VỊ TRÍ? -> liên kết,
+                // không tạo trùng.
                 int existingId = -1;
                 psFind.setInt(1, branch);
                 psFind.setInt(2, schShiftId);
                 psFind.setDate(3, schDate);
+                psFind.setInt(4, positionId);
                 try (ResultSet rs = psFind.executeQuery()) {
                     if (rs.next()) {
                         existingId = rs.getInt(1);
@@ -1206,9 +1214,13 @@ public class LeaveRequestDAO {
                     + "WHERE user_id = ? AND shift_id = ? "
                     + "AND work_date = ? AND status = 'PUBLISHED'";
 
+            // Tìm ca trống đã có để liên kết, tránh tạo trùng.
+            // Phải so cả position_id (xem releaseShiftsToOpen) nếu
+            // không ca trống vị trí A sẽ bị gộp nhầm vào vị trí B.
             String findOpen = "SELECT id FROM open_shifts "
                     + "WHERE branch_id = ? AND shift_id = ? "
-                    + "AND work_date = ? AND status = 'OPEN' "
+                    + "AND work_date = ? AND position_id = ? "
+                    + "AND status = 'OPEN' "
                     + "ORDER BY id LIMIT 1";
 
             String linkOpen = "UPDATE open_shifts "
@@ -1298,6 +1310,7 @@ public class LeaveRequestDAO {
                     psFind.setInt(1, branchId);
                     psFind.setInt(2, actualShiftId);
                     psFind.setDate(3, workDate);
+                    psFind.setInt(4, positionId);
                     try (ResultSet rs = psFind.executeQuery()) {
                         if (rs.next()) {
                             existingId = rs.getInt(1);

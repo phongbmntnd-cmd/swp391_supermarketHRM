@@ -11,6 +11,7 @@ import model.AuditLog;
 import model.User;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,9 @@ public class AdminAuditLogServlet extends BaseServlet {
     private static final int[] PAGE_SIZES = {10, 20, 50, 100};
     private static final int DEFAULT_PAGE_SIZE = 20;
 
+    /** Số ngày mặc định giữ lại khi dọn dẹp log cũ. */
+    private static final int DEFAULT_RETENTION_DAYS = 180;
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -42,13 +46,15 @@ public class AdminAuditLogServlet extends BaseServlet {
             return;
         }
 
-        // 2. Đảm bảo schema tồn tại (chạy 1 lần)
-        auditLogDAO.ensureTable();
+        // 2. Đảm bảo schema tồn tại (chỉ chạy DDL lần đầu tiên)
+        AuditLogDAO.ensureTableOnce();
 
         // 3. Parse filter
         String action        = getStringParameter(request, "action");
         String actorUsername = getStringParameter(request, "actor");
         String targetUsername= getStringParameter(request, "target");
+        String entityType   = getStringParameter(request, "entityType");
+        String entityIdRaw  = getStringParameter(request, "entityId");
         String keyword       = getStringParameter(request, "keyword");
         String fromDate      = getStringParameter(request, "fromDate");
         String toDate        = getStringParameter(request, "toDate");
@@ -59,24 +65,27 @@ public class AdminAuditLogServlet extends BaseServlet {
         for (int ps : PAGE_SIZES) if (ps == pageSize) { validPs = true; break; }
         if (!validPs) pageSize = DEFAULT_PAGE_SIZE;
 
-        // 4. Resolve username -> user_id
-        Integer actorId = null;
-        if (actorUsername != null) {
-            User u = userDAO.getUserByUsername(actorUsername);
-            if (u != null) actorId = u.getId();
-        }
-        Integer targetId = null;
-        if (targetUsername != null) {
-            User u = userDAO.getUserByUsername(targetUsername);
-            if (u != null) targetId = u.getId();
-        }
+        // 4. Phân giải bộ lọc (dùng chung với export CSV)
+        AuditFilter.Resolved f = AuditFilter.resolve(auditLogDAO, userDAO,
+                action, actorUsername, targetUsername, entityType, entityIdRaw,
+                keyword, fromDate, toDate);
 
         // 5. Query
         int offset = (page - 1) * pageSize;
-        List<AuditLog> logs = auditLogDAO.search(
-                action, actorId, targetId, keyword, fromDate, toDate, offset, pageSize);
-        int totalRecords = auditLogDAO.countSearch(
-                action, actorId, targetId, keyword, fromDate, toDate);
+        List<AuditLog> logs;
+        int totalRecords;
+        if (f.notFound) {
+            // Bộ lọc không khớp ai -> kết quả rỗng
+            logs = new ArrayList<>();
+            totalRecords = 0;
+        } else {
+            logs = auditLogDAO.search(
+                    f.action, f.actorId, f.targetId, f.entityType, f.entityId,
+                    f.keyword, f.fromDate, f.toDate, offset, pageSize);
+            totalRecords = auditLogDAO.countSearch(
+                    f.action, f.actorId, f.targetId, f.entityType, f.entityId,
+                    f.keyword, f.fromDate, f.toDate);
+        }
         int totalPages = (int) Math.ceil((double) totalRecords / pageSize);
         if (totalPages < 1) totalPages = 1;
         int displayStart = (totalRecords == 0) ? 0 : (page - 1) * pageSize + 1;
@@ -87,13 +96,18 @@ public class AdminAuditLogServlet extends BaseServlet {
         // 6. Thống kê cho dashboard
         Map<String, Integer> statsByAction = auditLogDAO.countByAction();
         Map<String, Integer> statsByDate   = auditLogDAO.countByDate(7);
-        int totalAll   = auditLogDAO.countSearch(null, null, null, null, null, null);
+        int totalAll   = auditLogDAO.countSearch(null, null, null, null, null, null, null, null);
         int totalToday = auditLogDAO.countRecentDays(1);
         int totalWeek  = auditLogDAO.countRecentDays(7);
         List<String> distinctActions = auditLogDAO.findDistinctActions();
+        List<String> distinctEntityTypes = auditLogDAO.findDistinctEntityTypes();
         List<AuditLog> recent = auditLogDAO.findRecent(5);
 
-        // 7. Set attributes
+        // 7. Thông tin retention (dọn dẹp log cũ)
+        int oldestAgeDays = auditLogDAO.getOldestLogAgeDays();
+        int pendingDeletion = auditLogDAO.countOlderThan(DEFAULT_RETENTION_DAYS);
+
+        // 8. Set attributes
         request.setAttribute("logs", logs);
         request.setAttribute("totalRecords", totalRecords);
         request.setAttribute("totalPages", totalPages);
@@ -108,6 +122,8 @@ public class AdminAuditLogServlet extends BaseServlet {
         request.setAttribute("action", action);
         request.setAttribute("actor", actorUsername);
         request.setAttribute("target", targetUsername);
+        request.setAttribute("entityType", entityType);
+        request.setAttribute("entityId", entityIdRaw);
         request.setAttribute("keyword", keyword);
         request.setAttribute("fromDate", fromDate);
         request.setAttribute("toDate", toDate);
@@ -118,11 +134,42 @@ public class AdminAuditLogServlet extends BaseServlet {
         request.setAttribute("totalToday", totalToday);
         request.setAttribute("totalWeek", totalWeek);
         request.setAttribute("distinctActions", distinctActions);
+        request.setAttribute("distinctEntityTypes", distinctEntityTypes);
         request.setAttribute("recentLogs", recent);
+
+        request.setAttribute("retentionDays", DEFAULT_RETENTION_DAYS);
+        request.setAttribute("oldestAgeDays", oldestAgeDays);
+        request.setAttribute("pendingDeletion", pendingDeletion);
 
         request.setAttribute("successMessage", getAndClearSuccessMessage(request));
         request.setAttribute("errorMessage", getAndClearErrorMessage(request));
 
         request.getRequestDispatcher("/WEB-INF/views/admin/audit-logs.jsp").forward(request, response);
+    }
+
+    // =========================================================
+    //  POST: dọn dẹp log cũ (retention)
+    // =========================================================
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        if (!hasRole(request, ROLE_ADMIN)) {
+            sendForbidden(request, response, "Bạn không có quyền thực hiện thao tác này!");
+            return;
+        }
+
+        String action = request.getParameter("action");
+        if ("cleanup".equals(action)) {
+            int deleted = auditLogDAO.deleteOlderThan(DEFAULT_RETENTION_DAYS);
+            if (deleted > 0) {
+                setSuccessMessage(request, "Đã xóa " + deleted
+                        + " log cũ hơn " + DEFAULT_RETENTION_DAYS + " ngày.");
+            } else {
+                setSuccessMessage(request, "Không có log nào cần xóa (giữ "
+                        + DEFAULT_RETENTION_DAYS + " ngày).");
+            }
+        }
+        response.sendRedirect(request.getContextPath() + "/admin/audit-logs");
     }
 }

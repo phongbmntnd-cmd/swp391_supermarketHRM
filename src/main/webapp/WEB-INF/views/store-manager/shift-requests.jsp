@@ -98,15 +98,30 @@
 
             <c:if test="${param.invalid eq '1'}">
                 <div class="alert alert-warning">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
                     Không thể thực hiện. Vui lòng kiểm tra lại
                     trạng thái đơn hoặc lịch làm việc.
-                </div>
-            </c:if>
-
-            <c:if test="${param.openCreated eq '1'}">
-                <div class="alert alert-success">
-                    Đã tạo ca trống. Nhân viên có thể đề nghị
-                    chuyển ca sang ca này.
+                    <c:choose>
+                        <c:when test="${param.reason eq 'missing'}">
+                            <div class="mt-1 small">
+                                Vui lòng chọn đầy đủ ca làm việc,
+                                vị trí công tác và ngày làm việc.
+                            </div>
+                        </c:when>
+                        <c:when test="${param.reason eq 'date'}">
+                            <div class="mt-1 small">
+                                Ngày làm việc không hợp lệ.
+                            </div>
+                        </c:when>
+                    </c:choose>
+                    <div class="mt-1 small">
+                        Lưu ý: ca trống được tạo cho ngày
+                        <strong>từ hôm nay trở đi</strong>,
+                        kể cả trong ngày (dùng cho ca ốm đột xuất
+                        cần nhân viên đi thế ngay).
+                        Ngoài ra mỗi ca + vị trí + ngày chỉ có
+                        1 ca trống đang mở.
+                    </div>
                 </div>
             </c:if>
 
@@ -167,6 +182,10 @@
                                    class="form-control"
                                    min="<%= java.time.LocalDate.now() %>"
                                    required>
+                            <small class="text-muted">
+                                Có thể tạo ca trống ngay trong ngày
+                                (dùng cho ca ốm đột xuất)
+                            </small>
                         </div>
 
                         <div class="col-md-3">
@@ -186,6 +205,7 @@
                                     <th>Ca</th>
                                     <th>Vị trí</th>
                                     <th>Trạng thái</th>
+                                    <th>Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -214,6 +234,55 @@
                                                     </span>
                                                 </c:otherwise>
                                             </c:choose>
+
+                                            <%-- Ca đã qua thì KHÔNG còn ai
+                                                 nhận được -> cảnh báo để Store
+                                                 biết phải đóng lại. Ca từ hôm
+                                                 nay trở đi thì nhân viên nhận
+                                                 được ngay trong ngày. --%>
+                                            <c:if test="${os.status eq 'OPEN'
+                                                     and os.past eq '1'}">
+                                                <div class="alert alert-warning
+                                                            py-1 px-2 mt-1 mb-0 small">
+                                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                                    Đã qua - không ai nhận được.
+                                                </div>
+                                            </c:if>
+                                        </td>
+                                        <td>
+                                            <%-- Chỉ cho đóng ca trống đang mở.
+                                                 Ca trống sinh ra từ đơn nghỉ phép
+                                                 không đóng tay được ở đây vì nó gắn
+                                                 với leave_request_id (đã được duyệt),
+                                                 muốn thu hồi thì dùng chức năng
+                                                 thu hồi đơn nghỉ phép. --%>
+                                            <c:if test="${os.status eq 'OPEN'}">
+                                                <c:choose>
+                                                    <c:when test="${os.leaveRequestId ne null}">
+                                                        <span class="text-muted small">
+                                                            <i class="fa-solid fa-link"></i>
+                                                            Từ đơn nghỉ phép
+                                                        </span>
+                                                    </c:when>
+                                                    <c:otherwise>
+                                                        <form method="post"
+                                                              action="${pageContext.request.contextPath}/store-manager/shift-requests"
+                                                              onsubmit="return confirm('Đóng ca trống này?\n\nNhân viên sẽ không còn thấy ca này để nhận nữa.');">
+                                                            <input type="hidden"
+                                                                   name="action"
+                                                                   value="closeOpenShift">
+                                                            <input type="hidden"
+                                                                   name="openShiftId"
+                                                                   value="${os.id}">
+                                                            <button type="submit"
+                                                                    class="btn btn-outline-danger btn-sm">
+                                                                <i class="fa-solid fa-xmark"></i>
+                                                                Đóng
+                                                            </button>
+                                                        </form>
+                                                    </c:otherwise>
+                                                </c:choose>
+                                            </c:if>
                                         </td>
                                     </tr>
                                 </c:forEach>
@@ -264,6 +333,11 @@
                                                         Đổi với đồng nghiệp
                                                     </span>
                                                 </c:when>
+                                                <c:when test="${r.requestType eq 'EXTRA'}">
+                                                    <span class="badge bg-success">
+                                                        Nhận thêm ca
+                                                    </span>
+                                                </c:when>
                                                 <c:otherwise>
                                                     <span class="badge bg-primary">
                                                         Chuyển sang ca trống
@@ -272,9 +346,19 @@
                                             </c:choose>
                                         </td>
                                         <td>
-                                            <c:out value="${r.myDate}"/>
-                                            -
-                                            <c:out value="${r.myShift}"/>
+                                            <c:choose>
+                                                <c:when test="${r.requestType eq 'EXTRA'}">
+                                                    <span class="text-muted">
+                                                        <i class="fa-solid fa-plus"></i>
+                                                        Lịch hiện tại giữ nguyên
+                                                    </span>
+                                                </c:when>
+                                                <c:otherwise>
+                                                    <c:out value="${r.myDate}"/>
+                                                    -
+                                                    <c:out value="${r.myShift}"/>
+                                                </c:otherwise>
+                                            </c:choose>
                                         </td>
                                         <td>
                                             <c:out value="${r.targetDate}"/>

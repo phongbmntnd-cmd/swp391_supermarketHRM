@@ -97,6 +97,13 @@ public class EmployeeShiftRequestController extends HttpServlet {
                     dao.getOpenShifts(user.getId(), weekStart)
             );
 
+            // Ca trống (kể cả ca của đồng nghiệp đang nghỉ) mà nhân viên
+            // có thể ĐĂNG KÝ NHẬN THÊM mà không mất ca cũ.
+            req.setAttribute(
+                    "extraShifts",
+                    dao.getAvailableExtraShifts(user.getId(), weekStart)
+            );
+
             // Badge số đơn đổi ca đang chờ mình phản hồi
             req.setAttribute(
                     "incomingSwapCount",
@@ -230,18 +237,25 @@ public class EmployeeShiftRequestController extends HttpServlet {
             // NHÂN VIÊN A GỬI ĐƠN
             if (action != null
                     && !"create".equals(action)
-                    && !"createOpen".equals(action)) {
+                    && !"createOpen".equals(action)
+                    && !"createExtra".equals(action)) {
                 resp.sendError(400, "Invalid action");
                 return;
             }
 
-            // Loại đơn: đổi với đồng nghiệp (SWAP) hay chuyển
-            // sang ca trống (OPEN).
+            // Loại đơn: đổi với đồng nghiệp (SWAP), chuyển
+            // sang ca trống (OPEN) hoặc nhận thêm ca (EXTRA).
             boolean openType = "createOpen".equals(action);
+            boolean extraType = "createExtra".equals(action);
 
-            int myScheduleId = Integer.parseInt(
-                    req.getParameter("myScheduleId")
-            );
+            // Đơn EXTRA không có ca cũ nên không cần myScheduleId.
+            int myScheduleId = 0;
+
+            if (!extraType) {
+                myScheduleId = Integer.parseInt(
+                        req.getParameter("myScheduleId")
+                );
+            }
 
             String reason = req.getParameter("reason");
 
@@ -251,7 +265,11 @@ public class EmployeeShiftRequestController extends HttpServlet {
 
                 req.setAttribute(
                         "error",
-                        "Vui lòng nhập lý do đổi ca (tối đa 255 ký tự)."
+                        extraType
+                            ? "Vui lòng nhập lý do xin nhận thêm ca "
+                                + "(tối đa 255 ký tự)."
+                            : "Vui lòng nhập lý do đổi ca "
+                                + "(tối đa 255 ký tự)."
                 );
 
                 showPage(req, resp, user);
@@ -260,7 +278,26 @@ public class EmployeeShiftRequestController extends HttpServlet {
 
             boolean success;
 
-            if (openType) {
+            if (extraType) {
+                // Radio của chế độ nhận thêm ca dùng tên riêng
+                // (extraShiftId) để không lẫn với chế độ chuyển ca trống.
+                String param = req.getParameter("extraShiftId");
+
+                if (param == null || param.trim().isEmpty()) {
+                    param = req.getParameter("openShiftId");
+                }
+
+                int openShiftId = Integer.parseInt(
+                        param == null ? "" : param.trim()
+                );
+
+                success = dao.createExtraShift(
+                        user.getId(),
+                        openShiftId,
+                        reason.trim(),
+                        resolveWeekStart(req)
+                );
+            } else if (openType) {
                 int openShiftId = Integer.parseInt(
                         req.getParameter("openShiftId")
                 );

@@ -1,13 +1,17 @@
 package controller.hr;
 
 import controller.base.BaseServlet;
+import dao.AuditLogDAO;
 import dao.CommonDAO;
 import dao.EmployeeProfileDAO;
 import dao.RecruitmentProposalDAO;
 import dao.UserDAO;
+import model.AuditLog;
 import model.Department;
 import model.RecruitmentProposal;
+import model.Role;
 import model.User;
+import util.AuditDescription;
 
 import java.io.IOException;
 import java.util.List;
@@ -185,6 +189,24 @@ public class CreateUserServlet extends BaseServlet {
                 proposalId, currentUser.getId(), noteForStoreManager);
 
         if (success) {
+            // Ghi audit log tạo tài khoản (Admin tra cứu được ở /admin/audit-logs)
+            try {
+                User createdUser = userDAO.getUserByUsername(username);
+                Integer createdUserId = (createdUser != null) ? createdUser.getId() : null;
+                String roleName = null;
+                try {
+                    Role r = new dao.RoleDAO().getRoleById(roleId);
+                    if (r != null) roleName = r.getName();
+                } catch (Exception ignore) { }
+                String desc = AuditDescription.createUser(username, fullName, roleName,
+                        null, currentUser.getUsername());
+                new AuditLogDAO().log(AuditLog.ACTION_CREATE_USER,
+                        currentUser.getId(), createdUserId,
+                        AuditLog.ENTITY_USER, createdUserId, desc, getClientIp(request));
+            } catch (Exception logEx) {
+                logEx.printStackTrace();
+            }
+
             if (proposalId > 0) {
                 response.sendRedirect(request.getContextPath() + "/hr/recruitment?msg=approved");
                 return;

@@ -342,8 +342,8 @@ public class SwapSamePositionTest {
                      + "JOIN employee_profiles eb ON eb.user_id = b.user_id "
                      + "WHERE a.status = 'PUBLISHED' "
                      + "AND b.status = 'PUBLISHED' "
-                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
-                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
+                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
+                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
                      + "GROUP BY a.user_id LIMIT 1")) {
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -373,8 +373,8 @@ public class SwapSamePositionTest {
                      + "WHERE ea.position_id <> eb.position_id "
                      + "AND a.status = 'PUBLISHED' "
                      + "AND b.status = 'PUBLISHED' "
-                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
-                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
+                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
+                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
                      + "AND NOT (sa.start_time < sb.end_time "
                      + "         AND sa.end_time > sb.start_time) "
                      + "LIMIT 1")) {
@@ -409,8 +409,8 @@ public class SwapSamePositionTest {
                      + "COALESCE(eb.employee_type, 'FULL_TIME') "
                      + "AND a.status = 'PUBLISHED' "
                      + "AND b.status = 'PUBLISHED' "
-                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
-                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
+                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
+                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
                      // Cả hai ca phải cùng tuần.
                      + "AND DATE_SUB(a.work_date, "
                      + "  INTERVAL WEEKDAY(a.work_date) DAY) = "
@@ -449,8 +449,8 @@ public class SwapSamePositionTest {
                      + "COALESCE(eb.employee_type, 'FULL_TIME') "
                      + "AND a.status = 'PUBLISHED' "
                      + "AND b.status = 'PUBLISHED' "
-                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
-                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
+                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
+                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
                      + "AND NOT (sa.start_time < sb.end_time "
                      + "         AND sa.end_time > sb.start_time) "
                      + "LIMIT 1")) {
@@ -485,8 +485,8 @@ public class SwapSamePositionTest {
                      + "COALESCE(eb.employee_type, 'FULL_TIME') "
                      + "AND a.status = 'PUBLISHED' "
                      + "AND b.status = 'PUBLISHED' "
-                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
-                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
+                     + "AND a.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
+                     + "AND b.work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
                      + "AND DATE_SUB(a.work_date, "
                      + "  INTERVAL WEEKDAY(a.work_date) DAY) <> "
                      + "DATE_SUB(b.work_date, "
@@ -542,7 +542,7 @@ public class SwapSamePositionTest {
              PreparedStatement ps = c.prepareStatement(
                      "SELECT work_date FROM shift_schedules "
                      + "WHERE user_id = ? AND status = 'PUBLISHED' "
-                     + "AND work_date >= DATE_ADD(CURDATE(), INTERVAL 2 DAY) "
+                     + "AND work_date >= DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
                      + "ORDER BY work_date LIMIT 1")) {
             ps.setInt(1, userId);
             try (ResultSet rs = ps.executeQuery()) {

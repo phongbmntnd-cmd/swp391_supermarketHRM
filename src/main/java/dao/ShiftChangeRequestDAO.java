@@ -104,7 +104,7 @@ public class ShiftChangeRequestDAO {
                 + "WHERE ss.user_id = ? "
                 + "AND ss.status = 'PUBLISHED' "
                 + "AND ss.work_date BETWEEN ? AND ? "
-                + "AND ss.work_date >= DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "AND ss.work_date >= CURRENT_DATE() "
                 + "ORDER BY ss.work_date, s.start_time";
 
         return query(sql, userId, weekStart, weekStart.plusDays(6));
@@ -153,7 +153,7 @@ public class ShiftChangeRequestDAO {
                 + "AND u.status = 'ACTIVE' "
                 + "AND ss.status = 'PUBLISHED' "
                 + "AND ss.work_date BETWEEN ? AND ? "
-                + "AND ss.work_date >= DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "AND ss.work_date >= CURRENT_DATE() "
                 + "ORDER BY ss.work_date, s.start_time, ep.full_name";
 
         return query(sql, userId, weekStart, weekStart.plusDays(6));
@@ -161,7 +161,6 @@ public class ShiftChangeRequestDAO {
 
     private List<Map<String, Object>> queryTwo(
             String sql, int a, int b) {
-
         List<Map<String, Object>> result = new ArrayList<>();
 
         try (Connection c = connect(); PreparedStatement ps = c.prepareStatement(sql)) {
@@ -195,6 +194,49 @@ public class ShiftChangeRequestDAO {
         return result;
     }
 
+    /**
+     * Truy vấn với 2 tham số int + 1 khoảng ngày (from, to).
+     */
+    private List<Map<String, Object>> query2(
+            String sql, int a, int b,
+            LocalDate from, LocalDate to) {
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, a);
+            ps.setInt(2, b);
+            ps.setDate(3, java.sql.Date.valueOf(from));
+            ps.setDate(4, java.sql.Date.valueOf(to));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                ResultSetMetaData md = rs.getMetaData();
+
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+
+                    for (int i = 1; i <= md.getColumnCount(); i++) {
+                        row.put(
+                                md.getColumnLabel(i),
+                                rs.getObject(i)
+                        );
+                    }
+
+                    result.add(row);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot load available extra shifts", e
+            );
+        }
+
+        return result;
+    }
+
     // 3. Ca trống do Store Manager tạo
     // Chỉ trả về ca trống:
     //   - ở cơ sở của nhân viên,
@@ -218,10 +260,15 @@ public class ShiftChangeRequestDAO {
                 + "WHERE os.status = 'OPEN' "
                 + "AND os.work_date BETWEEN ? AND ? "
                 + "AND os.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "AND os.branch_id = ep.home_branch_id "
                 + "AND (ep.position_id IS NULL "
                 + "OR os.position_id = ep.position_id) "
+                // Ca trống gắn đơn nghỉ phép đã hủy/thu hồi thì không
+                // còn ai làm việc ở ca đó -> không cho nhận.
+                + "AND NOT EXISTS (SELECT 1 FROM leave_requests lr "
+                + "WHERE lr.id = os.leave_request_id "
+                + "AND lr.status <> 'APPROVED') "
                 + "AND NOT EXISTS ("
                 + "SELECT 1 FROM shift_change_requests r "
                 + "WHERE r.open_shift_id = os.id "
@@ -229,6 +276,63 @@ public class ShiftChangeRequestDAO {
                 + "ORDER BY os.work_date, s.start_time";
 
         return query(sql, userId, weekStart, weekStart.plusDays(6));
+    }
+
+    /**
+     * Danh sách ca trống mà nhân viên có thể ĐĂNG KÝ NHẬN THÊM.
+     *
+     * <p>Khác {@link #getOpenShifts} ở chỗ:
+     * <ul>
+     *   <li>Hiển thị cả ca trống phát sinh từ đơn nghỉ phép
+     *       (người nghỉ) lẫn ca trống do Store tạo.</li>
+     *   <li>Trả về thêm thông tin người nghỉ (từ {@code leave_requests})
+     *       để nhân viên biết ca đó của ai.</li>
+     *   <li>Đánh dấu ca đã có đơn PENDING và ca chồng giờ.</li>
+     * </ul>
+     */
+    public List<Map<String, Object>> getAvailableExtraShifts(
+            int userId, LocalDate weekStart) {
+
+        String sql
+                = "SELECT os.id, os.work_date AS workDate, "
+                + "s.name AS shiftName, "
+                + "s.start_time AS startTime, "
+                + "s.end_time AS endTime, "
+                + "b.name AS branchName, "
+                + "p.title AS positionTitle, "
+                + "COALESCE(ep.full_name, 'Đồng nghiệp') AS onLeaveName, "
+                + "EXISTS(SELECT 1 FROM shift_change_requests r "
+                + "WHERE r.open_shift_id = os.id AND r.status = 'PENDING') "
+                + "AS alreadyRequested, "
+                + "EXISTS(SELECT 1 FROM shift_schedules ss "
+                + "JOIN shifts s2 ON s2.id = ss.shift_id "
+                + "WHERE ss.user_id = ? AND ss.work_date = os.work_date "
+                + "AND ss.status = 'PUBLISHED' "
+                + "AND s2.start_time < s.end_time "
+                + "AND s2.end_time > s.start_time) AS timeConflict "
+                + "FROM open_shifts os "
+                + "JOIN shifts s ON s.id = os.shift_id "
+                + "JOIN branches b ON b.id = os.branch_id "
+                + "JOIN positions p ON p.id = os.position_id "
+                + "LEFT JOIN leave_requests lr "
+                + "ON lr.id = os.leave_request_id "
+                + "LEFT JOIN employee_profiles ep "
+                + "ON ep.user_id = lr.user_id "
+                + "JOIN employee_profiles myep "
+                + "ON myep.user_id = ? "
+                + "WHERE os.status = 'OPEN' "
+                + "AND os.work_date BETWEEN ? AND ? "
+                + "AND os.work_date >= "
+                + "CURRENT_DATE() "
+                + "AND os.branch_id = myep.home_branch_id "
+                + "AND (myep.position_id IS NULL "
+                + "OR os.position_id = myep.position_id) "
+                // Ca trống gắn đơn nghỉ phép đã bị hủy/thu hồi thì
+                // không còn ai làm việc ở ca đó -> không cho nhận.
+                + "AND (lr.id IS NULL OR lr.status = 'APPROVED') "
+                + "ORDER BY os.work_date, s.start_time";
+
+        return query2(sql, userId, userId, weekStart, weekStart.plusDays(6));
     }
 
     public boolean createSwap(
@@ -286,9 +390,9 @@ public class ShiftChangeRequestDAO {
                 + "AND mine.work_date BETWEEN ? AND ? "
                 + "AND theirs.work_date BETWEEN ? AND ? "
                 + "AND mine.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "AND theirs.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "AND NOT EXISTS ("
                 + "SELECT 1 FROM shift_change_requests r "
                 + "WHERE r.status IN "
@@ -326,7 +430,7 @@ public class ShiftChangeRequestDAO {
      *       PART_TIME chỉ đổi với PART_TIME.</li>
      *   <li>Không cùng một ngày VÀ chồng lấn khung giờ -&gt;
      *       nếu không, sau khi đổi mỗi người sẽ có 2 ca chồng nhau.</li>
-     *   <li>Cả hai ca phải còn hiệu lực (&gt;= 2 ngày từ hôm nay).</li>
+     *   <li>Cả hai ca phải còn hiệu lực (không nằm trong quá khứ).</li>
      *   <li><b>Cung tuần</b>: ca cua toi va ca cua dong nghiep phai
      *       cung nam trong tuan dang xem.</li>
      * </ul>
@@ -366,9 +470,9 @@ public class ShiftChangeRequestDAO {
                 + "AND mine.work_date BETWEEN ? AND ? "
                 + "AND theirs.work_date BETWEEN ? AND ? "
                 + "AND mine.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "AND theirs.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY)";
+                + "CURRENT_DATE()";
 
         try (Connection c = connect();
              PreparedStatement ps = c.prepareStatement(sql)) {
@@ -407,7 +511,6 @@ public class ShiftChangeRequestDAO {
             int openShiftId,
             String reason,
             LocalDate weekStart) throws Exception {
-
         String sql
                 = "INSERT INTO shift_change_requests "
                 + "(requester_id, shift_schedule_id, "
@@ -427,9 +530,9 @@ public class ShiftChangeRequestDAO {
                 + "AND mine.work_date BETWEEN ? AND ? "
                 + "AND os.work_date BETWEEN ? AND ? "
                 + "AND mine.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "AND os.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "AND NOT EXISTS ("
                 + "SELECT 1 FROM shift_change_requests r "
                 + "WHERE r.status = 'PENDING' "
@@ -461,6 +564,180 @@ public class ShiftChangeRequestDAO {
             ps.setDate(9, java.sql.Date.valueOf(weekStart.plusDays(6)));
 
             return ps.executeUpdate() > 0;
+        }
+    }
+
+    // 5b. Nhân viên ĐĂNG KÝ NHẬN THÊM ca trống (EXTRA)
+    //
+    // Khác với "chuyển sang ca trống" (OPEN):
+    //   - OPEN  : nhân viên MẤT ca cũ, được chuyển sang ca trống.
+    //   - EXTRA : nhân viên GIỮ NGUYÊN lịch cũ, chỉ được THÊM ca trống.
+    //
+    // Vì không mất ca nào nên đơn EXTRA không có `shift_schedule_id`
+    // (để NULL).
+    //
+    // Điều kiện:
+    //   - Nhân viên part-time (role_id = 5) đang ACTIVE.
+    //   - Ca trống đang OPEN, thuộc cơ sở của nhân viên, khớp vị trí.
+    //   - Ca trống nằm trong tuần đang xem và không nằm trong quá khứ.
+    //   - Ca trống KHÔNG chồng lấn khung giờ với ca đang có của
+    //     nhân viên trong cùng ngày.
+    //   - Chưa có ai đăng ký ca trống này (đơn PENDING).
+    public boolean createExtraShift(
+            int userId,
+            int openShiftId,
+            String reason,
+            LocalDate weekStart) throws Exception {
+
+        if (reason == null
+                || reason.trim().isEmpty()
+                || reason.trim().length() > 255) {
+            return false;
+        }
+
+        if (userId <= 0 || openShiftId <= 0 || weekStart == null) {
+            return false;
+        }
+
+        // Chặn trước: ca trống phải hợp lệ với nhân viên và không
+        // chồng lấn giờ với ca đang có.
+        if (!canTakeExtraShift(userId, openShiftId, weekStart)) {
+            return false;
+        }
+
+        String sql
+                = "INSERT INTO shift_change_requests "
+                + "(requester_id, shift_schedule_id, "
+                + "request_type, open_shift_id, reason, status) "
+                + "SELECT ?, NULL, 'EXTRA', os.id, ?, 'PENDING' "
+                + "FROM open_shifts os "
+                + "JOIN employee_profiles ep ON ep.user_id = ? "
+                + "JOIN users requester ON requester.id = ep.user_id "
+                + "WHERE os.id = ? "
+                + "AND requester.role_id = 5 "
+                + "AND requester.status = 'ACTIVE' "
+                + "AND os.status = 'OPEN' "
+                + "AND os.branch_id = ep.home_branch_id "
+                + "AND (ep.position_id IS NULL "
+                + "OR os.position_id = ep.position_id) "
+                + "AND os.work_date BETWEEN ? AND ? "
+                + "AND os.work_date >= "
+                + "CURRENT_DATE() "
+                + "AND NOT EXISTS ("
+                + "SELECT 1 FROM leave_requests lr "
+                + "WHERE lr.id = os.leave_request_id "
+                + "AND lr.status <> 'APPROVED') "
+                + "AND NOT EXISTS ("
+                + "SELECT 1 FROM shift_change_requests r "
+                + "WHERE r.open_shift_id = os.id "
+                + "AND r.status = 'PENDING')";
+
+        try (Connection c = connect(); PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+            ps.setString(2, reason.trim());
+            ps.setInt(3, userId);
+            ps.setInt(4, openShiftId);
+            ps.setDate(5, java.sql.Date.valueOf(weekStart));
+            ps.setDate(6, java.sql.Date.valueOf(weekStart.plusDays(6)));
+
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Nhân viên có thể nhận thêm ca trống này không?
+     *
+     * <p>Khác {@link #canTakeOpenShift} ở chỗ: không so với một ca cũ
+     * cụ thể, mà so với TẤT CẢ các ca đang có của nhân viên trong
+     * ngày của ca trống. Nếu nhân viên đã có ca chiều trong ngày đó
+     * thì không được nhận thêm ca tối (tránh làm quá giờ, tránh
+     * chồng lấn).
+     */
+    private boolean canTakeExtraShift(
+            int userId, int openShiftId, LocalDate weekStart)
+            throws Exception {
+
+        String sql
+                = "SELECT os.work_date AS openDate, os.shift_id AS openShift "
+                + "FROM open_shifts os "
+                + "JOIN employee_profiles ep ON ep.user_id = ? "
+                + "JOIN users requester ON requester.id = ep.user_id "
+                + "WHERE os.id = ? "
+                + "AND requester.role_id = 5 "
+                + "AND requester.status = 'ACTIVE' "
+                + "AND os.status = 'OPEN' "
+                + "AND os.branch_id = ep.home_branch_id "
+                + "AND (ep.position_id IS NULL "
+                + "OR os.position_id = ep.position_id) "
+                + "AND os.work_date BETWEEN ? AND ? "
+                + "AND os.work_date >= "
+                + "CURRENT_DATE() "
+                + "AND NOT EXISTS (SELECT 1 FROM leave_requests lr "
+                + "WHERE lr.id = os.leave_request_id "
+                + "AND lr.status <> 'APPROVED')";
+
+        java.sql.Date openDate;
+        int openShift;
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+            ps.setInt(2, openShiftId);
+            ps.setDate(3, java.sql.Date.valueOf(weekStart));
+            ps.setDate(4, java.sql.Date.valueOf(weekStart.plusDays(6)));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return false;
+                }
+                openDate = rs.getDate("openDate");
+                openShift = rs.getInt("openShift");
+            }
+        }
+
+        // Ca trống phải nằm trong tuần đang xem.
+        if (openDate == null
+                || !sameWeek(openDate, java.sql.Date.valueOf(weekStart))) {
+            return false;
+        }
+
+        // Không được nhận thêm ca nếu đã có ca chồng lấn khung giờ
+        // trong cùng ngày.
+        return !hasConflictWithOwnSchedule(
+                userId, openDate, openShift);
+    }
+
+    /**
+     * Nhân viên đã có ca chồng lấn khung giờ với ca (ngày, ca) này chưa?
+     *
+     * <p>Không tính ca đang ON_LEAVE (nhân viên nghỉ phép ở ca đó thì
+     * không xung đột giờ với ca nhận thêm).
+     */
+    private boolean hasConflictWithOwnSchedule(
+            int userId, java.sql.Date date, int shiftId)
+            throws Exception {
+
+        String sql
+                = "SELECT COUNT(*) FROM shift_schedules ss "
+                + "JOIN shifts s ON s.id = ss.shift_id "
+                + "WHERE ss.user_id = ? AND ss.work_date = ? "
+                + "AND ss.status = 'PUBLISHED' "
+                + "AND s.start_time < (SELECT end_time FROM shifts WHERE id = ?) "
+                + "AND s.end_time > (SELECT start_time FROM shifts WHERE id = ?)";
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setInt(1, userId);
+            ps.setDate(2, date);
+            ps.setInt(3, shiftId);
+            ps.setInt(4, shiftId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
         }
     }
 
@@ -555,9 +832,9 @@ public class ShiftChangeRequestDAO {
                 + "r.reason, r.status, r.response, "
                 + "r.colleague_response AS colleagueResponse "
                 + "FROM shift_change_requests r "
-                + "JOIN shift_schedules mine "
+                + "LEFT JOIN shift_schedules mine "
                 + "ON mine.id = r.shift_schedule_id "
-                + "JOIN shifts ms ON ms.id = mine.shift_id "
+                + "LEFT JOIN shifts ms ON ms.id = mine.shift_id "
                 + "LEFT JOIN shift_schedules target "
                 + "ON target.id = r.target_shift_schedule_id "
                 + "LEFT JOIN shifts ts ON ts.id = target.shift_id "
@@ -662,11 +939,12 @@ public class ShiftChangeRequestDAO {
                 + "COALESCE(target.work_date, os.work_date) AS targetDate, "
                 + "COALESCE(ts.name, os2.name) AS targetShift, "
                 + "tgt_ep.full_name AS colleagueName, "
+                + "r.open_shift_id AS openShiftId, "
                 + "r.reason, r.status, r.response "
                 + "FROM shift_change_requests r "
-                + "JOIN shift_schedules mine "
+                + "LEFT JOIN shift_schedules mine "
                 + "ON mine.id = r.shift_schedule_id "
-                + "JOIN shifts ms ON ms.id = mine.shift_id "
+                + "LEFT JOIN shifts ms ON ms.id = mine.shift_id "
                 + "LEFT JOIN shift_schedules target "
                 + "ON target.id = r.target_shift_schedule_id "
                 + "LEFT JOIN shifts ts ON ts.id = target.shift_id "
@@ -677,7 +955,7 @@ public class ShiftChangeRequestDAO {
                 + "ON req_ep.user_id = r.requester_id "
                 + "LEFT JOIN employee_profiles tgt_ep "
                 + "ON tgt_ep.user_id = r.target_user_id "
-                + "WHERE mine.branch_id = ? "
+                + "WHERE COALESCE(mine.branch_id, os.branch_id) = ? "
                 + "ORDER BY r.id DESC";
 
         return query(sql, branchId);
@@ -685,11 +963,16 @@ public class ShiftChangeRequestDAO {
 
     // 7b. Store Manager: Đếm số đơn đổi ca đang chờ duyệt của chi nhánh
     public int countBranchPendingShiftRequests(int branchId) {
+        // Đơn EXTRA không có shift_schedule_id (nhân viên không mất ca
+        // nào) -> cơ sở được xác định qua ca trống.
         String sql
                 = "SELECT COUNT(*) FROM shift_change_requests r "
-                + "JOIN shift_schedules ss "
+                + "LEFT JOIN shift_schedules ss "
                 + "ON ss.id = r.shift_schedule_id "
-                + "WHERE ss.branch_id = ? AND r.status = 'PENDING'";
+                + "LEFT JOIN open_shifts os "
+                + "ON os.id = r.open_shift_id "
+                + "WHERE COALESCE(ss.branch_id, os.branch_id) = ? "
+                + "AND r.status = 'PENDING'";
 
         try (Connection c = connect();
              PreparedStatement ps = c.prepareStatement(sql)) {
@@ -710,25 +993,49 @@ public class ShiftChangeRequestDAO {
         return 0;
     }
 
-    // 8. Store Manager tạo ca trống
+    /**
+     * Store Manager tạo ca trống.
+     *
+     * <h3>Quy tắc nghiệp vụ</h3>
+     * <ul>
+     *   <li>Ngày làm việc phải từ hôm nay trở đi. KHÔNG đặt khoảng cách
+     *       tối thiểu, vì ca ốm đột xuất xảy ra trong ngày: Store cần
+     *       mở ca trống ngay để nhân viên khác đi thế trong ngày.
+     *       Nhân viên cũng thấy ca trống từ {@code CURRENT_DATE()}
+     *       trở đi (xem {@link #getOpenShifts}).</li>
+     *   <li>Không tạo trùng ca trống: cùng cơ sở + cùng ca + cùng VỊ TRÍ
+     *       + cùng ngày. Phải có {@code position_id} trong điều kiện kiểm
+     *       tra, vì một ca có thể thiếu người ở nhiều vị trí khác nhau
+     *       (ví dụ: Ca Sáng thiếu người ở cả Bán Hàng và Thu Ngân).</li>
+     * </ul>
+     */
     public boolean createOpenShift(
             int branchId,
             int shiftId,
             int positionId,
             LocalDate date) throws Exception {
 
-        if (shiftId <= 0 || positionId <= 0) {
+        if (branchId <= 0 || shiftId <= 0 || positionId <= 0) {
             return false;
         }
 
-        if (!date.isAfter(LocalDate.now())) {
+        if (date == null) {
             return false;
         }
 
-        // Không tạo trùng ca trống cùng ngày
+        // Không cho tạo ca trống cho ngày đã qua.
+        // KHÔNG đặt khoảng cách tối thiểu: ca ốm đột xuất xảy ra trong
+        // ngày, Store cần mở ca trống ngay để nhân viên khác đi thế.
+        if (date.isBefore(LocalDate.now())) {
+            return false;
+        }
+
+        // Không tạo trùng ca trống cùng ngày + cùng ca + cùng vị trí.
+        // Phải so cả position_id, nếu không thì Store không thể mở ca
+        // trống cho 2 vị trí khác nhau cùng ca cùng ngày.
         String check
                 = "SELECT COUNT(*) FROM open_shifts "
-                + "WHERE branch_id = ? AND shift_id = ? "
+                + "WHERE branch_id = ? AND shift_id = ? AND position_id = ? "
                 + "AND work_date = ? AND status = 'OPEN'";
 
         try (Connection c = connect()) {
@@ -736,7 +1043,8 @@ public class ShiftChangeRequestDAO {
             try (PreparedStatement ps = c.prepareStatement(check)) {
                 ps.setInt(1, branchId);
                 ps.setInt(2, shiftId);
-                ps.setDate(3, java.sql.Date.valueOf(date));
+                ps.setInt(3, positionId);
+                ps.setDate(4, java.sql.Date.valueOf(date));
 
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next() && rs.getInt(1) > 0) {
@@ -766,13 +1074,93 @@ public class ShiftChangeRequestDAO {
         }
     }
 
+    /**
+     * Store Manager đóng ca trống thủ công.
+     *
+     * <h3>Vì sao cần?</h3>
+     * Ca trống chỉ được đóng tự động khi: nhân viên nhận, hoặc đơn nghỉ
+     * phép bị thu hồi. Nếu không có cách đóng thủ công thì ca trống "vô
+     * chủ" sẽ tồn tại vĩnh viễn, chặn Store tạo ca trống mới cho cùng
+     * ca/ngày/vị trí và làm nhân viên thấy ca trống không ai nhận được.
+     *
+     * <p>Không cho đóng ca trống đã có người đề nghị nhận (đơn PENDING),
+     * vì Store cần xử lý đơn đó trước.
+     *
+     * @return true nếu đóng thành công
+     */
+    public boolean closeOpenShift(int branchId, int openShiftId)
+            throws Exception {
+
+        if (branchId <= 0 || openShiftId <= 0) {
+            return false;
+        }
+
+        // Chặn đóng ca trống đang có người xin -> phải duyệt/từ chối đơn trước.
+        String pendingSql
+                = "SELECT COUNT(*) FROM shift_change_requests "
+                + "WHERE open_shift_id = ? AND status = 'PENDING'";
+
+        // Ca trống sinh ra từ đơn nghỉ phép ĐÃ DUYỆT không được đóng tay:
+        // việc đó thuộc chức năng thu hồi đơn nghỉ phép (nếu không,
+        // ca sẽ bị đóng mà nhân viên vẫn nghỉ -> mất nhân lực).
+        String leaveSql
+                = "SELECT COUNT(*) FROM open_shifts "
+                + "WHERE id = ? AND leave_request_id IS NOT NULL "
+                + "AND EXISTS (SELECT 1 FROM leave_requests lr "
+                + "WHERE lr.id = open_shifts.leave_request_id "
+                + "AND lr.status = 'APPROVED')";
+
+        // Đóng ca trống thuộc đúng cơ sở của Store Manager.
+        String closeSql
+                = "UPDATE open_shifts SET status = 'CLOSED' "
+                + "WHERE id = ? AND branch_id = ? AND status = 'OPEN'";
+
+        try (Connection c = connect()) {
+
+            try (PreparedStatement ps = c.prepareStatement(pendingSql)) {
+                ps.setInt(1, openShiftId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return false;
+                    }
+                }
+            }
+
+            try (PreparedStatement ps = c.prepareStatement(leaveSql)) {
+                ps.setInt(1, openShiftId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return false;
+                    }
+                }
+            }
+
+            try (PreparedStatement ps = c.prepareStatement(closeSql)) {
+                ps.setInt(1, openShiftId);
+                ps.setInt(2, branchId);
+                return ps.executeUpdate() == 1;
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot close open shift", e);
+        }
+    }
+
     // 9. Store Manager xem ca trống của chi nhánh
     public List<Map<String, Object>> getBranchOpenShifts(int branchId) {
 
+        // "past" = ca đã qua, không thể nhận nữa -> cảnh báo để Store
+        // đóng lại. Ca từ hôm nay trở đi thì nhân viên nhận được ngay
+        // (không còn khoảng cách tối thiểu) nên không cần cảnh báo.
         String sql
                 = "SELECT os.id, os.work_date AS workDate, "
                 + "s.name AS shiftName, os.status, "
-                + "p.title AS positionTitle "
+                + "os.leave_request_id AS leaveRequestId, "
+                + "p.title AS positionTitle, "
+                + "(CASE WHEN os.work_date < CURRENT_DATE() "
+                + "THEN '1' ELSE '0' END) AS past, "
+                + "DATEDIFF(os.work_date, CURRENT_DATE()) AS daysLeft "
                 + "FROM open_shifts os "
                 + "JOIN shifts s ON s.id = os.shift_id "
                 + "LEFT JOIN positions p ON p.id = os.position_id "
@@ -793,15 +1181,22 @@ public class ShiftChangeRequestDAO {
             c.setAutoCommit(false);
 
             try {
+                // Đơn EXTRA không có shift_schedule_id (nhân viên không
+                // mất ca nào) -> phải xác định cơ sở qua ca trống.
+                // Vì vậy dùng LEFT JOIN và lấy branch_id từ ca trống.
                 String sql
                         = "SELECT r.request_type, r.requester_id, "
                         + "r.shift_schedule_id, "
                         + "r.target_user_id, r.target_shift_schedule_id, "
-                        + "r.open_shift_id, r.status "
+                        + "r.open_shift_id, r.status, "
+                        + "COALESCE(ss.branch_id, os.branch_id) AS branch_id "
                         + "FROM shift_change_requests r "
-                        + "JOIN shift_schedules ss "
+                        + "LEFT JOIN shift_schedules ss "
                         + "ON ss.id = r.shift_schedule_id "
-                        + "WHERE r.id = ? AND ss.branch_id = ? "
+                        + "LEFT JOIN open_shifts os "
+                        + "ON os.id = r.open_shift_id "
+                        + "WHERE r.id = ? "
+                        + "AND COALESCE(ss.branch_id, os.branch_id) = ? "
                         + "FOR UPDATE";
 
                 String type;
@@ -842,6 +1237,12 @@ public class ShiftChangeRequestDAO {
                     } else if ("OPEN".equals(type)) {
                         if (!approveOpen(
                                 c, branchId, myId, openId, requester)) {
+                            c.rollback();
+                            return false;
+                        }
+                    } else if ("EXTRA".equals(type)) {
+                        if (!approveExtra(
+                                c, branchId, openId, requester)) {
                             c.rollback();
                             return false;
                         }
@@ -1181,6 +1582,105 @@ public class ShiftChangeRequestDAO {
     }
 
     /**
+     * Duyệt đơn "nhận thêm ca" (EXTRA).
+     *
+     * <p>Khác {@link #approveOpen}: KHÔNG chuyển ca cũ của nhân viên.
+     * Thay vào đó tạo MỘT bản ghi MỚI trong {@code shift_schedules}
+     * cho ca trống đã nhận, và đóng ca trống lại. Lịch cũ của nhân viên
+     * giữ nguyên hoàn toàn.
+     *
+     * @param c       connection (đã bắt đầu transaction)
+     * @param branch  chi nhánh của ca trống
+     * @param openId  ca trống được nhận
+     * @param requester nhân viên nhận ca
+     */
+    private boolean approveExtra(
+            Connection c, int branch, int openId, int requester)
+            throws SQLException {
+
+        // Khoá ca trống để tránh 2 Store duyệt cùng lúc cho 2 người.
+        String lockOpen
+                = "SELECT branch_id, shift_id, position_id, work_date, status "
+                + "FROM open_shifts WHERE id = ? FOR UPDATE";
+
+        int newShift, newPosition;
+        java.sql.Date newDate;
+
+        try (PreparedStatement ps = c.prepareStatement(lockOpen)) {
+            ps.setInt(1, openId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()
+                        || rs.getInt("branch_id") != branch
+                        || !"OPEN".equals(rs.getString("status"))
+                        || rs.getDate("work_date").toLocalDate()
+                                .isBefore(LocalDate.now())) {
+                    return false;
+                }
+
+                newShift = rs.getInt("shift_id");
+                newDate = rs.getDate("work_date");
+                newPosition = rs.getInt("position_id");
+            }
+        }
+
+        // Ca mới không được chồng lấn với ca đang có của nhân viên.
+        if (hasConflict(c, requester, newDate, newShift, -1)) {
+            return false;
+        }
+
+        // Nhân viên nhận ca trống nhưng đang nghỉ phép (đơn đã duyệt)
+        // trong ca đó -> không được nhận ca.
+        if (isOnApprovedLeave(requester, newDate, newShift)) {
+            return false;
+        }
+
+        // Ca mới phải giữ vị trí công tác của nhân viên.
+        int requesterPosition = positionOf(c, requester);
+
+        if (requesterPosition <= 0) {
+            return false;
+        }
+
+        // Vị trí của ca trống phải khớp vị trí của nhân viên.
+        // (Nhân viên có thể đã đổi vị trí sau khi gửi đơn -> không
+        // được gán ca vị trí khác cho họ.)
+        if (newPosition > 0 && newPosition != requesterPosition) {
+            return false;
+        }
+
+        // Tạo bản ghi lịch MỚI cho nhân viên.
+        // Lịch cũ KHÔNG bị thay đổi.
+        String insert
+                = "INSERT INTO shift_schedules "
+                + "(branch_id, user_id, shift_id, work_date, "
+                + "position_id, status) "
+                + "VALUES (?, ?, ?, ?, ?, 'PUBLISHED')";
+
+        try (PreparedStatement ps = c.prepareStatement(insert)) {
+            ps.setInt(1, branch);
+            ps.setInt(2, requester);
+            ps.setInt(3, newShift);
+            ps.setDate(4, newDate);
+            ps.setInt(5, requesterPosition);
+            if (ps.executeUpdate() != 1) {
+                return false;
+            }
+        }
+
+        // Đóng ca trống vừa được nhận.
+        try (PreparedStatement ps = c.prepareStatement(
+                "UPDATE open_shifts SET status = 'CLOSED' "
+                + "WHERE id = ? AND status = 'OPEN'")) {
+            ps.setInt(1, openId);
+            if (ps.executeUpdate() != 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Tìm position_id mặc định của nhân viên (dùng khi ca trong lịch
      * không có position_id).
      */
@@ -1270,9 +1770,9 @@ public class ShiftChangeRequestDAO {
                 + "AND requester.role_id = 5 "
                 + "AND requester.status = 'ACTIVE' "
                 + "AND os.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "AND mine.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY)";
+                + "CURRENT_DATE()";
 
         try (Connection c = connect();
              PreparedStatement ps = c.prepareStatement(sql)) {
@@ -1357,6 +1857,61 @@ public class ShiftChangeRequestDAO {
         }
     }
 
+    /**
+     * Chức vụ dùng để XẾP CA (chỉ chức vụ của nhân viên vận hành).
+     *
+     * <h3>Vì sao không lấy toàn bộ bảng {@code positions}?</h3>
+     * Ca trống chỉ dành cho nhân viên làm việc tại cửa hàng (thu ngân,
+     * bán hàng, kho, bảo vệ...). Nếu hiển thị cả "Giám Đốc Chuỗi",
+     * "Quản Lý Chi Nhánh"... thì Store có thể tạo ca trống cho vị trí
+     * mà không nhân viên nào đảm nhiệm -> ca trống không ai nhận được.
+     *
+     * <h3>Cách lọc</h3>
+     * <ul>
+     *   <li>Loại chức vụ quản lý: tên bắt đầu bằng "Quản" / "Giám"
+     *       (Giám Đốc, Quản Lý Nhân Sự, Quản Trị Hệ Thống,
+     *       Quản Lý Chi Nhánh).</li>
+     *   <li>Loại chức vụ đang được gán cho người có role quản lý
+     *       (System Admin, Director, HR Manager, Store Manager).</li>
+     * </ul>
+     *
+     * <p>KHÔNG lọc theo "có nhân viên đang đảm nhiệm hay không", để
+     * các chức vụ vận hành mới (chưa tuyển người) vẫn chọn được.
+     */
+    public List<Map<String, Object>> getShiftPositions() {
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        String sql
+                = "SELECT p.id, p.title FROM positions p "
+                + "WHERE p.title NOT LIKE 'Quản%' "
+                + "AND p.title NOT LIKE 'Giám%' "
+                + "AND NOT EXISTS ("
+                + "  SELECT 1 FROM employee_profiles ep "
+                + "  JOIN users u ON u.id = ep.user_id "
+                + "  WHERE ep.position_id = p.id "
+                + "  AND u.role_id IN (1, 2, 3, 4)"
+                + ") "
+                + "ORDER BY p.title";
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("id", rs.getInt("id"));
+                row.put("title", rs.getString("title"));
+                result.add(row);
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot load shift positions", e);
+        }
+
+        return result;
+    }
+
     public List<Map<String, Object>> getPositions() {
         List<Map<String, Object>> result = new ArrayList<>();
 
@@ -1438,7 +1993,7 @@ public class ShiftChangeRequestDAO {
                 + "AND u.status = 'ACTIVE' "
                 + "AND ss.status = 'PUBLISHED' "
                 + "AND ss.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "ORDER BY ep.full_name";
 
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1571,9 +2126,9 @@ public class ShiftChangeRequestDAO {
                 + "DATE_SUB(theirs.work_date, "
                 + "INTERVAL WEEKDAY(theirs.work_date) DAY) "
                 + "AND mine.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY) "
+                + "CURRENT_DATE() "
                 + "AND theirs.work_date >= "
-                + "DATE_ADD(CURRENT_DATE(), INTERVAL 2 DAY)";
+                + "CURRENT_DATE()";
 
         try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
