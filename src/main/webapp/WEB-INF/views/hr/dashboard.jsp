@@ -4,7 +4,7 @@
     Author     : phong
 --%>
 
-<%@page contentType="text/html;charset=UTF-8" language="java" %>
+<%@page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" language="java" %>
 <%@taglib prefix="c" uri="jakarta.tags.core"%>
 <!DOCTYPE html>
 <html lang="vi">
@@ -329,8 +329,17 @@
                 <li class="active"><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
+<<<<<<< Updated upstream
                 <li><a href="${pageContext.request.contextPath}/hr/employee-management"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
+=======
+                <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
+                <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo toàn chuỗi</a></li>
+
+>>>>>>> Stashed changes
             </ul>
         </div>
 
@@ -444,10 +453,14 @@
                             </div>
                             <p>Thêm mới, cập nhật thông tin chi tiết, theo dõi hợp đồng lao động và thông tin liên lạc của nhân viên trên toàn hệ thống các cơ sở.</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/hr/employee-management" class="card-link">Quản lý nhân sự <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/hr/employee-list" class="card-link">Quản lý nhân sự <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+<<<<<<< Updated upstream
                     <!-- Tính năng 3: Quản lý chấm công & ca làm -->
+=======
+                    <!-- Tính năng chấm công và ca làm -->
+>>>>>>> Stashed changes
                     <div class="card-custom">
                         <div>
                             <div class="card-icon-title">
@@ -456,11 +469,29 @@
                                 </div>
                                 <h3>Quản Lý Chấm Công & Ca Làm</h3>
                             </div>
-                            <p>Theo dõi bảng chấm công hàng ngày, phê duyệt các đơn từ nghỉ phép hoặc đổi ca và giám sát lịch làm việc chung của các chi nhánh.</p>
+                            <p>Theo dõi bảng chấm công, giờ làm và tình trạng có mặt tại các chi nhánh trong khoảng thời gian được chọn.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
+<<<<<<< Updated upstream
+=======
+                    <!-- Tính năng 3: Quản lý vi phạm -->
+                    <div class="card-custom">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #ef4444;">
+                                    <i class="fa-solid fa-scale-balanced"></i>
+                                </div>
+                                <h3>Quản Lý Vi Phạm</h3>
+                            </div>
+                            <p>HR xem xét thông tin, lưu quyết định và lịch sử xử lý minh bạch.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/hr/violations" class="card-link">Xác nhận vi phạm <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
+
+>>>>>>> Stashed changes
                 </div>
 
                 <!-- Section Tích hợp Bảng Phê Duyệt Điều Chuyển Nhân Sự Ngay Trên Dashboard -->
