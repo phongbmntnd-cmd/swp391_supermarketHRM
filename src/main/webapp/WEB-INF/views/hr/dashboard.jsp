@@ -331,6 +331,7 @@
                 <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/employee-management"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
             </ul>
         </div>
 
@@ -460,6 +461,21 @@
                         </div>
                         <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
+                    
+                    <!-- Tính năng 4: Quản lý vi phạm -->
+                    <div class="card-custom">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #ef4444;">
+                                    <i class="fa-solid fa-scale-balanced"></i>
+                                </div>
+                                <h3>Quản Lý Vi Phạm</h3>
+                            </div>
+                            <p>HR xem xét thông tin, lưu quyết định và lịch sử xử lý minh bạch.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/hr/violations" class="card-link">Xác nhận vi phạm <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
 
                 </div>
 

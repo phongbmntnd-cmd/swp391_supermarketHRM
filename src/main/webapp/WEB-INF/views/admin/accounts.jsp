@@ -592,6 +592,15 @@
                                                     data-name="${fn:escapeXml(u.fullName != null ? u.fullName : u.username)}">
                                                 &#128273; Reset MK
                                             </button>
+                                            <button type="button" class="btn btn-info btn-sm edit-btn"
+                                                    data-userid="${u.id}"
+                                                    data-name="${fn:escapeXml(u.fullName != null ? u.fullName : u.username)}"
+                                                    data-username="${fn:escapeXml(u.username)}"
+                                                    data-email="${fn:escapeXml(u.email != null ? u.email : '')}"
+                                                    data-roleid="${u.role.id}"
+                                                    data-status="${fn:escapeXml(u.status)}">
+                                                &#9998; Sửa
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -880,6 +889,41 @@
         </div>
     </div>
 
+    <!-- =============================================
+         MODAL: Cập nhật tài khoản (email / vai trò / trạng thái)
+         ============================================= -->
+    <div id="editModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>&#9998; Cập nhật tài khoản</h3>
+            <p style="color:#666; margin-top: 0;">
+                Tài khoản: <strong id="editModalName"></strong>
+                (<span id="editModalUsername"></span>)
+            </p>
+            <form method="POST" action="${pageContext.request.contextPath}/admin/accounts" id="editModalForm">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="userId" id="editModalUserId">
+                <label for="editModalEmail">Email</label>
+                <input type="email" name="email" id="editModalEmail" placeholder="VD: nhanvien@supermarket.com">
+                <label for="editModalRole">Vai trò</label>
+                <select name="roleId" id="editModalRole">
+                    <c:forEach var="r" items="${roles}">
+                        <option value="${r.id}">${r.name}</option>
+                    </c:forEach>
+                </select>
+                <label for="editModalStatus">Trạng thái</label>
+                <select name="status" id="editModalStatus">
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="INACTIVE">INACTIVE</option>
+                    <option value="EMERGENCY_LOCKED">EMERGENCY_LOCKED</option>
+                </select>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" id="editModalCancel">Hủy</button>
+                    <button type="submit" class="btn btn-info">&#9998; Xác nhận cập nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         // =============================================
         //  MODAL HANDLERS - thay thế prompt() và confirm()
@@ -909,6 +953,20 @@
         }
         function closeResetPwModal() {
             document.getElementById('resetPwModal').style.display = 'none';
+        }
+        function openEditModal(userId, fullName, username, email, roleId, status) {
+            document.getElementById('editModalUserId').value = userId;
+            document.getElementById('editModalName').textContent = fullName || 'tài khoản này';
+            document.getElementById('editModalUsername').textContent = username || '';
+            document.getElementById('editModalEmail').value = email || '';
+            var roleSelect = document.getElementById('editModalRole');
+            if (roleSelect && roleId) roleSelect.value = roleId;
+            var statusSelect = document.getElementById('editModalStatus');
+            if (statusSelect && status) statusSelect.value = status;
+            document.getElementById('editModal').style.display = 'block';
+        }
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
         }
 
         // Đóng modal khi bấm nút Hủy
@@ -945,7 +1003,8 @@
                 if (btn.classList && (
                     btn.classList.contains('lock-btn') ||
                     btn.classList.contains('unlock-btn') ||
-                    btn.classList.contains('reset-pw-btn'))) {
+                    btn.classList.contains('reset-pw-btn') ||
+                    btn.classList.contains('edit-btn'))) {
                     break;
                 }
                 btn = btn.parentNode;
@@ -976,6 +1035,17 @@
                 openResetPwModal(userId, name);
                 return;
             }
+            if (btn.classList.contains('edit-btn')) {
+                openEditModal(
+                    userId,
+                    name,
+                    btn.getAttribute('data-username'),
+                    btn.getAttribute('data-email'),
+                    btn.getAttribute('data-roleid'),
+                    btn.getAttribute('data-status')
+                );
+                return;
+            }
         });
 
         // =============================================
@@ -989,6 +1059,49 @@
                     setTimeout(function() { alert.style.display = 'none'; }, 300);
                 });
             }, 5000);
+        });
+    </script>
+
+    <!-- ============================================================
+         PHẦN BỔ SUNG: MODAL CẬP NHẬT TÀI KHOẢN
+         Đặt riêng ở cuối file (ngoài <script>/<style> chính) để khi gộp
+         với các nhánh khác không sinh xung đột.
+         ============================================================ -->
+    <style>
+        .btn-info {
+            background-color: #16a085;
+            color: white;
+        }
+        .btn-info:hover {
+            background-color: #117864;
+        }
+        .modal input[type="text"],
+        .modal input[type="email"],
+        .modal input[type="password"],
+        .modal select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var c4 = document.getElementById('editModalCancel');
+            if (c4) c4.addEventListener('click', closeEditModal);
+
+            ['editModal'].forEach(function(id) {
+                var modal = document.getElementById(id);
+                if (modal) {
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) modal.style.display = 'none';
+                    });
+                }
+            });
         });
     </script>
 </body>

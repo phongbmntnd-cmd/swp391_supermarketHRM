@@ -1,8 +1,11 @@
 package controller;
 
 import controller.base.BaseServlet;
+import dao.AuditLogDAO;
 import dao.UserDAO;
+import model.AuditLog;
 import model.User;
+import util.AuditDescription;
 import java.io.IOException;
 import java.util.UUID;
 import jakarta.servlet.ServletException;
@@ -49,6 +52,8 @@ public class LoginServlet extends BaseServlet {
         System.out.println(">>> LOGIN TEST - Account result: " + account);
 
         if (account == null) {
+            // Ghi audit log đăng nhập thất bại (sai tên đăng nhập / mật khẩu, hoặc tài khoản không ACTIVE)
+            logLoginFailed(request, username);
             request.setAttribute("error", "Tên đăng nhập hoặc mật khẩu không chính xác!");
             request.getRequestDispatcher("login.jsp").forward(request, response);
         } else {
@@ -68,14 +73,57 @@ public class LoginServlet extends BaseServlet {
             // Lưu token mới nhất của User này vào ServletContext
             getServletContext().setAttribute("user_token_" + account.getId(), activeToken);
 
-            // 4. Nếu là lần đầu đăng nhập -> Chuyển sang đổi mật khẩu
+            // 4. Ghi audit log đăng nhập thành công
+            logLoginSuccess(request, account);
+
+            // 5. Nếu là lần đầu đăng nhập -> Chuyển sang đổi mật khẩu
             if (account.isFirstLogin()) {
                 response.sendRedirect(request.getContextPath() + "/change-password");
                 return;
             }
 
-            // 5. Điều hướng tới Dashboard đúng vai trò
+            // 6. Điều hướng tới Dashboard đúng vai trò
             redirectByRole(account.getRoleId(), request, response);
+        }
+    }
+
+    /**
+     * Ghi audit log đăng nhập thành công.
+     * target_user_id để null vì không có "đối tượng bị tác động" khi đăng nhập.
+     */
+    private void logLoginSuccess(HttpServletRequest request, User account) {
+        try {
+            String desc = AuditDescription.auth(account.getUsername(), account.getFullName(), true);
+            new AuditLogDAO().log(AuditLog.ACTION_LOGIN, account.getId(), null,
+                    AuditLog.ENTITY_USER, account.getId(), desc, getClientIp(request));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Ghi audit log đăng nhập thất bại.
+     * Nếu username tồn tại thì ghi luôn actor_id để Admin lọc/tra cứu được;
+     * nếu không tồn tại thì để null (mô tả vẫn chứa username đã nhập).
+     */
+    private void logLoginFailed(HttpServletRequest request, String username) {
+        try {
+            Integer actorId = null;
+            String actorName = null;
+            try {
+                User u = new UserDAO().getUserByUsername(username);
+                if (u != null) {
+                    actorId = u.getId();
+                    actorName = u.getFullName() != null ? u.getFullName() : u.getUsername();
+                }
+            } catch (Exception ignore) {
+                // Không tìm thấy user -> actorId giữ null
+            }
+            String desc = AuditDescription.auth(username, actorName, false);
+            new AuditLogDAO().log(AuditLog.ACTION_LOGIN_FAILED, actorId, null,
+                    null, null, desc, getClientIp(request));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

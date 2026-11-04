@@ -8,8 +8,8 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 <!DOCTYPE html>
 <html lang="vi">
-    <head>
-        <meta charset="UTF-8">
+<head>
+    <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Trang Quản Trị Hệ Thống (System Admin)</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -286,8 +286,8 @@
                 color: #991b1b;
             }
         </style>
-    </head>
-    <body>
+</head>
+<body>
 
         <!-- Sidebar Điều Hướng Trái (Admin Portal) -->
         <div class="sidebar">
@@ -300,7 +300,7 @@
                 <li><a href="${pageContext.request.contextPath}/admin/accounts"><i class="fa-solid fa-users-gear"></i> Quản lý tài khoản</a></li>
                 <li><a href="${pageContext.request.contextPath}/admin/master-data"><i class="fa-solid fa-database"></i> Quản lý Master Data</a></li>
                 <li><a href="${pageContext.request.contextPath}/admin/audit-logs"><i class="fa-solid fa-shield-cat"></i> Audit Log & Giám sát</a></li>
-            </ul>
+    </ul>
         </div>
 
         <!-- Main Content Wrapper -->
@@ -418,5 +418,5 @@
             </div>
         </div>
 
-    </body>
+</body>
 </html>

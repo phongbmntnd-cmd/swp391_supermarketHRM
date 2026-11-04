@@ -89,6 +89,22 @@ public class RoleDAO {
         return null;
     }
 
+    /** Lấy id của vai trò theo tên (dùng sau khi tạo mới để ghi audit log) */
+    public int getRoleIdByName(String name) {
+        if (name == null || name.trim().isEmpty()) return -1;
+        String sql = "SELECT id FROM roles WHERE name = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
     /**
      * Lấy các Role mà Store Manager có thể thao tác (Employee = 5)
      * @return Danh sách Role

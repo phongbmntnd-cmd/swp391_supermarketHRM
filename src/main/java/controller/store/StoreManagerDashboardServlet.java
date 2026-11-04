@@ -6,7 +6,9 @@ import model.Employee;
 import model.Branch;
 import dao.EmployeeDAO;
 import dao.EmployeeLockDAO;
+import dao.LeaveRequestDAO;
 import dao.RecruitmentProposalDAO;
+import dao.ShiftChangeRequestDAO;
 import dao.ShiftScheduleDAO;
 import context.DBContext;
 import java.io.IOException;
@@ -87,6 +89,12 @@ public class StoreManagerDashboardServlet extends BaseServlet {
             request.setAttribute("totalShifts", totalShifts);
             request.setAttribute("lockedCount", lockedCount);
 
+            // 8. Tổng số đơn (nghỉ phép + đổi ca) đang chờ duyệt của chi nhánh
+            request.setAttribute(
+                    "pendingRequestCount",
+                    countPendingRequests(branchId)
+            );
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -94,9 +102,32 @@ public class StoreManagerDashboardServlet extends BaseServlet {
         request.getRequestDispatcher("/WEB-INF/views/store-manager/dashboard.jsp").forward(request, response);
     }
 
+    /**
+     * Tổng số đơn (nghỉ phép + đổi ca) của chi nhánh đang chờ duyệt.
+     * Nếu lỗi truy vấn thì trả 0 để trang vẫn hiển thị bình thường.
+     */
+    private int countPendingRequests(int branchId) {
+        int total = 0;
+
+        try {
+            total += new LeaveRequestDAO()
+                    .countBranchPendingRequests(branchId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
+            total += new ShiftChangeRequestDAO()
+                    .countBranchPendingShiftRequests(branchId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return total;
+    }
+
     // Hàm phụ trợ: Lấy branchId dựa vào store_manager_id trong bảng branches
-    private int getBranchIdByManagerId(int managerId) {
-        String sql = "SELECT id FROM branches WHERE store_manager_id = ?";
+    private int getBranchIdByManagerId(int managerId) {        String sql = "SELECT id FROM branches WHERE store_manager_id = ?";
         try (Connection conn = new DBContext().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, managerId);

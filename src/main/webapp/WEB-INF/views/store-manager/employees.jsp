@@ -50,15 +50,37 @@
             border: 1px solid #f5c6cb;
         }
         
-        /* Branch Info */
-        .branch-info {
+        /* Branch Info Header Layout */
+        .header-action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             background: #e8f4fc;
             padding: 15px;
             border-radius: 4px;
             margin-bottom: 20px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .branch-info {
+            flex: 1;
         }
         .branch-info strong {
             color: #2980b9;
+        }
+        .btn-dashboard {
+            background-color: #3498db;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            white-space: nowrap;
+            transition: background-color 0.3s;
+        }
+        .btn-dashboard:hover {
+            background-color: #2980b9;
         }
         
         /* Filter Section */
@@ -440,24 +462,24 @@
 </head>
 <body>
     <div class="container">
-        <!-- Navigation Breadcrumb -->
-        <div style="margin-bottom: 15px;">
-            <a href="${pageContext.request.contextPath}/store-manager/dashboard" style="color: #3498db; text-decoration: none;">← Quay về Dashboard</a>
-        </div>
-        
         <h1>📋 Quản lý Nhân sự</h1>
         
-        <!-- Branch Info -->
-        <div class="branch-info">
-            <strong>📍 Cơ sở hiện tại:</strong> 
-            <c:choose>
-                <c:when test="${not empty currentBranch}">
-                    ${currentBranch.name} (${currentBranch.code}) - ${currentBranch.address}
-                </c:when>
-                <c:otherwise>
-                    Không xác định được cơ sở của bạn
-                </c:otherwise>
-            </c:choose>
+        <!-- Branch Info & Dashboard Button Row -->
+        <div class="header-action-row">
+            <div class="branch-info">
+                <strong>📍 Cơ sở hiện tại:</strong> 
+                <c:choose>
+                    <c:when test="${not empty currentBranch}">
+                        ${currentBranch.name} (${currentBranch.code}) - ${currentBranch.address}
+                    </c:when>
+                    <c:otherwise>
+                        Không xác định được cơ sở của bạn
+                    </c:otherwise>
+                </c:choose>
+            </div>
+            <div>
+                <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn-dashboard">← Quay về Dashboard</a>
+            </div>
         </div>
         
         <!-- Messages -->
@@ -686,8 +708,8 @@
         </c:if>
         
         <!-- =============================================
-             PHẦN NHÂN VIÊN BỊ KHÓA - LUÔN HIỂN THỊ KHI CÓ
-             ============================================= -->
+            PHẦN NHÂN VIÊN BỊ KHÓA - LUÔN HIỂN THỊ KHI CÓ
+            ============================================= -->
         <div class="locked-section" id="lockedEmployeesSection" style="display: none;">
             <!-- Header có nút click để mở rộng/thu gọn -->
             <div class="locked-header" onclick="toggleLockedSection()" style="cursor: pointer; user-select: none;">

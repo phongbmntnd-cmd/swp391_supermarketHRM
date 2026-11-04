@@ -16,6 +16,7 @@ import model.EmployeeProfile;
 import model.EmployeeLock;
 import model.Branch;
 import model.AuditLog;
+import util.AuditDescription;
 import java.io.IOException;
 import java.util.List;
 
@@ -327,17 +328,16 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         // THỰC HIỆN LOCK VỚI TRANSACTION
         // ============================================
         
-        String auditDescription = "Emergency Lock bởi Store Manager";
-        if (reason != null && !reason.trim().isEmpty()) {
-            auditDescription += ": " + reason;
-        }
-        
+        String auditDescription = AuditDescription.lock(targetUser.getUsername(),
+                AuditDescription.ACT_LOCK, reason, currentUser.getUsername());
+
         boolean success = userDAO.updateUserStatusWithAudit(
             targetUserId,
             STATUS_EMERGENCY_LOCKED,
             AuditLog.ACTION_EMERGENCY_LOCK,
             currentUser.getId(),
-            auditDescription
+            auditDescription,
+            getClientIp(request)
         );
 
         if (success) {
@@ -423,14 +423,16 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         // THỰC HIỆN UNLOCK VỚI TRANSACTION
         // ============================================
         
-        String auditDescription = "Emergency Unlock bởi Store Manager";
-        
+        String auditDescription = AuditDescription.lock(targetUser.getUsername(),
+                AuditDescription.ACT_UNLOCK, null, currentUser.getUsername());
+
         boolean success = userDAO.updateUserStatusWithAudit(
             targetUserId,
             STATUS_ACTIVE,
             AuditLog.ACTION_EMERGENCY_UNLOCK,
             currentUser.getId(),
-            auditDescription
+            auditDescription,
+            getClientIp(request)
         );
 
         if (success) {

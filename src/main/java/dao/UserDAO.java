@@ -634,74 +634,45 @@ public class UserDAO {
     /**
      * Đảm bảo bảng audit_logs tồn tại với đầy đủ cột cần thiết.
      * Tương thích mọi phiên bản MySQL (5.5, 5.7, 8.0, MariaDB).
+     *
+     * LƯU Ý: schema chuẩn của bảng audit_logs được quản lý tập trung tại AuditLogDAO,
+     * nên hàm này chỉ gọi lại AuditLogDAO để tránh trường hợp 2 nơi tạo bảng
+     * với shape khác nhau (thiếu user_id / ip_address).
      */
     private void ensureAuditLogsTableExists(Connection existingConn) {
-        try (Connection conn = (existingConn != null) ? existingConn : new DBContext().getConnection()) {
-            try (java.sql.Statement st = conn.createStatement()) {
-                // 1. Tạo bảng nếu chưa có
-                st.executeUpdate(
-                    "CREATE TABLE IF NOT EXISTS audit_logs ("
-                  + "  id INT NOT NULL AUTO_INCREMENT,"
-                  + "  action VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,"
-                  + "  actor_id INT DEFAULT NULL,"
-                  + "  target_user_id INT DEFAULT NULL,"
-                  + "  description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,"
-                  + "  created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,"
-                  + "  PRIMARY KEY (id),"
-                  + "  KEY idx_action (action),"
-                  + "  KEY idx_actor (actor_id),"
-                  + "  KEY idx_target (target_user_id),"
-                  + "  KEY idx_created (created_at)"
-                  + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-                );
-
-                // 2. Thêm cột thiếu (dùng information_schema, tương thích mọi phiên bản)
-                addColumnIfMissing(conn, "audit_logs", "actor_id",
-                    "ALTER TABLE audit_logs ADD COLUMN actor_id INT DEFAULT NULL");
-                addColumnIfMissing(conn, "audit_logs", "target_user_id",
-                    "ALTER TABLE audit_logs ADD COLUMN target_user_id INT DEFAULT NULL");
-                addColumnIfMissing(conn, "audit_logs", "description",
-                    "ALTER TABLE audit_logs ADD COLUMN description TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-                addColumnIfMissing(conn, "audit_logs", "created_at",
-                    "ALTER TABLE audit_logs ADD COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        AuditLogDAO.ensureTableOnce();
     }
 
     /**
-     * Thêm 1 cột vào bảng nếu cột đó chưa tồn tại (tương thích MySQL 5.5+).
+     * Cập nhật trạng thái tài khoản kèm ghi audit log trong CÙNG một transaction.
+     *
+     * @param userId      id tài khoản bị tác động
+     * @param newStatus   trạng thái mới (ACTIVE / INACTIVE / EMERGENCY_LOCKED)
+     * @param auditAction mã hành động (AuditLog.ACTION_*)
+     * @param actorId     id người thực hiện
+     * @param description mô tả chi tiết
+     * @param ipAddress   IP client (có thể null)
      */
-    private void addColumnIfMissing(Connection conn, String tableName, String columnName, String alterSql) {
-        String checkSql = "SELECT COUNT(*) FROM information_schema.columns "
-                        + "WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?";
-        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
-            ps.setString(1, tableName);
-            ps.setString(2, columnName);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next() && rs.getInt(1) == 0) {
-                    try (java.sql.Statement st = conn.createStatement()) {
-                        st.executeUpdate(alterSql);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Nếu vẫn lỗi (vd thiếu quyền), in ra nhưng không chặn luồng chính
-            e.printStackTrace();
-        }
-    }
-
     public boolean updateUserStatusWithAudit(
             int userId, String newStatus,
             String auditAction, int actorId, String description) {
+        return updateUserStatusWithAudit(userId, newStatus, auditAction, actorId, description, null);
+    }
+
+    /**
+     * Cập nhật trạng thái tài khoản kèm ghi audit log trong CÙNG một transaction (có IP).
+     */
+    public boolean updateUserStatusWithAudit(
+            int userId, String newStatus,
+            String auditAction, int actorId, String description, String ipAddress) {
 
         String sqlUpdateStatus = "UPDATE users SET status = ? WHERE id = ?";
-        String sqlInsertAudit = "INSERT INTO audit_logs (action, actor_id, target_user_id, description) VALUES (?, ?, ?, ?)";
+        String sqlInsertAudit = "INSERT INTO audit_logs (action, actor_id, target_user_id, entity_type, entity_id, "
+                             + "user_id, description, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         Connection conn = null;
         try {
-            // Đảm bảo bảng audit_logs tồn tại với cột actor_id
+            // Đảm bảo bảng audit_logs tồn tại với đầy đủ cột
             ensureAuditLogsTableExists(conn);
 
             conn = new DBContext().getConnection();
@@ -721,7 +692,94 @@ public class UserDAO {
             psAudit.setString(1, auditAction);
             psAudit.setInt(2, actorId);
             psAudit.setInt(3, userId);
-            psAudit.setString(4, description);
+            psAudit.setString(4, model.AuditLog.ENTITY_USER);
+            psAudit.setInt(5, userId);
+            psAudit.setInt(6, actorId);
+            psAudit.setString(7, description);
+            if (ipAddress == null || ipAddress.isEmpty()) {
+                psAudit.setNull(8, Types.VARCHAR);
+            } else {
+                psAudit.setString(8, ipAddress);
+            }
+            psAudit.executeUpdate();
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    /**
+     * Cập nhật thông tin tài khoản (email, vai trò, trạng thái) kèm ghi audit log
+     * trong cùng một transaction. Trả về true nếu thành công.
+     *
+     * @param userId    id tài khoản bị tác động
+     * @param email     email mới (có thể null)
+     * @param roleId    vai trò mới
+     * @param status    trạng thái mới
+     * @param actorId   id người thực hiện
+     * @param details   mô tả thay đổi (dạng "Trường: cũ -> mới")
+     * @param ipAddress IP client (có thể null)
+     */
+    public boolean updateUserAccountWithAudit(
+            int userId, String email, int roleId, String status,
+            int actorId, String details, String ipAddress) {
+
+        String sqlUpdate = "UPDATE users SET email = ?, role_id = ?, status = ? WHERE id = ?";
+        String sqlInsertAudit = "INSERT INTO audit_logs (action, actor_id, target_user_id, entity_type, entity_id, "
+                             + "user_id, description, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+        Connection conn = null;
+        try {
+            ensureAuditLogsTableExists(conn);
+
+            conn = new DBContext().getConnection();
+            conn.setAutoCommit(false);
+
+            PreparedStatement psUpdate = conn.prepareStatement(sqlUpdate);
+            psUpdate.setString(1, email);
+            psUpdate.setInt(2, roleId);
+            psUpdate.setString(3, status);
+            psUpdate.setInt(4, userId);
+            int rowsUpdated = psUpdate.executeUpdate();
+
+            if (rowsUpdated == 0) {
+                conn.rollback();
+                return false;
+            }
+
+            PreparedStatement psAudit = conn.prepareStatement(sqlInsertAudit);
+            psAudit.setString(1, model.AuditLog.ACTION_UPDATE_USER);
+            psAudit.setInt(2, actorId);
+            psAudit.setInt(3, userId);
+            psAudit.setString(4, model.AuditLog.ENTITY_USER);
+            psAudit.setInt(5, userId);
+            psAudit.setInt(6, actorId);
+            psAudit.setString(7, details);
+            if (ipAddress == null || ipAddress.isEmpty()) {
+                psAudit.setNull(8, Types.VARCHAR);
+            } else {
+                psAudit.setString(8, ipAddress);
+            }
             psAudit.executeUpdate();
 
             conn.commit();

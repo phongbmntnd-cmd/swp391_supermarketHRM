@@ -23,11 +23,21 @@ public class AuditLog {
     public static final String ACTION_UPDATE_ROLE        = "UPDATE_ROLE";
     public static final String ACTION_DELETE_ROLE        = "DELETE_ROLE";
 
+    // Loại đối tượng bị tác động (dùng cho entity_type / entity_id)
+    public static final String ENTITY_USER       = "USER";
+    public static final String ENTITY_DEPARTMENT = "DEPARTMENT";
+    public static final String ENTITY_POSITION   = "POSITION";
+    public static final String ENTITY_ROLE       = "ROLE";
+    public static final String ENTITY_PROPOSAL   = "PROPOSAL";
+    public static final String ENTITY_BRANCH     = "BRANCH";
+
     private int id;
     private String action;
     private Integer actorId;          // người thực hiện (có thể null với login failed)
     private Integer targetUserId;     // user bị tác động (có thể null)
-    private String description;       // mô tả chi tiết
+    private String entityType;        // loại đối tượng bị tác động (USER/DEPARTMENT/...)
+    private Integer entityId;          // id đối tượng bị tác động trong bảng tương ứng
+    private String description;       // mô tả chi tiết (chuẩn hoá theo util.AuditDescription)
     private String ipAddress;
     private Timestamp createdAt;
 
@@ -63,6 +73,12 @@ public class AuditLog {
 
     public Integer getTargetUserId() { return targetUserId; }
     public void setTargetUserId(Integer targetUserId) { this.targetUserId = targetUserId; }
+
+    public String getEntityType() { return entityType; }
+    public void setEntityType(String entityType) { this.entityType = entityType; }
+
+    public Integer getEntityId() { return entityId; }
+    public void setEntityId(Integer entityId) { this.entityId = entityId; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }

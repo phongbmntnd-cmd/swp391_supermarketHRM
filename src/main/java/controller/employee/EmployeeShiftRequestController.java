@@ -7,6 +7,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 
 @WebServlet(
         name = "EmployeeShiftRequestController",
@@ -20,6 +23,27 @@ public class EmployeeShiftRequestController extends HttpServlet {
                 : (User) session.getAttribute("account");
     }
 
+    /**
+     * Xác định tuần đang xem từ tham số {@code startDate}.
+     * Luôn chuẩn hoá về thứ Hai của tuần đó.
+     */
+    private LocalDate resolveWeekStart(HttpServletRequest req) {
+        String param = req.getParameter("startDate");
+
+        if (param != null && !param.trim().isEmpty()) {
+            try {
+                return LocalDate.parse(param.trim())
+                        .with(TemporalAdjusters
+                                .previousOrSame(DayOfWeek.MONDAY));
+            } catch (Exception e) {
+                // Bỏ qua -> dùng tuần mặc định bên dưới.
+            }
+        }
+
+        return LocalDate.now()
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    }
+
     private void showPage(
             HttpServletRequest req,
             HttpServletResponse resp,
@@ -30,16 +54,22 @@ public class EmployeeShiftRequestController extends HttpServlet {
             ShiftChangeRequestDAO dao
                     = new ShiftChangeRequestDAO();
 
-            // Lịch của nhân viên đang đăng nhập
+            // TUẦN ĐANG XEM: nhân viên chỉ được đổi ca trong tuần
+            // đang mở trên màn hình (thứ 2 .. chủ nhật).
+            LocalDate weekStart = resolveWeekStart(req);
+
+            req.setAttribute("weekStart", weekStart.toString());
+
+            // Lịch của nhân viên đang đăng nhập (chỉ trong tuần đang xem)
             req.setAttribute(
                     "mySchedules",
-                    dao.getMySchedules(user.getId())
+                    dao.getMySchedules(user.getId(), weekStart)
             );
 
             // Dữ liệu phân công để dựng bảng tuần
             req.setAttribute(
                     "colleagueSchedules",
-                    dao.getColleagueSchedules(user.getId())
+                    dao.getColleagueSchedules(user.getId(), weekStart)
             );
 
             // Tên và thời gian của các loại ca
@@ -58,6 +88,26 @@ public class EmployeeShiftRequestController extends HttpServlet {
             req.setAttribute(
                     "incomingRequests",
                     dao.getIncomingRequests(user.getId())
+            );
+
+            // Ca trống tại cơ sở để nhân viên đề nghị chuyển sang
+            // (chỉ trong tuần đang xem)
+            req.setAttribute(
+                    "openShifts",
+                    dao.getOpenShifts(user.getId(), weekStart)
+            );
+
+            // Ca trống (kể cả ca của đồng nghiệp đang nghỉ) mà nhân viên
+            // có thể ĐĂNG KÝ NHẬN THÊM mà không mất ca cũ.
+            req.setAttribute(
+                    "extraShifts",
+                    dao.getAvailableExtraShifts(user.getId(), weekStart)
+            );
+
+            // Badge số đơn đổi ca đang chờ mình phản hồi
+            req.setAttribute(
+                    "incomingSwapCount",
+                    dao.countIncomingShiftRequests(user.getId())
             );
 
             req.getRequestDispatcher(
@@ -141,11 +191,21 @@ public class EmployeeShiftRequestController extends HttpServlet {
                 boolean accepted
                         = "accept".equals(decision);
 
+                String message = req.getParameter("message");
+
+                if (message != null
+                        && message.trim().length() > 255) {
+                    resp.sendError(400, "Message too long");
+                    return;
+                }
+
                 boolean success = dao.respondToSwap(
                         requestId,
                         user.getId(),
                         accepted,
-                        null
+                        message == null
+                                ? null
+                                : message.trim()
                 );
 
                 resp.sendRedirect(
@@ -156,19 +216,46 @@ public class EmployeeShiftRequestController extends HttpServlet {
                 return;
             }
 
+            // NHÂN VIÊN A HỦY ĐƠN
+            if ("cancel".equals(action)) {
+
+                int requestId = Integer.parseInt(
+                        req.getParameter("requestId")
+                );
+
+                boolean success = dao.cancelMyRequest(
+                        requestId, user.getId());
+
+                resp.sendRedirect(
+                        req.getContextPath()
+                        + "/employee/request-shift?"
+                        + (success ? "cancelled=1" : "invalid=1")
+                );
+                return;
+            }
+
             // NHÂN VIÊN A GỬI ĐƠN
-            if (action != null && !"create".equals(action)) {
+            if (action != null
+                    && !"create".equals(action)
+                    && !"createOpen".equals(action)
+                    && !"createExtra".equals(action)) {
                 resp.sendError(400, "Invalid action");
                 return;
             }
 
-            int myScheduleId = Integer.parseInt(
-                    req.getParameter("myScheduleId")
-            );
+            // Loại đơn: đổi với đồng nghiệp (SWAP), chuyển
+            // sang ca trống (OPEN) hoặc nhận thêm ca (EXTRA).
+            boolean openType = "createOpen".equals(action);
+            boolean extraType = "createExtra".equals(action);
 
-            int targetScheduleId = Integer.parseInt(
-                    req.getParameter("targetScheduleId")
-            );
+            // Đơn EXTRA không có ca cũ nên không cần myScheduleId.
+            int myScheduleId = 0;
+
+            if (!extraType) {
+                myScheduleId = Integer.parseInt(
+                        req.getParameter("myScheduleId")
+                );
+            }
 
             String reason = req.getParameter("reason");
 
@@ -178,19 +265,63 @@ public class EmployeeShiftRequestController extends HttpServlet {
 
                 req.setAttribute(
                         "error",
-                        "Vui lòng nhập lý do đổi ca (tối đa 255 ký tự)."
+                        extraType
+                            ? "Vui lòng nhập lý do xin nhận thêm ca "
+                                + "(tối đa 255 ký tự)."
+                            : "Vui lòng nhập lý do đổi ca "
+                                + "(tối đa 255 ký tự)."
                 );
 
                 showPage(req, resp, user);
                 return;
             }
 
-            boolean success = dao.createSwap(
-                    user.getId(),
-                    myScheduleId,
-                    targetScheduleId,
-                    reason.trim()
-            );
+            boolean success;
+
+            if (extraType) {
+                // Radio của chế độ nhận thêm ca dùng tên riêng
+                // (extraShiftId) để không lẫn với chế độ chuyển ca trống.
+                String param = req.getParameter("extraShiftId");
+
+                if (param == null || param.trim().isEmpty()) {
+                    param = req.getParameter("openShiftId");
+                }
+
+                int openShiftId = Integer.parseInt(
+                        param == null ? "" : param.trim()
+                );
+
+                success = dao.createExtraShift(
+                        user.getId(),
+                        openShiftId,
+                        reason.trim(),
+                        resolveWeekStart(req)
+                );
+            } else if (openType) {
+                int openShiftId = Integer.parseInt(
+                        req.getParameter("openShiftId")
+                );
+
+                success = dao.createOpenChange(
+                        user.getId(),
+                        myScheduleId,
+                        openShiftId,
+                        reason.trim(),
+                        resolveWeekStart(req)
+                );
+            } else {
+                int targetScheduleId = Integer.parseInt(
+                        req.getParameter("targetScheduleId")
+                );
+
+                success = dao.createSwap(
+                        user.getId(),
+                        myScheduleId,
+                        targetScheduleId,
+                        reason.trim(),
+                        resolveWeekStart(req)
+                );
+            }
 
             resp.sendRedirect(
                     req.getContextPath()
