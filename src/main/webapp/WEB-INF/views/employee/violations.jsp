@@ -49,6 +49,7 @@
         <li><a href="${pageContext.request.contextPath}/employee/my-schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
         <li><a href="#"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
         <li><a href="#"><i class="fa-solid fa-file-lines"></i> Đơn từ & Khiếu nại</a></li>
+        <li><a href="${pageContext.request.contextPath}/employee/payroll"><i class="fa-solid fa-money-bill-wave"></i> Phiếu lương</a></li>
         <li class="active"><a href="${pageContext.request.contextPath}/employee/violations"><i class="fa-solid fa-triangle-exclamation"></i> Vi phạm & kết quả</a></li>
     </ul>
 </aside>
@@ -68,10 +69,8 @@
                     <p><strong>Nội dung báo cáo:</strong> <c:out value="${v.description}"/></p>
                     <p><strong>Trạng thái:</strong> <c:choose><c:when test="${v.status == 'PENDING_REVIEW'}"><span class="badge text-bg-warning">Đang chờ HR xác minh</span> — chưa có quyết định kỷ luật.</c:when><c:when test="${v.status == 'APPROVED'}"><span class="badge text-bg-success">Đã được HR xác minh</span></c:when><c:when test="${v.status == 'REJECTED'}"><span class="badge text-bg-secondary">HR đã từ chối báo cáo</span></c:when><c:otherwise>Bản ghi lịch sử.</c:otherwise></c:choose></p>
                     <c:if test="${not empty v.disciplinaryAction}"><p><strong>Quyết định xử lý:</strong> <c:out value="${v.disciplinaryAction}"/></p></c:if>
-<<<<<<< HEAD
-=======
                     <c:if test="${v.deductionAmount > 0}"><p><strong>Khoản khấu trừ lương đã ghi nhận:</strong> <c:out value="${v.deductionAmount}"/> đ <span class="text-secondary">(tính vào kỳ lương theo tháng xảy ra vi phạm)</span></p></c:if>
->>>>>>> origin/update_luồng_vi_phạm
+                    <c:if test="${v.deductionAmount > 0}"><p><strong>Khoản khấu trừ lương đã ghi nhận:</strong> <c:out value="${v.deductionAmount}"/> đ <span class="text-secondary">(tính vào kỳ lương theo tháng xảy ra vi phạm)</span></p></c:if>
                     <c:if test="${not empty v.reviewNote}"><p class="mb-0"><strong>Ghi chú HR:</strong> <c:out value="${v.reviewNote}"/></p></c:if>
                 </div>
             </article>

@@ -333,6 +333,7 @@
                 <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
 
             </ul>
         </div>
@@ -362,7 +363,7 @@
                 <!-- Banner chào mừng -->
                 <div class="welcome-banner">
                     <h2>Khu Vực Quản Lý Nhân Sự Toàn Hệ Thống</h2>
-                    <p>Chào mừng bạn đến với bảng điều khiển nhân sự cấp cao. Từ đây, bạn có thể thực hiện kiểm duyệt các đề xuất tuyển dụng từ các chi nhánh, quản lý hồ sơ toàn bộ nhân viên, theo dõi hợp đồng lao động và giám sát chấm công chuỗi.</p>
+                    <p>Chào mừng bạn đến với bảng điều khiển nhân sự cấp cao. Từ đây, bạn có thể kiểm duyệt đề xuất tuyển dụng, quản lý hồ sơ và hợp đồng lao động trên toàn hệ thống.</p>
                 </div>
 
                 <!-- Thống kê nhanh KPI toàn hệ thống -->
@@ -491,8 +492,6 @@
                         </div>
                         <a href="${pageContext.request.contextPath}/hr/branch-request" class="card-link">Xem yêu cầu <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
-
-
                 </div>
 
                 <!-- Section Tích hợp Bảng Phê Duyệt Điều Chuyển Nhân Sự Ngay Trên Dashboard -->

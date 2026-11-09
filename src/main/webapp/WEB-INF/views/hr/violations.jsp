@@ -202,6 +202,7 @@
                 <li><a href="${pageContext.request.contextPath}/hr/employee-management"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
                 <li class="active"><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
             </ul>
         </aside>
         <div class="main-wrapper">
@@ -221,7 +222,7 @@
                 </div>
                 <c:if test="${not empty successMessage}"><div class="alert alert-success"><c:out value="${successMessage}"/></div></c:if>
                 <c:if test="${not empty errorMessage}"><div class="alert alert-danger"><c:out value="${errorMessage}"/></div></c:if>
-                    <div class="alert alert-info"><i class="fa-solid fa-circle-info me-2"></i>Khoản khấu trừ đã được ghi nhận cùng báo cáo và không phụ thuộc vào bước HR xác minh. HR chỉ xác minh nội dung và lưu kết quả xử lý.</div>
+                    <div class="alert alert-info"><i class="fa-solid fa-circle-info me-2"></i>Khoản khấu trừ được ghi nhận cùng báo cáo và tính vào kỳ lương theo tháng xảy ra vi phạm; báo cáo bị từ chối sẽ không bị tính. HR xác minh nội dung và lưu kết quả xử lý.</div>
                     <h2 class="h5 mb-3">Đang chờ xử lý</h2>
                 <c:forEach items="${pendingViolations}" var="v">
                     <article class="card shadow-sm mb-3">
@@ -234,7 +235,6 @@
                             <c:if test="${not empty v.evidenceUrl}"><p><strong>Bằng chứng:</strong> <a href="<c:out value='${v.evidenceUrl}'/>" target="_blank" rel="noopener noreferrer">Mở liên kết</a></p></c:if>
                                 <div class="row g-3">
                                     <div class="col-lg-6"><form method="post" action="${pageContext.request.contextPath}/hr/violations" class="border rounded p-3 h-100" onsubmit="return !this.querySelector('[name=terminateEmployment]').checked || confirm('Xác nhận chấm dứt hợp đồng và vô hiệu hóa tài khoản nhân viên này?')"><input type="hidden" name="violationId" value="${v.id}"><input type="hidden" name="action" value="approve"><label class="form-label" for="disciplinary-${v.id}">Kết luận / hình thức xử lý</label><textarea class="form-control mb-2" id="disciplinary-${v.id}" name="disciplinaryAction" rows="3" maxlength="1000" required placeholder="Ghi rõ quyết định xử lý."></textarea><div class="form-check border rounded p-3 mb-3"><input class="form-check-input" type="checkbox" id="terminate-${v.id}" name="terminateEmployment" value="true"><label class="form-check-label fw-semibold text-danger" for="terminate-${v.id}">Chấm dứt hợp đồng do vi phạm nghiêm trọng</label><div class="form-text">Chỉ chọn với lỗi nghiêm trọng. Khi duyệt, hợp đồng đang hiệu lực sẽ kết thúc và tài khoản nhân viên bị vô hiệu hóa.</div></div><label class="form-label" for="note-approve-${v.id}">Ghi chú cho nhân viên (không bắt buộc)</label><textarea class="form-control mb-3" id="note-approve-${v.id}" name="reviewNote" rows="2" maxlength="1000"></textarea><button class="btn btn-success" type="submit"><i class="fa-solid fa-check me-1"></i>Xác minh và lưu quyết định</button></form></div>
-
                                 <div class="col-lg-6"><form method="post" action="${pageContext.request.contextPath}/hr/violations" class="border rounded p-3 h-100"><input type="hidden" name="violationId" value="${v.id}"><input type="hidden" name="action" value="reject"><label class="form-label" for="note-reject-${v.id}">Lý do từ chối báo cáo</label><textarea class="form-control mb-3" id="note-reject-${v.id}" name="reviewNote" rows="4" maxlength="1000" required></textarea><button class="btn btn-outline-danger" type="submit"><i class="fa-solid fa-xmark me-1"></i>Từ chối báo cáo</button></form></div>
                             </div>
                         </div>

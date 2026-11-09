@@ -1341,4 +1341,131 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+<<<<<<< HEAD
 -- Dump completed on 2026-11-01 21:21:02
+=======
+<<<<<<< Updated upstream
+-- Dump completed on 2026-10-20 14:46:23
+=======
+-- Dump completed on 2026-11-01 21:21:02
+
+USE `swp391_supermarket`;
+
+CREATE TABLE IF NOT EXISTS `employee_salary_configs` (
+  `user_id` int NOT NULL,
+  `monthly_salary` decimal(12,2) DEFAULT NULL,
+  `hourly_rate` decimal(12,2) NOT NULL,
+  `monthly_allowance` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `updated_by` int NOT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  KEY `updated_by` (`updated_by`),
+  CONSTRAINT `employee_salary_configs_ibfk_1`
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `employee_salary_configs_ibfk_2`
+    FOREIGN KEY (`updated_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `payroll_periods` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `month` int NOT NULL,
+  `year` int NOT NULL,
+  `status` enum('DRAFT','FINALIZED') DEFAULT 'DRAFT',
+  `finalized_by` int DEFAULT NULL,
+  `finalized_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_payroll_period_month_year` (`month`,`year`),
+  KEY `finalized_by` (`finalized_by`),
+  CONSTRAINT `payroll_periods_ibfk_1`
+    FOREIGN KEY (`finalized_by`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `payslips` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `payroll_period_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `total_hours` decimal(6,2) NOT NULL,
+  `regular_hours` decimal(8,2) NOT NULL DEFAULT '0.00',
+  `paid_leave_hours` decimal(8,2) NOT NULL DEFAULT '0.00',
+  `overtime_hours` decimal(8,2) NOT NULL DEFAULT '0.00',
+  `base_salary` decimal(12,2) NOT NULL,
+  `bonus` decimal(12,2) DEFAULT '0.00',
+  `allowances` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `deductions` decimal(12,2) DEFAULT '0.00',
+  `net_salary` decimal(12,2) NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_payslip_period_employee` (`payroll_period_id`,`user_id`),
+  KEY `payroll_period_id` (`payroll_period_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `payslips_ibfk_1`
+    FOREIGN KEY (`payroll_period_id`) REFERENCES `payroll_periods` (`id`),
+  CONSTRAINT `payslips_ibfk_2`
+    FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Example starter salary settings. INSERT IGNORE preserves any existing settings.
+-- Replace these sample amounts with the actual salary agreed for each employee.
+INSERT IGNORE INTO `employee_salary_configs`
+  (`user_id`, `monthly_salary`, `hourly_rate`, `monthly_allowance`, `updated_by`)
+SELECT
+  u.`id`,
+  CASE WHEN ep.`employee_type` = 'FULL_TIME' THEN 12000000.00 ELSE NULL END,
+  CASE WHEN ep.`employee_type` = 'FULL_TIME' THEN 0.00 ELSE 30000.00 END,
+  CASE WHEN ep.`employee_type` = 'FULL_TIME' THEN 500000.00 ELSE 0.00 END,
+  3
+FROM `users` u
+JOIN `employee_profiles` ep ON ep.`user_id` = u.`id`
+WHERE u.`role_id` IN (4, 5);
+
+-- Test attendance for October 2026; uses already-published shifts for NV008 and NV009.
+INSERT INTO `attendances`
+  (`user_id`, `shift_schedule_id`, `check_in`, `check_out`, `method`, `status`)
+SELECT
+  ss.`user_id`,
+  ss.`id`,
+  TIMESTAMP(ss.`work_date`, s.`start_time`),
+  TIMESTAMP(ss.`work_date`, s.`end_time`),
+  'WEB',
+  'VALID'
+FROM `shift_schedules` ss
+JOIN `shifts` s ON s.`id` = ss.`shift_id`
+JOIN `users` u ON u.`id` = ss.`user_id`
+WHERE u.`username` IN ('NV008', 'NV009')
+  AND ss.`status` = 'PUBLISHED'
+  AND ss.`work_date` BETWEEN '2026-10-26' AND '2026-10-30'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM `attendances` a
+    WHERE a.`shift_schedule_id` = ss.`id`
+      AND a.`user_id` = ss.`user_id`
+  );
+
+-- Test deduction for NV008 in October 2026.
+INSERT INTO `violations`
+  (`user_id`, `branch_id`, `title`, `description`, `deduction_amount`,
+   `category`, `violation_date`, `reported_by`, `status`)
+SELECT
+  u.`id`,
+  ep.`home_branch_id`,
+  'Payroll test deduction',
+  'Sample violation for testing the payroll deduction calculation.',
+  50000.00,
+  'OTHER',
+  '2026-10-30',
+  hr.`id`,
+  'APPROVED'
+FROM `users` u
+JOIN `employee_profiles` ep ON ep.`user_id` = u.`id`
+JOIN `users` hr ON hr.`username` = 'hrm_user'
+WHERE u.`username` = 'NV008'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM `violations` v
+    WHERE v.`user_id` = u.`id`
+      AND v.`title` = 'Payroll test deduction'
+      AND v.`violation_date` = '2026-10-30'
+  );
+
+>>>>>>> Stashed changes
+>>>>>>> origin/tính_lương

@@ -4,6 +4,7 @@
     - Active state + tự mở submenu: js/sidebar.js
 --%>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 
 <div class="sidebar theme-employee">
     <div class="sidebar-brand">
@@ -63,6 +64,11 @@
         <li>
             <a href="${pageContext.request.contextPath}/employee/attendance">
                 <i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến
+            </a>
+        </li>
+        <li>
+            <a href="${pageContext.request.contextPath}/employee/payroll">
+                <i class="fa-solid fa-money-bill-wave"></i> Phiếu lương
             </a>
         </li>
     </ul>
