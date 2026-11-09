@@ -92,7 +92,9 @@ public class AuthFilter implements Filter {
 
         if (path.contains("/admin/") && roleId != 1) {
             hasAccess = false;
-        } else if (path.contains("/director/") && roleId != 2) {
+        } else if (path.contains("/director/") && roleId != 2
+                && !(path.equals("/director/reports")
+                && (roleId == 1 || roleId == 3 || roleId == 4))) {
             hasAccess = false;
         } else if (path.contains("/hr/") && roleId != 3) {
             hasAccess = false;

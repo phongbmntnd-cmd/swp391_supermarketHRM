@@ -4,7 +4,7 @@
     Author     : phong
 --%>
 
-<%@page contentType="text/html;charset=UTF-8" language="java" %>
+<%@page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" language="java" %>
 <%@taglib prefix="c" uri="jakarta.tags.core"%>
 <!DOCTYPE html>
 <html lang="vi">
@@ -334,7 +334,7 @@
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
-
+                <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo toàn chuỗi</a></li>
             </ul>
         </div>
 
@@ -460,11 +460,11 @@
                                 </div>
                                 <h3>Quản Lý Chấm Công & Ca Làm</h3>
                             </div>
-                            <p>Theo dõi bảng chấm công hàng ngày, phê duyệt các đơn từ nghỉ phép hoặc đổi ca và giám sát lịch làm việc chung của các chi nhánh.</p>
+                            <p>Theo dõi bảng chấm công, giờ làm và tình trạng có mặt tại các chi nhánh trong khoảng thời gian được chọn.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
-
+                    
                     <!-- Tính năng 4: Quản lý vi phạm -->
                     <div class="card-custom">
                         <div>
