@@ -360,6 +360,30 @@
                     <span>Cơ sở hiện tại: <b><c:out value="${not empty displayBranchInfo ? displayBranchInfo : (currentBranch != null ? currentBranch.name += ' (' += currentBranch.code += ') - ' += currentBranch.address : 'Đang cập nhật')}"/></b></span>
                 </div>
 
+                <!-- Chọn chi nhánh quản lý -->
+                <div style="background:white; padding:15px 20px;
+                     border-radius:8px; margin-bottom:25px;">
+
+                    <label for="branchSelect" style="font-weight:600; margin-right:10px;">
+                        Chọn chi nhánh quản lý:
+                    </label>
+
+                    <select id="branchSelect"
+                            onchange="changeBranch(this.value)"
+                            style="padding:8px 12px; border:1px solid #ccc;
+                            border-radius:5px;">
+
+                        <c:forEach items="${managedBranches}" var="b">
+                            <option value="${b.id}"
+                                    ${currentBranch.id == b.id ? 'selected' : ''}>
+                                <c:out value="${b.name}"/>
+                                (<c:out value="${b.status}"/>)
+                            </option>
+                        </c:forEach>
+
+                    </select>
+                </div>
+
                 <!-- Banner chào mừng -->
                 <div class="welcome-banner">
                     <h2>Khu Vực Quản Lý Cơ Sở Trực Thuộc</h2>
@@ -536,5 +560,14 @@
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+        <script>
+                                        function changeBranch(branchId) {
+                                            window.location.href =
+                                                    '${pageContext.request.contextPath}/store-manager/dashboard'
+                                                    + '?branchId=' + encodeURIComponent(branchId);
+                                        }
+        </script>
+
     </body>
 </html>

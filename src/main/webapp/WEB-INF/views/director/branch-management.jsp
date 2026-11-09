@@ -228,53 +228,59 @@
         <div class="container">
 
             <!-- Form Thêm mới / Cập nhật Cơ sở dạng Card đồng bộ -->
-            <div class="card-section" style="border-left-color: ${not empty editingBranch ? '#f39c12' : '#3498db'};">
-                <h3>
-                    <c:choose>
-                        <c:when test="${not empty editingBranch}">
-                            ✏️ Cập Nhật Thông Tin Cơ Sở (ID: ${editingBranch.id})
-                        </c:when>
-                        <c:otherwise>
-                            + Thêm Cơ Sở Mới
-                        </c:otherwise>
-                    </c:choose>
-                </h3>
-                <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" class="form-inline">
 
-                    <!-- Phân biệt hành động là add hay update -->
-                    <input type="hidden" name="action" value="${not empty editingBranch ? 'update' : 'add'}">
+            <!-- Form tạo yêu cầu mở chi nhánh -->
+            <div class="card-section">
+                <h3>+ Tạo Yêu Cầu Mở Chi Nhánh Mới</h3>
 
-                    <!-- Nếu là sửa thì truyền thêm ID ngầm -->
-                    <c:if test="${not empty editingBranch}">
-                        <input type="hidden" name="id" value="${editingBranch.id}">
-                    </c:if>
+                <c:if test="${not empty error}">
+                    <p style="color: red; margin-bottom: 15px;">
+                        <c:out value="${error}" />
+                    </p>
+                </c:if>
 
-                    <div class="form-group">
-                        <label>Mã cơ sở:</label>
-                        <input type="text" name="code" required value="${editingBranch.code}" placeholder="VD: BR004">
-                    </div>
+                <c:if test="${param.success == '1'}">
+                    <p style="color: green; margin-bottom: 15px;">
+                        Gửi yêu cầu mở chi nhánh thành công!
+                    </p>
+                </c:if>
+
+                <form action="${pageContext.request.contextPath}/director/branch-management"
+                      method="POST" class="form-inline">
+
+                    <input type="hidden" name="action" value="createRequest">
 
                     <div class="form-group">
-                        <label>Tên cơ sở:</label>
-                        <input type="text" name="name" required value="${editingBranch.name}" placeholder="Siêu thị Cơ sở 4">
+                        <label>Tên chi nhánh:</label>
+                        <input type="text" name="name"
+                               placeholder="Siêu thị Cơ sở 4" required>
                     </div>
 
                     <div class="form-group" style="flex-grow: 1;">
                         <label>Địa chỉ:</label>
-                        <input type="text" name="address" required value="${editingBranch.address}" placeholder="Nhập địa chỉ chi nhánh..." style="width: 100%;">
+                        <input type="text" name="address"
+                               placeholder="Nhập địa chỉ chi nhánh..."
+                               style="width: 100%;" required>
                     </div>
 
-                    <!-- Nút submit thay đổi màu sắc và tên tùy theo trạng thái Thêm hay Sửa -->
-                    <button type="submit" class="btn-submit" style="background-color: ${not empty editingBranch ? '#f39c12' : '#2ecc71'};">
-                        ${not empty editingBranch ? 'Cập Nhật' : 'Lưu Cơ Sở'}
-                    </button>
+                    <div class="form-group">
+                        <label>Ngày dự kiến khai trương:</label>
+                        <input type="date" name="openingDate" required>
+                    </div>
 
-                    <!-- Nút Hủy nếu đang trong chế độ Sửa -->
-                    <c:if test="${not empty editingBranch}">
-                        <a href="${pageContext.request.contextPath}/director/branch-management" style="padding: 9px 15px; background-color: #95a5a6; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500;">Hủy</a>
-                    </c:if>
+                    <div class="form-group" style="flex-grow: 1;">
+                        <label>Lý do mở chi nhánh:</label>
+                        <input type="text" name="reason"
+                               placeholder="Nhập lý do..."
+                               style="width: 100%;" required>
+                    </div>
+
+                    <button type="submit" class="btn-submit">
+                        Gửi Yêu Cầu
+                    </button>
                 </form>
             </div>
+
 
             <!-- Bảng danh sách cơ sở -->
             <div class="table-container">

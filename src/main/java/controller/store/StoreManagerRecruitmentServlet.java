@@ -32,8 +32,19 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
             return;
         }
 
-        loadFormData(request, user);
-        request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment.jsp").forward(request, response);
+        int branchId = resolveManagedBranchId(request, user);
+
+        if (branchId == -1) {
+            sendForbidden(request, response,
+                    "Bạn không có chi nhánh được phép quản lý!");
+            return;
+        }
+
+        loadFormData(request, user, branchId);
+
+        request.getRequestDispatcher(
+                "/WEB-INF/views/store-manager/recruitment.jsp"
+        ).forward(request, response);
     }
 
     @Override
@@ -49,6 +60,14 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
 
         if (user.getRoleId() != ROLE_STORE_MANAGER && user.getRoleId() != ROLE_ADMIN) {
             sendForbidden(request, response, "Bạn không có quyền thực hiện thao tác này!");
+            return;
+        }
+
+        int branchId = resolveManagedBranchId(request, user);
+
+        if (branchId == -1) {
+            sendForbidden(request, response,
+                    "Bạn không có chi nhánh được phép quản lý!");
             return;
         }
 
@@ -113,7 +132,7 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         // Nếu có lỗi validation -> Set attribute và forward lại trang chứa modal
         if (errorMessage != null) {
             request.setAttribute("error", errorMessage);
-            loadFormData(request, user);
+            loadFormData(request, user, branchId);
             request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment.jsp").forward(request, response);
             return;
         }
@@ -122,13 +141,17 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         boolean success = false;
         if ("resubmit".equals(action)) {
             int proposalId = getIntParameter(request, "proposalId", -1);
-            success = proposalDAO.resubmitProposal(proposalId, positionId, employmentType, shiftType, fullName, email, phone, identityCard, departmentId, expirationDate, targetDate, reason);
+            success = proposalDAO.resubmitProposal(
+                proposalId, branchId, positionId, employmentType, shiftType,
+                fullName, email, phone, identityCard,
+                departmentId, expirationDate, targetDate, reason
+            );
             if (success) {
                 request.getSession().setAttribute("message", "Cập nhật và gửi lại đề xuất thành công!");
             }
         } else {
             success = proposalDAO.createProposal(
-                    user.getHomeBranchId(), positionId, employmentType, shiftType,
+                    branchId, positionId, employmentType, shiftType,
                     fullName, email, phone, identityCard, departmentId,
                     expirationDate, targetDate, reason, user.getId()
             );
@@ -143,21 +166,64 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         } else {
             // Thất bại khi thao tác với Database
             request.setAttribute("error", "Thực hiện thao tác thất bại! Vui lòng thử lại.");
-            loadFormData(request, user);
+            loadFormData(request, user, branchId);
             request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment.jsp").forward(request, response);
         }
     }
 
-    private void loadFormData(HttpServletRequest request, User user) {
+    private void loadFormData(HttpServletRequest request,
+            User user,
+            int branchId) {
+
         CommonDAO commonDAO = new CommonDAO();
-        RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
+        RecruitmentProposalDAO proposalDAO
+                = new RecruitmentProposalDAO();
         BranchDAO branchDAO = new BranchDAO();
 
-        // Lấy thông tin chi tiết chi nhánh quản lý dựa vào homeBranchId của Store Manager
-        Branch currentBranch = branchDAO.getBranchById(user.getHomeBranchId());
+        Branch currentBranch
+                = branchDAO.getBranchById(branchId);
 
-        request.setAttribute("positions", commonDAO.getStoreEmployeePositions());
-        request.setAttribute("proposals", proposalDAO.getProposalsByBranch(user.getHomeBranchId()));
+        request.setAttribute(
+                "positions",
+                commonDAO.getStoreEmployeePositions()
+        );
+
+        request.setAttribute(
+                "proposals",
+                proposalDAO.getProposalsByBranch(branchId)
+        );
+
         request.setAttribute("currentBranch", currentBranch);
     }
+
+    /**
+     * Thêm phương thức xác định chi nhánh được phép quản lý
+     *
+     * @param request
+     * @param user
+     * @return
+     */
+    private int resolveManagedBranchId(HttpServletRequest request, User user) {
+
+        BranchDAO branchDAO = new BranchDAO();
+        List<Branch> managedBranches
+                = branchDAO.getManagedBranches(user.getId());
+
+        int selectedBranchId = getCurrentBranchId(request);
+
+        for (Branch branch : managedBranches) {
+            if (branch.getId() == selectedBranchId) {
+                return selectedBranchId;
+            }
+        }
+
+        // Nếu chưa có chi nhánh trong session,
+        // dùng chi nhánh hợp lệ đầu tiên
+        if (!managedBranches.isEmpty()) {
+            return managedBranches.get(0).getId();
+        }
+
+        return -1;
+    }
+
 }

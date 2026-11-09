@@ -22,13 +22,14 @@ import jakarta.servlet.http.HttpServletResponse;
  * Trang chấm công của Store Manager.
  *
  * <h3>Phạm vi dữ liệu</h3>
- * Chỉ hiển thị bản ghi chấm công của nhân viên thuộc chi nhánh của
- * Store Manager đang đăng nhập (Admin được xem tất cả).
+ * Chỉ hiển thị bản ghi chấm công của nhân viên thuộc chi nhánh của Store
+ * Manager đang đăng nhập (Admin được xem tất cả).
  *
  * <h3>Bộ lọc</h3>
  * <ul>
- *   <li>{@code from} / {@code to} - khoảng ngày (mặc định: 30 ngày gần nhất).</li>
- *   <li>{@code status} - lọc theo trạng thái bản ghi.</li>
+ * <li>{@code from} / {@code to} - khoảng ngày (mặc định: 30 ngày gần
+ * nhất).</li>
+ * <li>{@code status} - lọc theo trạng thái bản ghi.</li>
  * </ul>
  */
 @WebServlet(name = "StoreManagerAttendanceServlet",
@@ -40,7 +41,7 @@ public class StoreManagerAttendanceServlet extends BaseServlet {
 
     @Override
     protected void doGet(HttpServletRequest request,
-                         HttpServletResponse response)
+            HttpServletResponse response)
             throws ServletException, IOException {
         User user = getCurrentUser(request);
         if (user == null) {
@@ -51,13 +52,13 @@ public class StoreManagerAttendanceServlet extends BaseServlet {
             sendForbidden(request, response, "Bạn không có quyền truy cập bảng chấm công cửa hàng.");
             return;
         }
-        if (user.getRoleId() == ROLE_STORE_MANAGER && user.getHomeBranchId() <= 0) {
-            sendForbidden(request, response, "Tài khoản quản lý chưa được gán chi nhánh.");
+        if (user.getRoleId() == ROLE_STORE_MANAGER && getBranchId(request, user) <= 0) {
+            sendForbidden(request, response, "Bạn không có quyền quản lý chấm công tại chi nhánh này.");
             return;
         }
 
         // Lấy thông tin cơ sở hiện tại để hiển thị đầy đủ tên, mã và địa chỉ lên thanh thông báo
-        int branchId = getBranchId(user);
+        int branchId = getBranchId(request, user);
         Branch currentBranch = null;
         if (branchId > 0) {
             currentBranch = branchDAO.getBranchById(branchId);
@@ -115,8 +116,8 @@ public class StoreManagerAttendanceServlet extends BaseServlet {
             sendForbidden(request, response, "Bạn không có quyền xử lý chấm công.");
             return;
         }
-        if (user.getRoleId() == ROLE_STORE_MANAGER && user.getHomeBranchId() <= 0) {
-            sendForbidden(request, response, "Tài khoản quản lý chưa được gán chi nhánh.");
+        if (user.getRoleId() == ROLE_STORE_MANAGER && getBranchId(request, user) <= 0) {
+            sendForbidden(request, response,"Bạn không có quyền xử lý chấm công tại chi nhánh này.");
             return;
         }
 
@@ -142,7 +143,7 @@ public class StoreManagerAttendanceServlet extends BaseServlet {
 
         try {
             boolean updated = attendanceDAO.reviewAttendance(attendanceId,
-                    getBranchId(user), status);
+                    getBranchId(request, user), status);
             if (updated) {
                 setSuccessMessage(request, "Đã cập nhật kết quả duyệt chấm công.");
             } else {
@@ -169,7 +170,7 @@ public class StoreManagerAttendanceServlet extends BaseServlet {
         }
 
         try {
-            int branchId = getBranchId(user);
+            int branchId = getBranchId(request, user);
             Attendance attendance = attendanceDAO.getAttendanceForStoreManagerById(attendanceId, branchId);
             if (attendance == null) {
                 setErrorMessage(request, "Không tìm thấy bản ghi thuộc chi nhánh của bạn.");
@@ -226,7 +227,7 @@ public class StoreManagerAttendanceServlet extends BaseServlet {
         }
 
         try {
-            boolean adjusted = attendanceDAO.adjustAttendance(attendanceId, getBranchId(user), user.getId(),
+            boolean adjusted = attendanceDAO.adjustAttendance(attendanceId, getBranchId(request, user), user.getId(),
                     checkIn, checkOut, note);
             if (adjusted) {
                 setSuccessMessage(request, "Đã điều chỉnh giờ chấm công và lưu lý do xử lý.");
@@ -247,8 +248,29 @@ public class StoreManagerAttendanceServlet extends BaseServlet {
         return value == null || value.trim().isEmpty() ? null : LocalTime.parse(value);
     }
 
-    private int getBranchId(User user) {
-        return user.getRoleId() == ROLE_ADMIN ? 0 : user.getHomeBranchId();
+    private int getBranchId(HttpServletRequest request, User user) {
+        // Admin giữ nguyên quyền xem toàn hệ thống
+        if (user.getRoleId() == ROLE_ADMIN) {
+            return 0;
+        }
+
+        if (user.getRoleId() != ROLE_STORE_MANAGER) {
+            return -1;
+        }
+
+        int selectedBranchId = getCurrentBranchId(request);
+
+        List<Branch> managedBranches
+                = branchDAO.getManagedBranches(user.getId());
+
+        for (Branch branch : managedBranches) {
+            if (branch.getId() == selectedBranchId
+                    && "ACTIVE".equals(branch.getStatus())) {
+                return selectedBranchId;
+            }
+        }
+
+        return -1;
     }
 
     private void redirectToAdjustment(HttpServletRequest request, HttpServletResponse response)

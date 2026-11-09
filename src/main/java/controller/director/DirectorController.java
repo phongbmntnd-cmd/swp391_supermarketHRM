@@ -2,6 +2,7 @@ package controller.director;
 
 import controller.base.BaseServlet;
 import dao.BranchDAO;
+import dao.BranchRequestDAO;
 import model.Branch;
 import model.User;
 import jakarta.servlet.ServletException;
@@ -84,14 +85,65 @@ public class DirectorController extends BaseServlet {
         String action = getStringParameter(request, "action");
         BranchDAO branchDAO = new BranchDAO();
 
-        if ("add".equals(action)) {
-            // Thêm mới cơ sở
-            String code = getStringParameter(request, "code");
-            String name = getStringParameter(request, "name");
-            String address = getStringParameter(request, "address");
+        if ("createRequest".equals(action)) {
 
-            branchDAO.insertBranch(code, name, address);
-            response.sendRedirect(request.getContextPath() + "/director/branch-management?action=list");
+            String name = request.getParameter("name");
+            String address = request.getParameter("address");
+            String openingDate = request.getParameter("openingDate");
+            String reason = request.getParameter("reason");
+
+            try {
+                // Kiểm tra thông tin bắt buộc
+                if (name == null || name.trim().isEmpty()
+                        || address == null || address.trim().isEmpty()
+                        || reason == null || reason.trim().isEmpty()
+                        || openingDate == null || openingDate.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Vui lòng nhập đầy đủ thông tin.");
+                }
+
+                java.time.LocalDate date = java.time.LocalDate.parse(openingDate);
+
+                if (!date.isAfter(java.time.LocalDate.now())) {
+                    throw new IllegalArgumentException(
+                            "Ngày khai trương phải lớn hơn ngày hiện tại."
+                    );
+                }
+
+                BranchRequestDAO requestDAO = new BranchRequestDAO();
+
+                if (requestDAO.isDuplicate(name, address)) {
+                    throw new IllegalArgumentException(
+                            "Tên hoặc địa chỉ chi nhánh đã tồn tại."
+                    );
+                }
+
+                boolean success = requestDAO.createRequest(
+                        name.trim(),
+                        address.trim(),
+                        date,
+                        reason.trim(),
+                        currentUser.getId()
+                );
+
+                if (!success) {
+                    throw new Exception("Không thể lưu yêu cầu.");
+                }
+
+                response.sendRedirect(
+                        request.getContextPath()
+                        + "/director/branch-management?success=1"
+                );
+                return;
+
+            } catch (Exception e) {
+                request.setAttribute("error", e.getMessage());
+                request.setAttribute("branchList", branchDAO.getAllBranches());
+
+                request.getRequestDispatcher(
+                        "/WEB-INF/views/director/branch-management.jsp"
+                ).forward(request, response);
+                return;
+            }
 
         } else if ("assign".equals(action)) {
             // Gán quản lý cho cơ sở

@@ -329,6 +329,7 @@
                 <li class="active"><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/branch-request"><i class="fa-solid fa-store"></i>Yêu cầu mở chi nhánh</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
@@ -476,6 +477,20 @@
                         </div>
                         <a href="${pageContext.request.contextPath}/hr/violations" class="card-link">Xác nhận vi phạm <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
+                    
+                    <!-- Tính năng 5: Quản lý yêu cầu mở chi nhánh -->
+                    <div class="card-custom">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #ef4444;">
+                                    <i class="fa-solid fa-store"></i>
+                                </div>
+                                <h3>Quản Lý Yêu Cầu Mở Chi Nhánh</h3>
+                            </div>
+                            <p>HR xem xét thông tin, lưu quyết định và lịch sử xử lý minh bạch.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/hr/branch-request" class="card-link">Xem yêu cầu <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
 
 
                 </div>
@@ -483,23 +498,23 @@
                 <!-- Section Tích hợp Bảng Phê Duyệt Điều Chuyển Nhân Sự Ngay Trên Dashboard -->
                 <div class="section-transfer">
                     <h3><i class="fa-solid fa-list-check"></i> Đơn Đề Xuất Điều Chuyển Chờ Xử Lý</h3>
-                    
+
                     <!-- Thông báo thành công / lỗi nếu có -->
                     <c:if test="${not empty message}"><div class="alert alert-success mt-3"><c:out value="${message}"/></div></c:if>
                     <c:if test="${not empty error}"><div class="alert alert-danger mt-3"><c:out value="${error}"/></div></c:if>
 
-                    <div class="table-responsive mt-3">
-                        <table class="table table-bordered align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Đơn</th>
-                                    <th>Từ → Đến</th>
-                                    <th>Ngày / Ca / Vị trí</th>
-                                    <th>Nhân viên đề cử</th>
-                                    <th>Xử lý</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-bordered align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Đơn</th>
+                                        <th>Từ → Đến</th>
+                                        <th>Ngày / Ca / Vị trí</th>
+                                        <th>Nhân viên đề cử</th>
+                                        <th>Xử lý</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                                 <c:forEach var="t" items="${requests}">
                                     <tr>
                                         <td><strong>#${t.id}</strong> (${t.requestedCount} người)<div class="text-muted small"><c:out value="${t.reason}"/></div></td>

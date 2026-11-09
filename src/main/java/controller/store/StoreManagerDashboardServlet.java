@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,38 +41,77 @@ public class StoreManagerDashboardServlet extends BaseServlet {
         }
 
         try {
+            BranchDAO branchDAO = new BranchDAO();
+
+            List<Branch> managedBranches
+                    = branchDAO.getManagedBranches(currentUser.getId());
+
+            request.setAttribute("managedBranches", managedBranches);
+
             int resolvedBranchId = 0;
 
-            // 1. Lấy từ BaseServlet (nếu hệ thống đã hỗ trợ sẵn session/currentBranchId)
+// Ưu tiên chi nhánh đã chọn trong session
             try {
                 resolvedBranchId = getCurrentBranchId(request);
-            } catch (Exception ignored) {}
-
-            // 2. Nếu chưa có, tìm chi nhánh mà user này làm Store Manager trực tiếp qua bảng branches
-            if (resolvedBranchId <= 0) {
-                resolvedBranchId = getBranchIdByManagerId(currentUser.getId());
+            } catch (Exception ignored) {
+                // Chưa có chi nhánh được chọn
             }
 
-            // 3. Nếu vẫn không tìm thấy, fallback lấy theo home_branch_id của nhân viên
-            if (resolvedBranchId <= 0) {
-                EmployeeDAO empDao = new EmployeeDAO();
-                Employee currentEmp = empDao.getEmployeeById(currentUser.getId());
-                if (currentEmp != null) {
-                    resolvedBranchId = currentEmp.getHomeBranchId();
+// Kiểm tra SM có quyền quản lý chi nhánh này không
+            boolean hasPermission = false;
+
+            for (Branch b : managedBranches) {
+                if (b.getId() == resolvedBranchId) {
+                    hasPermission = true;
+                    break;
                 }
             }
 
-            // Fallback an toàn cuối cùng nếu tất cả đều bằng 0
-            if (resolvedBranchId <= 0) {
-                resolvedBranchId = 1; 
+// Nếu chi nhánh hiện tại không hợp lệ,
+// chuyển về chi nhánh được phép quản lý đầu tiên
+            if (!hasPermission) {
+                if (managedBranches.isEmpty()) {
+                    sendForbidden(request, response,
+                            "Bạn chưa có chi nhánh được phép quản lý!");
+                    return;
+                }
+
+                resolvedBranchId = managedBranches.get(0).getId();
             }
+
+            String selectedBranch = request.getParameter("branchId");
+
+            if (selectedBranch != null) {
+                try {
+                    int selectedId = Integer.parseInt(selectedBranch);
+
+                    boolean allowed = managedBranches.stream()
+                            .anyMatch(b -> b.getId() == selectedId);
+
+                    if (!allowed) {
+                        sendForbidden(request, response,
+                                "Bạn không có quyền quản lý chi nhánh này!");
+                        return;
+                    }
+
+                    resolvedBranchId = selectedId;
+
+                } catch (NumberFormatException e) {
+                    response.sendError(400, "Mã chi nhánh không hợp lệ.");
+                    return;
+                }
+            }
+
+            // Lưu chi nhánh hợp lệ vào session
+            request.getSession().setAttribute(
+                    "currentBranchId", resolvedBranchId
+            );
 
             final int branchId = resolvedBranchId;
 
             // 4. Lấy thông tin chi tiết của cơ sở hiện tại thông qua BranchDAO chuẩn
-            BranchDAO branchDAO = new BranchDAO();
             Branch currentBranch = branchDAO.getBranchById(branchId);
-            
+
             // Phòng hờ nếu DAO trả về null, khởi tạo đối tượng mặc định để tránh lỗi hiển thị JSP
             if (currentBranch == null) {
                 currentBranch = new Branch();
@@ -147,8 +187,7 @@ public class StoreManagerDashboardServlet extends BaseServlet {
     // Hàm phụ trợ: Lấy branchId dựa vào store_manager_id trong bảng branches
     private int getBranchIdByManagerId(int managerId) {
         String sql = "SELECT id FROM branches WHERE store_manager_id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, managerId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {

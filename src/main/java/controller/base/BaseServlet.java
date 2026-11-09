@@ -9,8 +9,8 @@ import model.User;
 import java.io.IOException;
 
 /**
- * BaseServlet - Cung cấp các phương thức dùng chung cho các Servlet con.
- * KHÔNG chứa business logic riêng của chức năng cụ thể.
+ * BaseServlet - Cung cấp các phương thức dùng chung cho các Servlet con. KHÔNG
+ * chứa business logic riêng của chức năng cụ thể.
  */
 public abstract class BaseServlet extends HttpServlet {
 
@@ -30,6 +30,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Lấy User hiện tại từ session.
+     *
      * @param request HttpServletRequest
      * @return User đang đăng nhập, hoặc null nếu chưa đăng nhập
      */
@@ -43,6 +44,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Kiểm tra session có tồn tại không.
+     *
      * @param request HttpServletRequest
      * @return true nếu session tồn tại
      */
@@ -53,6 +55,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Kiểm tra user hiện tại có role cụ thể không.
+     *
      * @param request HttpServletRequest
      * @param roleId Role ID cần kiểm tra
      * @return true nếu user có role tương ứng
@@ -64,6 +67,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Kiểm tra user hiện tại có phải Store Manager không.
+     *
      * @param request HttpServletRequest
      * @return true nếu user là Store Manager
      */
@@ -73,34 +77,52 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Lấy branch ID của Store Manager hiện tại.
+     *
      * @param request HttpServletRequest
      * @return branch ID, hoặc -1 nếu không có quyền hoặc chưa đăng nhập
      */
     protected int getCurrentBranchId(HttpServletRequest request) {
         User user = getCurrentUser(request);
-        if (user != null) {
-            return user.getHomeBranchId();
+
+        if (user == null) {
+            return -1;
         }
-        return -1;
+
+        if (user.getRoleId() == ROLE_STORE_MANAGER) {
+            HttpSession session = request.getSession(false);
+
+            if (session != null) {
+                Object selectedBranch
+                        = session.getAttribute("currentBranchId");
+
+                if (selectedBranch instanceof Integer) {
+                    return (Integer) selectedBranch;
+                }
+            }
+        }
+
+        return user.getHomeBranchId();
     }
 
     /**
      * Chuyển hướng đến trang đăng nhập.
+     *
      * @param request HttpServletRequest
      * @param response HttpServletResponse
      */
-    protected void redirectToLogin(HttpServletRequest request, HttpServletResponse response) 
+    protected void redirectToLogin(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
         response.sendRedirect(request.getContextPath() + "/login.jsp");
     }
 
     /**
      * Trả về lỗi 403 Forbidden.
+     *
      * @param request HttpServletRequest
      * @param response HttpServletResponse
      * @param message Thông báo lỗi
      */
-    protected void sendForbidden(HttpServletRequest request, HttpServletResponse response, String message) 
+    protected void sendForbidden(HttpServletRequest request, HttpServletResponse response, String message)
             throws IOException, ServletException {
         request.setAttribute("errorMessage", message);
         request.getRequestDispatcher("/WEB-INF/views/error/403.jsp").forward(request, response);
@@ -108,11 +130,12 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Trả về lỗi 404 Not Found.
+     *
      * @param request HttpServletRequest
      * @param response HttpServletResponse
      * @param message Thông báo lỗi
      */
-    protected void sendNotFound(HttpServletRequest request, HttpServletResponse response, String message) 
+    protected void sendNotFound(HttpServletRequest request, HttpServletResponse response, String message)
             throws IOException, ServletException {
         request.setAttribute("errorMessage", message);
         request.getRequestDispatcher("/WEB-INF/views/error/404.jsp").forward(request, response);
@@ -120,11 +143,12 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Trả về lỗi 500 Internal Server Error.
+     *
      * @param request HttpServletRequest
      * @param response HttpServletResponse
      * @param message Thông báo lỗi
      */
-    protected void sendInternalError(HttpServletRequest request, HttpServletResponse response, String message) 
+    protected void sendInternalError(HttpServletRequest request, HttpServletResponse response, String message)
             throws IOException, ServletException {
         request.setAttribute("errorMessage", message);
         request.getRequestDispatcher("/WEB-INF/views/error/500.jsp").forward(request, response);
@@ -132,16 +156,18 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Chuyển hướng về trang dashboard của Store Manager.
+     *
      * @param request HttpServletRequest
      * @param response HttpServletResponse
      */
-    protected void redirectToDashboard(HttpServletRequest request, HttpServletResponse response) 
+    protected void redirectToDashboard(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
         response.sendRedirect(request.getContextPath() + "/store-manager/dashboard");
     }
 
     /**
      * Đặt thông báo thành công vào session.
+     *
      * @param request HttpServletRequest
      * @param message Thông báo thành công
      */
@@ -151,6 +177,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Đặt thông báo lỗi vào session.
+     *
      * @param request HttpServletRequest
      * @param message Thông báo lỗi
      */
@@ -160,6 +187,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Lấy và xóa thông báo thành công từ session.
+     *
      * @param request HttpServletRequest
      * @return Thông báo thành công, hoặc null
      */
@@ -175,6 +203,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Lấy và xóa thông báo lỗi từ session.
+     *
      * @param request HttpServletRequest
      * @return Thông báo lỗi, hoặc null
      */
@@ -190,6 +219,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Lấy tham số int từ request, trả về default nếu null hoặc lỗi.
+     *
      * @param request HttpServletRequest
      * @param paramName Tên tham số
      * @param defaultValue Giá trị mặc định
@@ -209,6 +239,7 @@ public abstract class BaseServlet extends HttpServlet {
 
     /**
      * Lấy tham số String từ request, trim và trả về null nếu rỗng.
+     *
      * @param request HttpServletRequest
      * @param paramName Tên tham số
      * @return Giá trị String, hoặc null
