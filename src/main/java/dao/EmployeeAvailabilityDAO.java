@@ -163,7 +163,8 @@ public class EmployeeAvailabilityDAO {
     // Lấy danh sách lịch rảnh kèm tên và vị trí theo cơ sở của Store Manager
     public List<java.util.Map<String, Object>> getRegistrationsByBranchId(int branchId, String weekStartDate) {
         List<java.util.Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT ea.user_id, ep.full_name, pos.title AS position_title, ea.day_of_week, s.name AS shift_name "
+        String sql = "SELECT ea.user_id, ep.full_name, pos.title AS position_title, "
+                + "pos.id AS position_id, ea.day_of_week, s.name AS shift_name, ea.shift_id "
                 + "FROM employee_availabilities ea "
                 + "JOIN employee_profiles ep ON ea.user_id = ep.user_id "
                 + "JOIN positions pos ON ep.position_id = pos.id "
@@ -178,8 +179,10 @@ public class EmployeeAvailabilityDAO {
                     row.put("userId", rs.getInt("user_id"));
                     row.put("fullName", rs.getString("full_name"));
                     row.put("positionTitle", rs.getString("position_title"));
+                    row.put("positionId", rs.getInt("position_id"));
                     row.put("dayOfWeek", rs.getString("day_of_week"));
                     row.put("shiftName", rs.getString("shift_name"));
+                    row.put("shiftId", rs.getInt("shift_id"));
                     list.add(row);
                 }
             }
@@ -187,5 +190,37 @@ public class EmployeeAvailabilityDAO {
             e.printStackTrace();
         }
         return list;
+    }
+
+    /**
+     * Đếm số nhân viên đã đăng ký lịch rảnh cho đúng (ngày trong tuần, ca, vị trí).
+     * Dùng để Store Manager thấy được "ca này có bao nhiêu người đăng ký"
+     * trước khi xếp ca.
+     *
+     * @return Map key = {@code dayOfWeek_shiftId_positionId} -> số người đăng ký
+     */
+    public java.util.Map<String, Integer> getRegistrationCountMap(int branchId, String weekStartDate) {
+        java.util.Map<String, Integer> map = new java.util.HashMap<>();
+        String sql = "SELECT ea.day_of_week, ea.shift_id, pos.id AS position_id, COUNT(*) AS reg_count "
+                + "FROM employee_availabilities ea "
+                + "JOIN employee_profiles ep ON ea.user_id = ep.user_id "
+                + "JOIN positions pos ON ep.position_id = pos.id "
+                + "WHERE ep.home_branch_id = ? AND ea.week_start_date = ? "
+                + "GROUP BY ea.day_of_week, ea.shift_id, pos.id";
+        try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
+            st.setInt(1, branchId);
+            st.setString(2, weekStartDate);
+            try (ResultSet rs = st.executeQuery()) {
+                while (rs.next()) {
+                    String key = rs.getString("day_of_week") + "_"
+                            + rs.getInt("shift_id") + "_"
+                            + rs.getInt("position_id");
+                    map.put(key, rs.getInt("reg_count"));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return map;
     }
 }

@@ -106,7 +106,7 @@
         }
         .filter-section h3 { color: #2c3e50; margin-bottom: 12px; font-size: 16px; }
         .filter-form {
-            display: grid; grid-template-columns: repeat(4, 1fr) auto;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
             gap: 12px; align-items: end;
         }
         .form-group label {
@@ -162,6 +162,9 @@
         .tag-DELETE  { background: #f5c6cb; color: #721c24; }
         .tag-LOGIN   { background: #d6d8db; color: #383d41; }
         .tag-LOGOUT  { background: #e2e3e5; color: #383d41; }
+        .tag-LOGI    { background: #d6d8db; color: #383d41; }
+        .tag-EMER    { background: #f8d7da; color: #721c24; }
+        .tag-RESE    { background: #fff3cd; color: #856404; }
         .tag-DEFAULT { background: #ecf0f1; color: #2c3e50; }
 
         .user-cell { display: flex; flex-direction: column; }
@@ -234,7 +237,28 @@
 
     <div class="page-header">
         <h2>📋 Nhật Ký Hoạt Động Hệ Thống (Audit Log)</h2>
-        <a href="${pageContext.request.contextPath}/admin/dashboard" class="back-link">← Quay về Dashboard</a>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <a class="btn btn-primary"
+               href="${pageContext.request.contextPath}/admin/audit-logs/export?action=${action}&actor=${actor}&target=${target}&entityType=${entityType}&entityId=${entityId}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">
+                📥 Xuất CSV
+            </a>
+            <a href="${pageContext.request.contextPath}/admin/dashboard" class="back-link">← Quay về Dashboard</a>
+        </div>
+    </div>
+
+    <!-- Bảng dọn dẹp log cũ (retention) -->
+    <div class="filter-section" style="margin-bottom: 20px;">
+        <h3>🧹 Dọn dẹp nhật ký cũ (Retention)</h3>
+        <p style="font-size:13px; color:#7f8c8d; margin-bottom: 10px;">
+            Hệ thống tự động dọn các log cũ hơn <strong>${retentionDays} ngày</strong>.
+            Dữ liệu cũ nhất hiện tại: <strong>${oldestAgeDays} ngày</strong> trước.
+            Số log đang chờ xóa: <strong>${pendingDeletion}</strong>.
+        </p>
+        <form method="POST" action="${pageContext.request.contextPath}/admin/audit-logs"
+              onsubmit="return confirm('Xóa toàn bộ nhật ký cũ hơn ${retentionDays} ngày? Hành động này không thể hoàn tác.');">
+            <input type="hidden" name="action" value="cleanup">
+            <button type="submit" class="btn btn-secondary">🧹 Dọn dẹp ngay</button>
+        </form>
     </div>
 
     <c:if test="${not empty successMessage}">
@@ -329,8 +353,34 @@
                 <label>Hành động</label>
                 <select name="action">
                     <option value="">-- Tất cả --</option>
+                    <%-- Danh sách đầy đủ các hành động hệ thống --%>
+                    <option value="LOGIN"           ${action == 'LOGIN' ? 'selected' : ''}>LOGIN - Đăng nhập</option>
+                    <option value="LOGOUT"          ${action == 'LOGOUT' ? 'selected' : ''}>LOGOUT - Đăng xuất</option>
+                    <option value="LOGIN_FAILED"    ${action == 'LOGIN_FAILED' ? 'selected' : ''}>LOGIN_FAILED - Đăng nhập thất bại</option>
+                    <option value="CREATE_USER"     ${action == 'CREATE_USER' ? 'selected' : ''}>CREATE_USER - Tạo tài khoản</option>
+                    <option value="UPDATE_USER"     ${action == 'UPDATE_USER' ? 'selected' : ''}>UPDATE_USER - Cập nhật tài khoản</option>
+                    <option value="EMERGENCY_LOCK"  ${action == 'EMERGENCY_LOCK' ? 'selected' : ''}>EMERGENCY_LOCK - Khóa tài khoản</option>
+                    <option value="EMERGENCY_UNLOCK"${action == 'EMERGENCY_UNLOCK' ? 'selected' : ''}>EMERGENCY_UNLOCK - Mở khóa tài khoản</option>
+                    <option value="RESET_PASSWORD"  ${action == 'RESET_PASSWORD' ? 'selected' : ''}>RESET_PASSWORD - Reset mật khẩu</option>
+                    <option value="CREATE_DEPARTMENT" ${action == 'CREATE_DEPARTMENT' ? 'selected' : ''}>CREATE_DEPARTMENT - Tạo phòng ban</option>
+                    <option value="UPDATE_DEPARTMENT" ${action == 'UPDATE_DEPARTMENT' ? 'selected' : ''}>UPDATE_DEPARTMENT - Sửa phòng ban</option>
+                    <option value="DELETE_DEPARTMENT" ${action == 'DELETE_DEPARTMENT' ? 'selected' : ''}>DELETE_DEPARTMENT - Xóa phòng ban</option>
+                    <option value="CREATE_POSITION"  ${action == 'CREATE_POSITION' ? 'selected' : ''}>CREATE_POSITION - Tạo vị trí</option>
+                    <option value="UPDATE_POSITION"  ${action == 'UPDATE_POSITION' ? 'selected' : ''}>UPDATE_POSITION - Sửa vị trí</option>
+                    <option value="DELETE_POSITION"  ${action == 'DELETE_POSITION' ? 'selected' : ''}>DELETE_POSITION - Xóa vị trí</option>
+                    <option value="CREATE_ROLE"      ${action == 'CREATE_ROLE' ? 'selected' : ''}>CREATE_ROLE - Tạo vai trò</option>
+                    <option value="UPDATE_ROLE"      ${action == 'UPDATE_ROLE' ? 'selected' : ''}>UPDATE_ROLE - Sửa vai trò</option>
+                    <option value="DELETE_ROLE"      ${action == 'DELETE_ROLE' ? 'selected' : ''}>DELETE_ROLE - Xóa vai trò</option>
                     <c:forEach var="a" items="${distinctActions}">
-                        <option value="${a}" ${a == action ? 'selected' : ''}>${a}</option>
+                        <c:if test="${a != 'LOGIN' && a != 'LOGOUT' && a != 'LOGIN_FAILED'
+                                     && a != 'CREATE_USER' && a != 'UPDATE_USER'
+                                     && a != 'EMERGENCY_LOCK' && a != 'EMERGENCY_UNLOCK'
+                                     && a != 'RESET_PASSWORD'
+                                     && a != 'CREATE_DEPARTMENT' && a != 'UPDATE_DEPARTMENT' && a != 'DELETE_DEPARTMENT'
+                                     && a != 'CREATE_POSITION' && a != 'UPDATE_POSITION' && a != 'DELETE_POSITION'
+                                     && a != 'CREATE_ROLE' && a != 'UPDATE_ROLE' && a != 'DELETE_ROLE'}">
+                            <option value="${a}" ${a == action ? 'selected' : ''}>${a}</option>
+                        </c:if>
                     </c:forEach>
                 </select>
             </div>
@@ -343,6 +393,22 @@
                 <input type="text" name="target" value="${target}" placeholder="VD: emp_user">
             </div>
             <div class="form-group">
+                <label>Loại đối tượng</label>
+                <select name="entityType">
+                    <option value="">-- Tất cả --</option>
+                    <option value="USER"       ${entityType == 'USER' ? 'selected' : ''}>USER - Tài khoản</option>
+                    <option value="DEPARTMENT" ${entityType == 'DEPARTMENT' ? 'selected' : ''}>DEPARTMENT - Phòng ban</option>
+                    <option value="POSITION"   ${entityType == 'POSITION' ? 'selected' : ''}>POSITION - Vị trí</option>
+                    <option value="ROLE"       ${entityType == 'ROLE' ? 'selected' : ''}>ROLE - Vai trò</option>
+                    <option value="BRANCH"     ${entityType == 'BRANCH' ? 'selected' : ''}>BRANCH - Chi nhánh</option>
+                    <option value="PROPOSAL"   ${entityType == 'PROPOSAL' ? 'selected' : ''}>PROPOSAL - Đề xuất</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>ID đối tượng</label>
+                <input type="text" name="entityId" value="${entityId}" placeholder="VD: 12">
+            </div>
+            <div class="form-group">
                 <label>Từ khóa (mô tả/IP)</label>
                 <input type="text" name="keyword" value="${keyword}" placeholder="Tìm trong mô tả...">
             </div>
@@ -353,7 +419,7 @@
         </form>
         <form class="filter-form" method="GET"
               action="${pageContext.request.contextPath}/admin/audit-logs"
-              style="grid-template-columns: 1fr 1fr 1fr auto; margin-top: 10px;">
+              style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: 10px;">
             <div class="form-group">
                 <label>Từ ngày</label>
                 <input type="date" name="fromDate" value="${fromDate}">
@@ -387,8 +453,10 @@
                         <th style="width: 120px;">Hành động</th>
                         <th style="width: 180px;">Người thực hiện</th>
                         <th style="width: 180px;">Đối tượng</th>
+                        <th style="width: 120px;">Loại / ID</th>
                         <th>Mô tả chi tiết</th>
                         <th style="width: 110px;">IP</th>
+                        <th style="width: 70px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -446,8 +514,25 @@
                                     </c:otherwise>
                                 </c:choose>
                             </td>
+                            <td>
+                                <c:choose>
+                                    <c:when test="${log.entityType != null}">
+                                        <span class="role-badge">${log.entityType}</span>
+                                        <c:if test="${log.entityId != null}">
+                                            <span style="color:#95a5a6; font-size:11px;">#${log.entityId}</span>
+                                        </c:if>
+                                    </c:when>
+                                    <c:otherwise><em style="color:#999;">—</em></c:otherwise>
+                                </c:choose>
+                            </td>
                             <td class="desc-cell">${fn:escapeXml(log.description)}</td>
                             <td class="ip-cell">${log.ipAddress != null ? fn:escapeXml(log.ipAddress) : '—'}</td>
+                            <td>
+                                <a href="${pageContext.request.contextPath}/admin/audit-log-detail?id=${log.id}"
+                                   style="color:#3498db; text-decoration:none; font-size:12px; white-space:nowrap;">
+                                    🔍 Chi tiết
+                                </a>
+                            </td>
                         </tr>
                     </c:forEach>
                 </tbody>
@@ -466,8 +551,8 @@
                             <span class="disabled">«</span>
                         </c:when>
                         <c:otherwise>
-                            <a href="?page=1&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">«</a>
-                            <a href="?page=${currentPage - 1}&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">‹</a>
+                            <a href="?page=1&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&entityType=${entityType}&entityId=${entityId}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">«</a>
+                            <a href="?page=${currentPage - 1}&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&entityType=${entityType}&entityId=${entityId}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">‹</a>
                         </c:otherwise>
                     </c:choose>
                         <c:forEach var="i" begin="${pagerStart}" end="${pagerEnd}">
@@ -476,7 +561,7 @@
                                     <span class="current">${i}</span>
                                 </c:when>
                                 <c:otherwise>
-                                    <a href="?page=${i}&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">${i}</a>
+                                    <a href="?page=${i}&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&entityType=${entityType}&entityId=${entityId}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">${i}</a>
                                 </c:otherwise>
                             </c:choose>
                         </c:forEach>
@@ -485,8 +570,8 @@
                             <span class="disabled">»</span>
                         </c:when>
                         <c:otherwise>
-                            <a href="?page=${currentPage + 1}&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">›</a>
-                            <a href="?page=${totalPages}&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">»</a>
+                            <a href="?page=${currentPage + 1}&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&entityType=${entityType}&entityId=${entityId}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">›</a>
+                            <a href="?page=${totalPages}&size=${pageSize}&action=${action}&actor=${actor}&target=${target}&entityType=${entityType}&entityId=${entityId}&keyword=${keyword}&fromDate=${fromDate}&toDate=${toDate}">»</a>
                         </c:otherwise>
                     </c:choose>
                 </div>

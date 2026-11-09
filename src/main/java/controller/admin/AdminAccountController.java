@@ -1,7 +1,6 @@
 package controller.admin;
 
 import controller.base.BaseServlet;
-import dao.AuditLogDAO;
 import dao.BranchDAO;
 import dao.EmployeeLockDAO;
 import dao.RoleDAO;
@@ -15,8 +14,10 @@ import model.Branch;
 import model.EmployeeLock;
 import model.Role;
 import model.User;
+import util.AuditDescription;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @WebServlet(name = "AdminAccountController", urlPatterns = {"/admin/accounts"})
@@ -26,7 +27,6 @@ public class AdminAccountController extends BaseServlet {
     private final RoleDAO roleDAO = new RoleDAO();
     private final BranchDAO branchDAO = new BranchDAO();
     private final EmployeeLockDAO employeeLockDAO = new EmployeeLockDAO();
-    private final AuditLogDAO auditLogDAO = new AuditLogDAO();
 
     private static final int[] PAGE_SIZES = {5, 10, 20, 50};
     private static final int DEFAULT_PAGE_SIZE = 10;
@@ -185,6 +185,9 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
             case "resetPassword":
                 handleResetPassword(request, response);
                 break;
+            case "update":
+                handleUpdate(request, response);
+                break;
             default:
                 response.sendRedirect(request.getContextPath() + "/admin/accounts");
                 break;
@@ -252,15 +255,16 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
         }
 
         // Action
-        String desc = "Admin khóa tài khoản";
-        if (reason != null && !reason.trim().isEmpty()) desc += ": " + reason;
+        String desc = AuditDescription.lock(targetUser.getUsername(), AuditDescription.ACT_LOCK, reason,
+                currentUser.getUsername());
 
         boolean success = userDAO.updateUserStatusWithAudit(
                 targetUserId,
                 STATUS_EMERGENCY_LOCKED,
                 AuditLog.ACTION_EMERGENCY_LOCK,
                 currentUser.getId(),
-                desc
+                desc,
+                getClientIp(request)
         );
 
         if (success) {
@@ -329,13 +333,15 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
             return;
         }
 
-        String desc = "Admin mở khóa tài khoản";
+        String desc = AuditDescription.lock(targetUser.getUsername(), AuditDescription.ACT_UNLOCK, null,
+                currentUser.getUsername());
         boolean success = userDAO.updateUserStatusWithAudit(
                 targetUserId,
                 STATUS_ACTIVE,
                 AuditLog.ACTION_EMERGENCY_UNLOCK,
                 currentUser.getId(),
-                desc
+                desc,
+                getClientIp(request)
         );
 
         if (success) {
@@ -404,10 +410,8 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
 
             // Ghi audit log
             try {
-                String ip = getClientIp(request);
-                String desc = "Admin '" + currentUser.getUsername() + "' reset mật khẩu của tài khoản '"
-                            + targetUser.getUsername() + "' (id=" + targetUserId + ") về mặc định '123456'";
-                auditLogDAO.log(AuditLog.ACTION_RESET_PASSWORD, currentUser.getId(), targetUserId, desc, ip);
+                String desc = AuditDescription.resetPassword(targetUser.getUsername(), currentUser.getUsername());
+                writeAuditLog(request, AuditLog.ACTION_RESET_PASSWORD, targetUserId, desc);
             } catch (Exception logEx) {
                 logEx.printStackTrace();
             }
@@ -417,15 +421,115 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
         response.sendRedirect(request.getContextPath() + "/admin/accounts");
     }
 
-    /** Lấy IP client (hỗ trợ X-Forwarded-For) */
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-            int comma = ip.indexOf(',');
-            return comma > 0 ? ip.substring(0, comma).trim() : ip.trim();
+    // =========================================================
+    //  Xử lý CẬP NHẬT TÀI KHOẢN (email / vai trò / trạng thái)
+    // =========================================================
+    private void handleUpdate(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        User currentUser = getCurrentUser(request);
+        if (currentUser == null || currentUser.getRoleId() != ROLE_ADMIN) {
+            sendForbidden(request, response, "Bạn không có quyền thực hiện thao tác này!");
+            return;
         }
-        ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) return ip;
-        return request.getRemoteAddr();
+
+        int targetUserId = getIntParameter(request, "userId", -1);
+        if (targetUserId <= 0) {
+            setErrorMessage(request, "Không xác định được tài khoản cần cập nhật.");
+            response.sendRedirect(request.getContextPath() + "/admin/accounts");
+            return;
+        }
+
+        User targetUser = userDAO.getUserById(targetUserId);
+        if (targetUser == null) {
+            setErrorMessage(request, "Không tìm thấy tài khoản!");
+            response.sendRedirect(request.getContextPath() + "/admin/accounts");
+            return;
+        }
+
+        // Không cho sửa tài khoản của Admin khác
+        if (targetUser.getRoleId() == ROLE_ADMIN && targetUser.getId() != currentUser.getId()) {
+            setErrorMessage(request, "Bạn không có quyền cập nhật tài khoản Quản trị viên khác!");
+            response.sendRedirect(request.getContextPath() + "/admin/accounts");
+            return;
+        }
+
+        // Đọc giá trị mới
+        String newEmail = getStringParameter(request, "email");
+        int newRoleId   = getIntParameter(request, "roleId", -1);
+        String newStatus = getStringParameter(request, "status");
+
+        if (newRoleId <= 0) {
+            setErrorMessage(request, "Vai trò không hợp lệ.");
+            response.sendRedirect(request.getContextPath() + "/admin/accounts");
+            return;
+        }
+        if (!STATUS_ACTIVE.equals(newStatus) && !"INACTIVE".equals(newStatus)
+                && !STATUS_EMERGENCY_LOCKED.equals(newStatus)) {
+            setErrorMessage(request, "Trạng thái tài khoản không hợp lệ.");
+            response.sendRedirect(request.getContextPath() + "/admin/accounts");
+            return;
+        }
+
+        // Email phải là duy nhất
+        if (newEmail != null && !newEmail.trim().isEmpty() && userDAO.isEmailExists(newEmail)) {
+            User owner = userDAO.getUserByUsername(newEmail);
+            if (owner == null || owner.getId() != targetUserId) {
+                setErrorMessage(request, "Email '" + newEmail + "' đã được sử dụng bởi tài khoản khác!");
+                response.sendRedirect(request.getContextPath() + "/admin/accounts");
+                return;
+            }
+        }
+
+        // Không cho tự hạ quyền chính mình
+        if (targetUserId == currentUser.getId() && newRoleId != ROLE_ADMIN) {
+            setErrorMessage(request, "Bạn không thể tự thay đổi vai trò của chính mình!");
+            response.sendRedirect(request.getContextPath() + "/admin/accounts");
+            return;
+        }
+
+        // Mô tả thay đổi: ghi rõ trường nào đổi từ giá trị nào sang giá trị nào
+        // theo chuẩn "Trường: cũ -> mới", phân tách bằng " | "
+        String oldEmail = targetUser.getEmail();
+        int oldRoleId  = targetUser.getRoleId();
+        String oldStatus = targetUser.getStatus();
+        String oldRoleName = targetUser.getRole() != null ? targetUser.getRole().getName() : ("#" + oldRoleId);
+
+        List<String> changes = new ArrayList<>();
+        if (!java.util.Objects.equals(oldEmail, newEmail)) {
+            changes.add(AuditDescription.change("Email",
+                    oldEmail == null ? "(trống)" : oldEmail,
+                    newEmail == null ? "(trống)" : newEmail));
+        }
+        if (oldRoleId != newRoleId) {
+            Role newRole = roleDAO.getRoleById(newRoleId);
+            changes.add(AuditDescription.change("Vai trò", oldRoleName,
+                    newRole != null ? newRole.getName() : ("#" + newRoleId)));
+        }
+        if (!java.util.Objects.equals(oldStatus, newStatus)) {
+            changes.add(AuditDescription.change("Trạng thái", oldStatus, newStatus));
+        }
+
+        String desc = AuditDescription.updateUser(targetUser.getUsername(),
+                String.join(AuditDescription.SEP, changes), currentUser.getUsername());
+
+        boolean success = userDAO.updateUserAccountWithAudit(
+                targetUserId, newEmail, newRoleId, newStatus,
+                currentUser.getId(), desc, getClientIp(request));
+
+        if (success) {
+            // Nếu đổi vai trò -> buộc user đăng nhập lại để session có quyền mới
+            if (oldRoleId != newRoleId) {
+                try {
+                    request.getServletContext().removeAttribute("user_token_" + targetUserId);
+                } catch (Exception ignore) {
+                }
+            }
+            String displayName = targetUser.getFullName() != null ? targetUser.getFullName() : targetUser.getUsername();
+            setSuccessMessage(request, "Đã cập nhật tài khoản \"" + displayName + "\" thành công!");
+        } else {
+            setErrorMessage(request, "Không thể cập nhật tài khoản. Vui lòng thử lại!");
+        }
+        response.sendRedirect(request.getContextPath() + "/admin/accounts");
     }
 }

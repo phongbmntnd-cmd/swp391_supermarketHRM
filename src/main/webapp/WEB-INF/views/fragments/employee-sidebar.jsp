@@ -69,6 +69,10 @@
         <li>
             <a href="${pageContext.request.contextPath}/employee/payroll">
                 <i class="fa-solid fa-money-bill-wave"></i> Phiếu lương
+
+        <li>
+            <a href="${pageContext.request.contextPath}/employee/violations">
+                <i class="fa-solid fa-triangle-exclamation"></i> Vi phạm &amp; kết quả
             </a>
         </li>
     </ul>

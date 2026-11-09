@@ -91,27 +91,16 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         List<Map<String, Object>> branchRegistrations = availabilityDAO.getRegistrationsByBranchId(managerBranchId, nextMonday.toString());
         List<Map<String, Object>> supplementaryApplicants = suppDAO
                 .getApplicants(managerBranchId, nextMonday.toString(), nextSunday.toString());
-        for (Map<String, Object> applicant : supplementaryApplicants) {
-            boolean alreadyListed = false;
-            for (Map<String, Object> registration : branchRegistrations) {
-                if (registration.get("userId").equals(applicant.get("userId"))
-                        && registration.get("dayOfWeek").equals(applicant.get("dayOfWeek"))
-                        && registration.get("shiftName").equals(applicant.get("shiftName"))) {
-                    alreadyListed = true;
-                    break;
-                }
-            }
-            if (!alreadyListed) {
-                Map<String, Object> registration = new HashMap<>(applicant);
-                registration.put("registrationType", "SUPPLEMENTARY");
-                branchRegistrations.add(registration);
-            }
-        }
 
         // Lấy danh sách nhân viên Full-time cố định của chi nhánh
         List<Map<String, Object>> fullTimeEmployees = scheduleDAO.getFullTimeEmployeesByBranch(managerBranchId);
 
-        List<String> assignedList = scheduleDAO.getAssignedKeysByBranchId(managerBranchId);
+        // Danh sách nhân viên đã xếp ca trong tuần, kèm trạng thái
+        // (PUBLISHED / DRAFT / ON_LEAVE). Dùng để đồng bộ giữa bảng xếp lịch
+        // của Store và "Lịch làm việc" của nhân viên (chỉ PUBLISHED mới hiện
+        // với nhân viên).
+        Map<String, List<Map<String, Object>>> assignedStaffMap = scheduleDAO.getAssignedStaffMap(
+                managerBranchId, nextMonday.toString(), nextSunday.toString());
 
         // Kiểm tra xem lịch trong tuần này của chi nhánh đã được publish chưa
         boolean isPublished = scheduleDAO.isWeekPublished(managerBranchId, nextMonday.toString(), nextSunday.toString());
@@ -184,8 +173,10 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         request.setAttribute("shifts", shifts);
         request.setAttribute("positions", positions);
         request.setAttribute("branchRegistrations", branchRegistrations);
+        //request.setAttribute("registrationCounts", registrationCounts);
+        request.setAttribute("supplementaryApplicants", supplementaryApplicants);
         request.setAttribute("fullTimeEmployees", fullTimeEmployees);
-        request.setAttribute("assignedList", assignedList);
+        request.setAttribute("assignedStaffMap", assignedStaffMap);
         request.setAttribute("managerBranchId", managerBranchId);
         request.setAttribute("weeklyRequirements", weeklyRequirements);
         request.setAttribute("weeklyAssignedCounts", weeklyAssignedCounts);
@@ -252,6 +243,19 @@ public class StoreManagerScheduleServlet extends BaseServlet {
                     scheduleDAO.deleteSchedule(branchId, userId, shiftId, workDate);
                     response.getWriter().write("removed");
                 } else {
+                    // Quy tắc nghiệp vụ: Store KHÔNG được xếp nhân viên vào ca
+                    // mà nhân viên đó chưa đăng ký lịch rảnh (hoặc chưa đăng ký
+                    // tham gia ca bổ sung) cho đúng ca + đúng ngày đó.
+                    // Full-time có lịch cố định nên được miễn ràng buộc này.
+                    boolean eligible = scheduleDAO.hasRegisteredAvailability(
+                            branchId, userId, positionId, shiftId, workDate)
+                            || scheduleDAO.hasSupplementaryApplication(
+                            branchId, userId, positionId, shiftId, workDate)
+                            || scheduleDAO.isFullTime(branchId, userId);
+                    if (!eligible) {
+                        response.getWriter().write("not_registered");
+                        return;
+                    }
                     if(!scheduleDAO.canAssign(branchId, userId, positionId, shiftId, workDate)){
                         response.getWriter().write("assignment_invalid");
                         return;
@@ -277,29 +281,23 @@ public class StoreManagerScheduleServlet extends BaseServlet {
 
         } else if ("publish".equals(action)) {
             if (branchId != -1) {
-//<<<<<<< HEAD
                 if(startDate == null){response.sendError(400, "Thiếu tuần cần Publish");return;}
                 LocalDate monday = LocalDate.parse(startDate);
                 scheduleDAO.publishSchedules(branchId, monday.toString(), monday.plusDays(6).toString());
                 new SupplementaryShiftDAO().closeRegistrationsForWeek(branchId, monday.toString(), monday.plusDays(6).toString());
-////=======
-//                if(startDate == null){response.sendError(400,"Thiếu tuần cần Publish");return;}
-//                LocalDate monday=LocalDate.parse(startDate);
-//                scheduleDAO.publishSchedules(branchId,monday.toString(),monday.plusDays(6).toString());
-//
-//                // Khớp lại các đơn nghỉ phép đã duyệt với lịch vừa
-//                // publish: đánh dấu ON_LEAVE + đưa ca vào open_shifts.
-//                // Nhờ vậy part-time xin nghỉ trước khi lịch được publish
-//                // vẫn có hiệu lực đầy đủ.
-//                try {
-//                    new dao.LeaveRequestDAO().reconcileApprovedLeaves(
-//                            branchId,
-//                            java.sql.Date.valueOf(monday),
-//                            java.sql.Date.valueOf(monday.plusDays(6)));
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
-//>>>>>>> origin/TienDat
+
+                // Khớp lại các đơn nghỉ phép đã duyệt với lịch vừa
+                // publish: đánh dấu ON_LEAVE + đưa ca vào open_shifts.
+                // Nhờ vậy part-time xin nghỉ trước khi lịch được publish
+                // vẫn có hiệu lực đầy đủ.
+                try {
+                    new dao.LeaveRequestDAO().reconcileApprovedLeaves(
+                            branchId,
+                            java.sql.Date.valueOf(monday),
+                            java.sql.Date.valueOf(monday.plusDays(6)));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
             String redirectUrl = "schedule?success=published";
             if (startDate != null && !startDate.trim().isEmpty()) {

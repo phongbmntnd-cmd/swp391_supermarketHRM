@@ -20,6 +20,27 @@ public class StoreManagerRequestController extends HttpServlet {
                 : (User) session.getAttribute("account");
     }
 
+    /**
+     * Parse số nguyên an toàn.
+     *
+     * <p>Trước đây dùng {@code Integer.parseInt(param)} trực tiếp: khi
+     * Store chọn giá trị mặc định {@code -- Chọn ca --} (value="") thì
+     * ném {@link NumberFormatException} và người dùng thấy trang lỗi 400
+     * trắng, không biết mình sai ở đâu.
+     *
+     * @return giá trị số, hoặc 0 nếu rỗng / không phải số
+     */
+    private int parseIntOrZero(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     @Override
     protected void doGet(
             HttpServletRequest req,
@@ -57,9 +78,11 @@ public class StoreManagerRequestController extends HttpServlet {
                     dao.getAllShifts()
             );
 
+            // Chỉ chức vụ của nhân viên vận hành (thu ngân, bán hàng,
+            // kho...) - không có Giám Đốc / các loại Quản lý.
             req.setAttribute(
                     "allPositions",
-                    dao.getPositions()
+                    dao.getShiftPositions()
             );
 
             req.getRequestDispatcher(
@@ -97,23 +120,37 @@ public class StoreManagerRequestController extends HttpServlet {
             // Tạo ca trống để nhân viên có thể đề nghị chuyển sang
             if ("createOpenShift".equals(action)) {
 
-                int shiftId = Integer.parseInt(
-                        req.getParameter("shiftId")
-                );
-
-                int positionId = Integer.parseInt(
-                        req.getParameter("positionId")
-                );
+                int shiftId = parseIntOrZero(req.getParameter("shiftId"));
+                int positionId = parseIntOrZero(req.getParameter("positionId"));
 
                 String dateRaw = req.getParameter("workDate");
 
-                if (dateRaw == null || dateRaw.trim().isEmpty()) {
-                    resp.sendError(400, "Thiếu ngày làm việc");
+                if (shiftId <= 0 || positionId <= 0) {
+                    resp.sendRedirect(
+                            req.getContextPath()
+                            + "/store-manager/shift-requests?"
+                            + "invalid=1&reason=missing");
                     return;
                 }
 
-                java.time.LocalDate workDate =
-                        java.time.LocalDate.parse(dateRaw.trim());
+                if (dateRaw == null || dateRaw.trim().isEmpty()) {
+                    resp.sendRedirect(
+                            req.getContextPath()
+                            + "/store-manager/shift-requests?"
+                            + "invalid=1&reason=missing");
+                    return;
+                }
+
+                java.time.LocalDate workDate;
+                try {
+                    workDate = java.time.LocalDate.parse(dateRaw.trim());
+                } catch (Exception e) {
+                    resp.sendRedirect(
+                            req.getContextPath()
+                            + "/store-manager/shift-requests?"
+                            + "invalid=1&reason=date");
+                    return;
+                }
 
                 ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
 
@@ -127,8 +164,34 @@ public class StoreManagerRequestController extends HttpServlet {
                 resp.sendRedirect(
                         req.getContextPath()
                         + "/store-manager/shift-requests?"
-                        + (success ? "openCreated=1" : "invalid=1")
+                        + (success ? "openCreated=1" : "invalid=1"));
+                return;
+            }
+
+            // Đóng ca trống thủ công (ca không còn ai nhận được).
+            if ("closeOpenShift".equals(action)) {
+
+                int openShiftId = parseIntOrZero(req.getParameter("openShiftId"));
+
+                if (openShiftId <= 0) {
+                    resp.sendRedirect(
+                            req.getContextPath()
+                            + "/store-manager/shift-requests?"
+                            + "invalid=1&reason=missing");
+                    return;
+                }
+
+                ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
+
+                boolean success = dao.closeOpenShift(
+                        user.getHomeBranchId(),
+                        openShiftId
                 );
+
+                resp.sendRedirect(
+                        req.getContextPath()
+                        + "/store-manager/shift-requests?"
+                        + (success ? "openClosed=1" : "invalid=1"));
                 return;
             }
 

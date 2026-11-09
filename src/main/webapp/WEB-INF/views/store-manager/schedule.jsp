@@ -558,6 +558,7 @@
                                                                     <c:if test="${isPublished or assignedCount ge requiredCount or isSupplementaryOpened or isTransferProposed}">disabled</c:if>
                                                                     onclick="openShortageModal('${managerBranchId}', '${pos.id}', '${shift.id}', '${workDate}', '${requiredCount}', '${assignedCount}', '${pos.title}', '${shift.name}')">
                                                                 ${assignedCount} / ${requiredCount}
+
                                                             </button>
                                                             <c:if test="${!isPublished}">
                                                                 <button type="button" class="btn btn-sm btn-link p-0 text-muted" style="font-size: 11px;" 
@@ -618,9 +619,11 @@
                                                                     <c:if test="${reg.positionTitle eq pos.title and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
                                                                         <c:set var="currentKey" value="${reg.userId}_${shift.id}_${workDate}" />
                                                                         <c:set var="isAssigned" value="false" />
-                                                                        <c:forEach var="asg" items="${assignedList}">
-                                                                            <c:if test="${asg eq currentKey}">
+                                                                        <c:set var="assignStatus" value="" />
+                                                                        <c:forEach var="asg" items="${cellAssignments}">
+                                                                            <c:if test="${asg.userId eq ft.userId}">
                                                                                 <c:set var="isAssigned" value="true" />
+                                                                                <c:set var="assignStatus" value="${asg.status}" />
                                                                             </c:if>
                                                                         </c:forEach>
 

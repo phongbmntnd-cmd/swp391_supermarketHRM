@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import model.User;
+import dao.AuditLogDAO;
 import java.io.IOException;
 
 /**
@@ -250,5 +251,58 @@ public abstract class BaseServlet extends HttpServlet {
             return value.trim();
         }
         return null;
+    }
+
+    // =========================================================
+    //  HỖ TRỢ AUDIT LOG (dùng chung cho mọi Servlet)
+    // =========================================================
+
+    /**
+     * Lấy IP client (hỗ trợ X-Forwarded-For / X-Real-IP khi chạy sau reverse proxy).
+     */
+    protected String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+            int comma = ip.indexOf(',');
+            return comma > 0 ? ip.substring(0, comma).trim() : ip.trim();
+        }
+        ip = request.getHeader("X-Real-IP");
+        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) return ip.trim();
+        return request.getRemoteAddr();
+    }
+
+    /**
+     * Ghi 1 dòng audit log với actor là user hiện tại trong session.
+     * Không ném exception để việc ghi log không làm hỏng luồng nghiệp vụ chính.
+     *
+     * @param request   request hiện tại (dùng để lấy IP và user đang đăng nhập)
+     * @param action    mã hành động (dùng hằng số trong model.AuditLog)
+     * @param targetId  id người bị tác động, có thể null
+     * @param detail    mô tả chi tiết
+     */
+    protected void writeAuditLog(HttpServletRequest request, String action, Integer targetId, String detail) {
+        try {
+            User u = getCurrentUser(request);
+            if (u == null) return;
+            new AuditLogDAO().log(action, u.getId(), targetId, detail, getClientIp(request));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Ghi audit log kèm thông tin đối tượng bị tác động (entity_type / entity_id).
+     * Dùng cho các action không tác động lên user (phòng ban, vị trí, vai trò...).
+     */
+    protected void writeAuditLog(HttpServletRequest request, String action, Integer targetId,
+                                 String entityType, Integer entityId, String detail) {
+        try {
+            User u = getCurrentUser(request);
+            if (u == null) return;
+            new AuditLogDAO().log(action, u.getId(), targetId, entityType, entityId,
+                    detail, getClientIp(request));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

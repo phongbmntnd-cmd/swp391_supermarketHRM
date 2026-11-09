@@ -172,6 +172,15 @@
     <c:if test="${param.invalid eq '1'}">
         <div class="alert alert-warning">
             Không thể gửi đơn. Vui lòng kiểm tra ca đã chọn.
+            <br>
+            <small>
+                Lưu ý: bạn chỉ được đổi ca với đồng nghiệp
+                <strong>cùng chức vụ</strong>,
+                <strong>cùng nhóm làm việc</strong>
+                (full-time chỉ đổi với full-time,
+                part-time chỉ đổi với part-time) và
+                <strong>cùng tuần đang xem</strong>.
+            </small>
         </div>
     </c:if>
 
@@ -302,10 +311,10 @@
 
             <div class="alert alert-info py-2">
                 <i class="fa-solid fa-circle-info"></i>
-                Đơn đổi ca phải được gửi trước ít nhất
-                <strong>48 giờ</strong> (2 ngày) kể từ ngày làm việc.
-                Thời gian chờ đồng nghiệp trả lời cũng được tính
-                trong thời hạn này.
+                Đơn đổi ca chỉ tạo được cho ca chưa diễn ra
+                (từ hôm nay trở đi). Ca ốm đột xuất cần nhân viên
+                đi thế ngay vẫn có thể đăng ký nhận tại tab
+                <strong>Nhận làm thêm ca</strong>.
             </div>
 
             <ul class="nav nav-tabs mb-3" id="requestTypeTabs">
@@ -327,6 +336,15 @@
                         Chuyển sang ca trống
                     </button>
                 </li>
+                <li class="nav-item">
+                    <button class="nav-link"
+                            type="button"
+                            data-mode="extra"
+                            id="tabExtra">
+                        <i class="fa-solid fa-file-signature"></i>
+                        Nhận làm thêm ca
+                    </button>
+                </li>
             </ul>
 
             <form method="post" id="shiftForm"
@@ -335,7 +353,12 @@
                 <input type="hidden" name="action" id="formAction"
                        value="create">
 
-                <div class="mb-3">
+                <%-- Tuần đang xem: dùng để validate đổi ca cùng tuần --%>
+                <input type="hidden" name="startDate"
+                       id="startDateInput"
+                       value="<c:out value='${weekStart}'/>">
+
+                <div class="mb-3" id="myScheduleBlock">
                     <label class="form-label">
                         Ca làm hiện tại của bạn
                     </label>
@@ -358,6 +381,18 @@
 
                 <%-- ============ CHẾ ĐỘ 1: ĐỔI VỚI ĐỒNG NGHIỆP ============ --%>
                 <div class="mb-4" id="swapMode">
+
+                    <div class="alert alert-info py-2 px-3"
+                         style="font-size: 13px;">
+                        <strong>Quy tắc đổi ca:</strong>
+                        bạn chỉ có thể đổi ca với đồng nghiệp
+                        <strong>cùng chức vụ</strong>,
+                        <strong>cùng nhóm làm việc</strong>
+                        (full-time chỉ đổi với full-time,
+                        part-time chỉ đổi với part-time) và
+                        <strong>cùng tuần đang xem</strong>.
+                    </div>
+
                     <div class="d-flex justify-content-between
                          align-items-center mb-3">
 
@@ -472,6 +507,105 @@
                     </c:choose>
                 </div>
 
+                <%-- ============ CHẾ ĐỘ 3: NHẬN LÀM THÊM CA ============ --%>
+                <div class="mb-4 d-none" id="extraMode">
+                    <h5 class="fw-bold mb-2">
+                        Ca đang thiếu người làm trong tuần này
+                    </h5>
+
+                    <div class="alert alert-success py-2 px-3"
+                         style="font-size: 13px;">
+                        <i class="fa-solid fa-circle-info"></i>
+                        Đây là các ca của đồng nghiệp đang
+                        <strong>nghỉ</strong> (hoặc ca Store mở thêm).
+                        Khi bạn đăng ký nhận ca:
+                        <ul class="mb-0 mt-1">
+                            <li>Lịch làm sẵn có của bạn
+                                <strong>không bị thay đổi</strong>
+                                — bạn vẫn làm đủ ca cũ.</li>
+                            <li>Ca mới chỉ xuất hiện trên lịch chính thức
+                                của bạn
+                                <strong>sau khi Store Manager duyệt</strong>.
+                            </li>
+                        </ul>
+                    </div>
+
+                    <c:choose>
+                        <c:when test="${empty extraShifts}">
+                            <div class="alert alert-light border text-muted">
+                                Tuần này không có ca nào đang thiếu
+                                người làm tại cơ sở của bạn.
+                            </div>
+                        </c:when>
+                        <c:otherwise>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Ngày</th>
+                                            <th>Ca</th>
+                                            <th>Khung giờ</th>
+                                            <th>Người nghỉ</th>
+                                            <th>Vị trí</th>
+                                            <th>Trạng thái</th>
+                                            <th>Chọn</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <c:forEach var="es" items="${extraShifts}">
+                                            <tr>
+                                                <td>
+                                                    <c:out value="${es.workDate}"/>
+                                                </td>
+                                                <td>
+                                                    <c:out value="${es.shiftName}"/>
+                                                </td>
+                                                <td>
+                                                    <c:out value="${es.startTime}"/>
+                                                    -
+                                                    <c:out value="${es.endTime}"/>
+                                                </td>
+                                                <td>
+                                                    <c:out value="${es.onLeaveName}"/>
+                                                </td>
+                                                <td>
+                                                    <c:out value="${es.positionTitle}"/>
+                                                </td>
+                                                <td>
+                                                    <c:choose>
+                                                        <c:when test="${es.alreadyRequested eq 1}">
+                                                            <span class="badge bg-secondary">
+                                                                Đã có người đăng ký
+                                                            </span>
+                                                        </c:when>
+                                                        <c:when test="${es.timeConflict eq 1}">
+                                                            <span class="badge bg-warning">
+                                                                Trùng giờ ca của bạn
+                                                            </span>
+                                                        </c:when>
+                                                        <c:otherwise>
+                                                            <span class="badge bg-success">
+                                                                Có thể nhận
+                                                            </span>
+                                                        </c:otherwise>
+                                                    </c:choose>
+                                                </td>
+                                                <td>
+                                                    <input type="radio"
+                                                           class="form-check-input"
+                                                           name="extraShiftId"
+                                                           value="${es.id}"
+                                                           <c:if test="${es.alreadyRequested eq 1 or es.timeConflict eq 1}">disabled</c:if>>
+                                                </td>
+                                            </tr>
+                                        </c:forEach>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label">Lý do đổi ca</label>
                     <textarea name="reason" rows="3"
@@ -516,6 +650,11 @@
                                                 Đổi với đồng nghiệp
                                             </span>
                                         </c:when>
+                                        <c:when test="${r.requestType eq 'EXTRA'}">
+                                            <span class="badge bg-success">
+                                                Nhận làm thêm ca
+                                            </span>
+                                        </c:when>
                                         <c:otherwise>
                                             <span class="badge bg-primary">
                                                 Chuyển sang ca trống
@@ -524,9 +663,19 @@
                                     </c:choose>
                                 </td>
                                 <td>
-                                    <c:out value="${r.myDate}"/>
-                                    -
-                                    <c:out value="${r.myShift}"/>
+                                    <c:choose>
+                                        <c:when test="${r.requestType eq 'EXTRA'}">
+                                            <span class="text-muted">
+                                                <i class="fa-solid fa-plus"></i>
+                                                Lịch hiện tại giữ nguyên
+                                            </span>
+                                        </c:when>
+                                        <c:otherwise>
+                                            <c:out value="${r.myDate}"/>
+                                            -
+                                            <c:out value="${r.myShift}"/>
+                                        </c:otherwise>
+                                    </c:choose>
                                 </td>
                                 <td>
                                     <c:out value="${r.targetDate}"/>
@@ -692,6 +841,18 @@
 
     let weekStart = getMonday(new Date());
 
+    // Tuần đang xem do server quyết định (thứ 2 của tuần được chọn).
+    const serverWeekStart = document.getElementById("startDateInput");
+    if (serverWeekStart && serverWeekStart.value) {
+        const parts = serverWeekStart.value.split("-");
+        if (parts.length === 3) {
+            weekStart = new Date(
+                Number(parts[0]),
+                Number(parts[1]) - 1,
+                Number(parts[2])
+            );
+        }
+    }
     function resetSelection() {
         targetInput.value = "";
         panel.classList.add("d-none");
@@ -819,58 +980,85 @@
         });
     }
 
+    // ---- Chuyển tuần ----
+    // Dữ liệu ca được load theo TUẦN ĐANG XEM từ server, nên khi
+    // đổi tuần phải reload lại trang kèm tham số startDate.
+    function gotoWeek(offsetDays) {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + offsetDays);
+
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+
+        window.location.href =
+                window.location.pathname + "?startDate=" + y + "-" + m + "-" + day;
+    }
+
     document.getElementById("prevWeek")
-            .addEventListener("click", () => {
-                weekStart.setDate(weekStart.getDate() - 7);
-                resetSelection();
-                renderWeek();
-            });
+            .addEventListener("click", () => gotoWeek(-7));
 
     document.getElementById("nextWeek")
-            .addEventListener("click", () => {
-                weekStart.setDate(weekStart.getDate() + 7);
-                resetSelection();
-                renderWeek();
-            });
+            .addEventListener("click", () => gotoWeek(7));
 
     const swapForm = targetInput.closest("form");
 
-    // ---- Chuyển tab: đổi với đồng nghiệp / chuyển sang ca trống ----
+    // ---- Chuyển tab: đổi với đồng nghiệp / chuyển sang ca trống
+    //      / nhận làm thêm ca ----
     const formAction = document.getElementById("formAction");
     const swapMode = document.getElementById("swapMode");
     const openMode = document.getElementById("openMode");
+    const extraMode = document.getElementById("extraMode");
+    const myScheduleBlock = document.getElementById("myScheduleBlock");
+    const myScheduleInput = document.getElementById("myScheduleId");
     const tabSwap = document.getElementById("tabSwap");
     const tabOpen = document.getElementById("tabOpen");
+    const tabExtra = document.getElementById("tabExtra");
     let currentMode = "swap";
+
+    function clearRadio(name) {
+        document.querySelectorAll(
+                'input[name="' + name + '"]')
+                .forEach(r => r.checked = false);
+    }
 
     function setMode(mode) {
         currentMode = mode;
 
-        if (mode === "open") {
-            formAction.value = "createOpen";
-            swapMode.classList.add("d-none");
-            openMode.classList.remove("d-none");
-            tabSwap.classList.remove("active");
-            tabOpen.classList.add("active");
+        // Ẩn/hiện các khối theo chế độ.
+        swapMode.classList.toggle("d-none", mode !== "swap");
+        openMode.classList.toggle("d-none", mode !== "open");
+        extraMode.classList.toggle("d-none", mode !== "extra");
 
-            // Bỏ chọn ca đồng nghiệp khi chuyển sang ca trống
-            resetSelection();
+        tabSwap.classList.toggle("active", mode === "swap");
+        tabOpen.classList.toggle("active", mode === "open");
+        tabExtra.classList.toggle("active", mode === "extra");
+
+        if (mode === "extra") {
+            // Nhận thêm ca: không cần chọn ca hiện tại.
+            formAction.value = "createExtra";
+            myScheduleBlock.classList.add("d-none");
+            myScheduleInput.required = false;
+            clearRadio("openShiftId");
+            clearRadio("extraShiftId");
         } else {
-            formAction.value = "create";
-            openMode.classList.add("d-none");
-            swapMode.classList.remove("d-none");
-            tabOpen.classList.remove("active");
-            tabSwap.classList.add("active");
+            formAction.value = mode === "open" ? "createOpen" : "create";
+            myScheduleBlock.classList.remove("d-none");
+            myScheduleInput.required = true;
+            clearRadio("extraShiftId");
 
-            // Bỏ chọn ca trống khi chuyển sang đổi với đồng nghiệp
-            document.querySelectorAll(
-                    'input[name="openShiftId"]')
-                    .forEach(r => r.checked = false);
+            if (mode === "open") {
+                // Bỏ chọn ca đồng nghiệp khi chuyển sang ca trống
+                resetSelection();
+            } else {
+                clearRadio("openShiftId");
+            }
         }
     }
 
     tabSwap.addEventListener("click", () => setMode("swap"));
     tabOpen.addEventListener("click", () => setMode("open"));
+    tabExtra.addEventListener("click", () => setMode("extra"));
 
     swapForm.addEventListener("submit", e => {
         if (currentMode === "swap") {
@@ -878,13 +1066,21 @@
                 e.preventDefault();
                 alert("Vui lòng chọn nhân viên muốn đổi ca.");
             }
-        } else {
+        } else if (currentMode === "open") {
             const openSelected = document.querySelector(
                     'input[name="openShiftId"]:checked');
 
             if (!openSelected) {
                 e.preventDefault();
                 alert("Vui lòng chọn một ca trống để chuyển sang.");
+            }
+        } else if (currentMode === "extra") {
+            const extraSelected = document.querySelector(
+                    'input[name="extraShiftId"]:checked');
+
+            if (!extraSelected) {
+                e.preventDefault();
+                alert("Vui lòng chọn một ca để đăng ký nhận thêm.");
             }
         }
     });

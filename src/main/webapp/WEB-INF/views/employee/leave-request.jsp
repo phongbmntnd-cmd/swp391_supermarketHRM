@@ -134,6 +134,17 @@
             opacity: 0.75;
         }
 
+        /* Ngày không có ca trong cửa sổ 2 tuần */
+        .shift-row.no-shift {
+            background: #f8fafc;
+            cursor: default;
+            opacity: 0.7;
+        }
+
+        .shift-row.no-shift:hover {
+            background: #f8fafc;
+        }
+
         .shift-row input[type=checkbox] {
             width: 17px;
             height: 17px;
@@ -495,45 +506,56 @@
                         <div class="shift-picker">
                             <div class="shift-picker-header">
                                 <c:choose>
-                                    <c:when test="${hasPublishedSchedule}">
+                                    <c:when test="${weekPublishState eq 'PUBLISHED'}">
                                         <i class="fa-solid fa-calendar-check text-success"></i>
-                                        Ca của bạn đã được xếp trong tuần này
+                                        Ca của bạn đã được xếp và công bố
+                                        trong tuần này
+                                    </c:when>
+                                    <c:when test="${weekPublishState eq 'PARTIAL'}">
+                                        <i class="fa-solid fa-calendar-day text-warning"></i>
+                                        Lịch tuần này <strong>chưa công bố
+                                        đầy đủ</strong> - các ca đã xếp
+                                        (chưa công bố) có thể thay đổi
                                     </c:when>
                                     <c:otherwise>
                                         <i class="fa-solid fa-calendar-day text-warning"></i>
-                                        Lịch tuần này chưa được công bố -
-                                        chọn ca theo ca cố định của bạn
+                                        Lịch tuần này chưa được công bố
                                     </c:otherwise>
                                 </c:choose>
                             </div>
 
                             <div class="shift-list">
-                                <%-- Ca đã được xếp + ca cố định cho ngày chưa có lịch --%>
+                                <%-- 14 ngày liên tiếp: ngày có ca thì ghi ca, ngày không có ca thì để trống --%>
                                 <c:forEach var="s" items="${shiftChoices}">
-                                    <label class="shift-row ${s.onLeave ? 'on-leave' : ''}">
+                                    <label class="shift-row ${s.onLeave ? 'on-leave' : ''} ${s.hasShift ? '' : 'no-shift'}">
                                         <input type="checkbox"
                                                name="selectedShifts"
                                                value="${s.workDate}_${s.shiftId}"
                                                data-date="${s.workDate}"
                                                data-on-leave="${s.onLeave}"
                                                data-hours="${s.hours}"
-                                               <c:if test="${s.onLeave}">disabled</c:if>>
+                                               data-has-shift="${s.hasShift}"
+                                               <c:if test="${s.onLeave or !s.hasShift}">disabled</c:if>>
                                         <span class="shift-day">
                                             <c:out value="${s.workDate}"/>
-                                            <c:if test="${!s.scheduled}">
-                                                <small class="text-muted">(dự kiến)</small>
-                                            </c:if>
-                                        </span>
-                                        <span class="shift-name">
-                                            <c:out value="${s.shiftName}"/>
-                                            (<c:out value="${s.startTime}"/>
-                                            - <c:out value="${s.endTime}"/>)
                                             <c:if test="${s.onLeave}">
                                                 <span class="badge bg-secondary">Đã nghỉ</span>
                                             </c:if>
+                                            <c:if test="${s.scheduled and !s.published and !s.onLeave}">
+                                                <span class="badge bg-warning text-dark">Chưa công bố</span>
+                                            </c:if>
+                                        </span>
+                                        <span class="shift-name">
+                                            <c:if test="${s.hasShift}">
+                                                <c:out value="${s.shiftName}"/>
+                                                (<c:out value="${s.startTime}"/>
+                                                - <c:out value="${s.endTime}"/>)
+                                            </c:if>
                                         </span>
                                         <span class="shift-hours">
-                                            <c:out value="${s.hours}"/> giờ
+                                            <c:if test="${s.hasShift}">
+                                                <c:out value="${s.hours}"/> giờ
+                                            </c:if>
                                         </span>
                                     </label>
                                 </c:forEach>
@@ -541,7 +563,8 @@
                                 <c:if test="${empty shiftChoices}">
                                     <div class="p-3 text-center text-muted"
                                          style="font-style: italic;">
-                                        Bạn chưa có ca nào được xếp.
+                                        Bạn không có ca nào trong khoảng
+                                        thời gian này.
                                         Vui lòng liên hệ Store Manager.
                                     </div>
                                 </c:if>
@@ -558,9 +581,16 @@
 
                         <div class="legend-note mt-1">
                             <i class="fa-solid fa-info-circle"></i>
-                            Chỉ những ca đã được xếp mới có thể xin nghỉ.
-                            Nếu tuần lịch chưa được công bố, hệ thống sẽ
-                            khớp lại khi lịch được publish.
+                            Danh sách dưới đây là <strong>14 ngày
+                            liên tiếp</strong> (2 tuần) kể từ hôm nay.
+                            <br>
+                            Ngày nào bạn được xếp ca sẽ hiện ca kèm
+                            giờ để tick. Ngày không có ca sẽ
+                            <strong>để trống</strong>.
+                            <br>
+                            <strong>Chưa công bố</strong> nghĩa là
+                            Store đã xếp ca cho bạn nhưng lịch tuần đó
+                            chưa được công bố, ca có thể còn thay đổi.
                         </div>
                     </div>
                 </c:if>
@@ -955,7 +985,12 @@
             }
 
             Array.prototype.forEach.call(boxes, function (b) {
-                b.addEventListener('change', refreshShiftSummary);
+                b.addEventListener('change', function () {
+                    // Phải validate lại: nút "Gửi đơn" được bật/tắt
+                    // dựa trên số ca đang tick và hạn báo trước.
+                    touched = true;
+                    validate();
+                });
             });
 
             refreshShiftSummary();
@@ -1106,19 +1141,38 @@
                 'input[name="selectedShifts"]');
             var error = null;
             var count = 0;
-            var overdueCount = 0;
-            var pastCount = 0;
+            // Số ca bị CHẶN mà nhân viên đang cố tick.
+            // Ca quá hạn/không có ca chỉ bị khoá, không tính vào đây
+            // để không báo lỗi phiền khi nhân viên chưa chọn chúng.
+            var blockedCount = 0;
             var today = parseISO(toISO(new Date()));
 
             Array.prototype.forEach.call(boxes, function (b) {
                 var onLeave = b.getAttribute('data-on-leave') === 'true';
+                var hasShift = b.getAttribute('data-has-shift') === 'true';
                 var d = parseISO(b.getAttribute('data-date'));
 
                 // Ca đang ON_LEAVE: không bao giờ tick được
                 if (onLeave) {
+                    if (b.checked) {
+                        blockedCount++;
+                    }
                     b.disabled = true;
                     b.checked = false;
                     b.title = 'Ca này bạn đang nghỉ.';
+                    return;
+                }
+
+                // Ngày KHÔNG có ca -> không tick được. Phải giữ
+                // disabled, nếu không JS sẽ bật lại và nhân viên
+                // có thể tick nhầm vào một ngày không có ca.
+                if (!hasShift) {
+                    if (b.checked) {
+                        blockedCount++;
+                    }
+                    b.disabled = true;
+                    b.checked = false;
+                    b.title = 'Ngày này bạn không có ca làm.';
                     return;
                 }
 
@@ -1131,23 +1185,30 @@
 
                 // Ngày trong quá khứ -> không được tick
                 if (d < today) {
+                    if (b.checked) {
+                        blockedCount++;
+                    }
                     b.disabled = true;
                     b.checked = false;
                     b.title = 'Không thể xin nghỉ cho ngày trong quá khứ.';
-                    pastCount++;
                     return;
                 }
 
-                // Quá hạn báo trước -> không được tick
+                // Quá hạn báo trước -> không được tick.
+                // CHỈ báo lỗi khi nhân viên cố tick ca này; các ca
+                // quá hạn khác trong 14 ngày chỉ bị khoá, không gây
+                // phiền vì nhân viên không chọn chúng.
                 if (!sameDay && notice > 0) {
                     var dl = getDeadline(d, notice);
                     if (isOverdue(dl)) {
+                        if (b.checked) {
+                            blockedCount++;
+                        }
                         b.disabled = true;
                         b.checked = false;
                         b.title = dl.date
                             ? 'Đã quá hạn gửi đơn (hạn: ' + fmtVn(dl.date) + ')'
                             : 'Đã quá hạn gửi đơn';
-                        overdueCount++;
                         return;
                     }
                 }
@@ -1159,14 +1220,12 @@
 
             refreshShiftSummary();
 
-            if (overdueCount > 0) {
-                error = 'Có <strong>' + overdueCount + '</strong> ca đã quá hạn '
-                    + 'gửi đơn nên không thể chọn. '
+            if (blockedCount > 0) {
+                error = 'Có <strong>' + blockedCount + '</strong> ca không thể '
+                    + 'chọn (đã quá hạn gửi đơn, nằm trong quá khứ, '
+                    + 'đang nghỉ hoặc không có ca). '
                     + 'Loại nghỉ này yêu cầu báo trước tối thiểu '
                     + fmtHours(notice) + '.';
-            } else if (pastCount > 0) {
-                error = 'Có <strong>' + pastCount + '</strong> ca thuộc ngày '
-                    + 'trong quá khứ nên không thể chọn.';
             }
 
             setClientError(error);

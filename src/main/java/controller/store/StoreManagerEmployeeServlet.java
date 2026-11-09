@@ -16,6 +16,7 @@ import model.EmployeeProfile;
 import model.EmployeeLock;
 import model.Branch;
 import model.AuditLog;
+import util.AuditDescription;
 import java.io.IOException;
 import java.util.List;
 

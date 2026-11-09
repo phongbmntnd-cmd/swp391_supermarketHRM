@@ -49,6 +49,22 @@ public class PositionDAO {
         return p != null ? p.getTitle() : null;
     }
 
+    /** Lấy id của vị trí theo tiêu đề (dùng sau khi tạo mới để ghi audit log) */
+    public int getPositionIdByTitle(String title) {
+        if (title == null || title.trim().isEmpty()) return -1;
+        String sql = "SELECT id FROM positions WHERE title = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, title.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
     public boolean existsByTitle(String title) {
         String sql = "SELECT COUNT(*) FROM positions WHERE title = ?";
         try (Connection conn = new DBContext().getConnection();

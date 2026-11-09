@@ -52,6 +52,22 @@ public class DepartmentDAO {
         return d != null ? d.getName() : null;
     }
 
+    /** Lấy id của phòng ban theo tên (dùng sau khi tạo mới để ghi audit log) */
+    public int getDepartmentIdByName(String name) {
+        if (name == null || name.trim().isEmpty()) return -1;
+        String sql = "SELECT id FROM departments WHERE name = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name.trim());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
     public boolean existsByName(String name) {
         String sql = "SELECT COUNT(*) FROM departments WHERE name = ?";
         try (Connection conn = new DBContext().getConnection();
