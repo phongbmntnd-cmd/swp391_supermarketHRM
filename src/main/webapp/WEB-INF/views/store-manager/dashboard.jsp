@@ -4,11 +4,8 @@
     Author     : phong
 --%>
 
-<<<<<<< HEAD
-<%@page contentType="text/html;charset=UTF-8" language="java" %>
-=======
+
 <%@page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" language="java" %>
->>>>>>> origin/báo-cáo-toàn-chuỗi
 <%@taglib prefix="c" uri="jakarta.tags.core"%>
 <!DOCTYPE html>
 <html lang="vi">
@@ -328,8 +325,8 @@
             </div>
             <ul class="sidebar-menu">
                 <li class="active"><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Nhân sự cơ sở</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Quản lí nhân sự cơ sở</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng/tiếp nhận</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clock-rotate-left"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-week"></i> Xếp lịch & Phân ca</a></li>
@@ -468,7 +465,7 @@
                                 <div class="card-icon" style="background-color: #f59e0b;">
                                     <i class="fa-solid fa-file-pen"></i>
                                 </div>
-                                <h3>Quản Lý Đề Xuất Tiếp Nhận Nhân Sự</h3>
+                                <h3>Quản Lý Đề Xuất Tuyển Dụng/Tiếp Nhận Nhân Sự</h3>
                             </div>
                             <p>Lập các yêu cầu tiếp nhận nhân sự mới, gửi trực tiếp lên bộ phận Nhân sự (HR) xem xét và phê duyệt.</p>
                         </div>
@@ -524,14 +521,39 @@
                                 <div class="card-icon" style="background-color: #ef4444;">
                                     <i class="fa-solid fa-triangle-exclamation"></i>
                                 </div>
-                                <h3>Báo cáo vi phạm</h3>
+                                <h3>Báo Cáo Vi Phạm</h3>
                             </div>
                             <p>Ghi nhận sự việc để HR xác minh trước khi có quyết định xử lý.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/store-manager/violations" class="card-link">Thông tin chi tiết <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Tính năng 7: Duyệt nghỉ phép -->
+                    <!-- Tính năng 7: Báo cáo chi nhánh -->
+                    <div class="card-item">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #ef4444;">
+                                    <i class="fa-solid fa-chart-column"></i>
+                                </div>
+                                <h3>Báo Cáo Chi Nhánh</h3>
+                            </div>
+
+                            <p>
+                                Theo dõi nhân sự, ca làm, chấm công,
+                                vi phạm và tình hình lương tại chi nhánh
+                                đang quản lý.
+                            </p>
+                        </div>
+
+                        <a href="${pageContext.request.contextPath}/director/reports"
+                           class="card-link">
+                            Thông tin chi tiết
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+
+
+                    <!-- Tính năng 8: Duyệt nghỉ phép -->
                     <div class="card-item">
                         <div>
                             <div class="card-icon-title">
@@ -545,7 +567,7 @@
                         <a href="${pageContext.request.contextPath}/store-manager/leave-requests" class="card-link">Xem đơn nghỉ phép <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Tính năng 8: Duyệt đổi ca -->
+                    <!-- Tính năng 9: Duyệt đổi ca -->
                     <div class="card-item">
                         <div>
                             <div class="card-icon-title">
@@ -567,11 +589,11 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
         <script>
-                                        function changeBranch(branchId) {
-                                            window.location.href =
-                                                    '${pageContext.request.contextPath}/store-manager/dashboard'
-                                                    + '?branchId=' + encodeURIComponent(branchId);
-                                        }
+                                function changeBranch(branchId) {
+                                    window.location.href =
+                                            '${pageContext.request.contextPath}/store-manager/dashboard'
+                                            + '?branchId=' + encodeURIComponent(branchId);
+                                }
         </script>
     </body>
 </html>

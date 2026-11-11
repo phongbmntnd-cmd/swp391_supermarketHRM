@@ -7,9 +7,13 @@ import model.RecruitmentProposal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class RecruitmentProposalDAO {
 
@@ -384,6 +388,184 @@ public class RecruitmentProposalDAO {
         }
     }
 
+    public boolean createUserFromRecruitmentRequest(
+            int recruitmentRequestId,
+            String username,
+            String fullName,
+            String phone,
+            String identityCard,
+            String email,
+            String expirationDate) {
+
+        if (recruitmentRequestId <= 0
+                || username == null || username.trim().isEmpty()
+                || fullName == null || fullName.trim().isEmpty()
+                || phone == null || phone.trim().isEmpty()
+                || identityCard == null || identityCard.trim().isEmpty()) {
+            return false;
+        }
+
+        Connection conn = null;
+
+        try {
+            conn = DBContext.getConnection();
+            conn.setAutoCommit(false);
+
+            // Lấy thông tin đề xuất đã duyệt trực tiếp từ database
+            String requestSql
+                    = "SELECT rr.branch_id, rr.position_id, "
+                    + "p.department_id, rr.employment_type, rr.shift_type "
+                    + "FROM recruitment_requests rr "
+                    + "JOIN positions p ON p.id = rr.position_id "
+                    + "WHERE rr.id = ? AND rr.status = 'APPROVED' "
+                    + "FOR UPDATE";
+
+            int branchId;
+            int positionId;
+            int departmentId;
+            String employeeType;
+            String shiftType;
+
+            try (PreparedStatement ps = conn.prepareStatement(requestSql)) {
+                ps.setInt(1, recruitmentRequestId);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        conn.rollback();
+                        return false;
+                    }
+
+                    branchId = rs.getInt("branch_id");
+                    positionId = rs.getInt("position_id");
+                    departmentId = rs.getInt("department_id");
+                    employeeType = rs.getString("employment_type");
+                    shiftType = rs.getString("shift_type");
+                }
+            }
+
+            // Tạo tài khoản nhân viên
+            String userSql
+                    = "INSERT INTO users "
+                    + "(username, password_hash, email, status, "
+                    + "expiration_date, role_id, is_first_login, "
+                    + "created_at, updated_at) "
+                    + "VALUES (?, '123456', ?, 'ACTIVE', ?, 5, 1, "
+                    + "NOW(), NOW())";
+
+            int newUserId;
+
+            try (PreparedStatement ps = conn.prepareStatement(
+                    userSql, Statement.RETURN_GENERATED_KEYS)) {
+
+                ps.setString(1, username.trim());
+                ps.setString(2,
+                        email == null || email.trim().isEmpty()
+                        ? null : email.trim());
+
+                if (expirationDate != null
+                        && !expirationDate.trim().isEmpty()) {
+                    ps.setDate(3,
+                            java.sql.Date.valueOf(expirationDate));
+                } else {
+                    ps.setNull(3, Types.DATE);
+                }
+
+                if (ps.executeUpdate() != 1) {
+                    conn.rollback();
+                    return false;
+                }
+
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (!keys.next()) {
+                        conn.rollback();
+                        return false;
+                    }
+                    newUserId = keys.getInt(1);
+                }
+            }
+
+            // Tạo hồ sơ và gán vào đúng chi nhánh đề xuất
+            String profileSql
+                    = "INSERT INTO employee_profiles "
+                    + "(user_id, full_name, phone, identity_card, "
+                    + "home_branch_id, position_id, department_id, "
+                    + "employee_type, shift_type) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            try (PreparedStatement ps = conn.prepareStatement(profileSql)) {
+                ps.setInt(1, newUserId);
+                ps.setString(2, fullName.trim());
+                ps.setString(3, phone.trim());
+                ps.setString(4, identityCard.trim());
+                ps.setInt(5, branchId);
+                ps.setInt(6, positionId);
+
+                if (departmentId > 0) {
+                    ps.setInt(7, departmentId);
+                } else {
+                    ps.setNull(7, Types.INTEGER);
+                }
+
+                ps.setString(8, employeeType);
+                ps.setString(9, shiftType);
+
+                if (ps.executeUpdate() != 1) {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            // Tạo hợp đồng bằng chức năng có sẵn
+            ContractDAO contractDAO = new ContractDAO();
+
+            String contractType
+                    = expirationDate != null
+                    && !expirationDate.trim().isEmpty()
+                    ? "Hợp đồng THỜI VỤ"
+                    : "Hợp đồng CHÍNH THỨC";
+
+            boolean contractCreated = contractDAO.addContractWithConn(
+                    conn,
+                    newUserId,
+                    contractType,
+                    null,
+                    expirationDate,
+                    "ACTIVE"
+            );
+
+            if (!contractCreated) {
+                conn.rollback();
+                return false;
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
+
+            return false;
+
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
     public List<RecruitmentProposal> getProposalsByBranch(int branchId) {
         List<RecruitmentProposal> list = new ArrayList<>();
         String sql = BASE_SELECT + "WHERE rp.branch_id = ? ORDER BY rp.created_at DESC";
@@ -560,4 +742,5 @@ public class RecruitmentProposalDAO {
 
         return rp;
     }
+
 }

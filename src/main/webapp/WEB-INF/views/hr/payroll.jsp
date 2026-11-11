@@ -81,15 +81,18 @@
 </head>
 <body>
 <aside class="sidebar">
-    <div class="sidebar-brand"><span class="brand-icon"><i class="fa-solid fa-user-tie"></i></span><span>HR Management</span></div>
-    <div class="sidebar-caption">Không gian nhân sự</div>
-    <ul>
-        <li><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line me-2"></i>Bảng điều khiển</a></li>
-        <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book me-2"></i>Quản lý hồ sơ</a></li>
-        <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced me-2"></i>Quản lý vi phạm</a></li>
-        <li class="active"><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave me-2"></i>Tính lương</a></li>
-    </ul>
-</aside>
+            <div class="sidebar-brand"><i class="fa-solid fa-user-tie"></i><span>HR Management</span></div>
+            <ul class="sidebar-menu">
+                <li><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/branch-request"><i class="fa-solid fa-store"></i>Yêu cầu mở chi nhánh</a></li>
+                <li class="active"><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
+                <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo toàn chuỗi</a></li>
+            </ul>
+        </aside>
 <main class="main">
     <header class="topbar">
         <span class="topbar-title">Hệ thống quản trị nhân sự</span>

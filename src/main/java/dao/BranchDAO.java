@@ -22,21 +22,67 @@ public class BranchDAO {
     // 1. Hiển thị danh sách Cơ sở
     public List<Branch> getAllBranches() {
         List<Branch> list = new ArrayList<>();
-        String sql = "SELECT * FROM branches ORDER BY id DESC";
+
+        String sql
+                = "SELECT b.*, "
+                + "COALESCE( "
+                + "    NULLIF(ep_temp.full_name, ''), "
+                + "    u_temp.username, "
+                + "    NULLIF(ep_main.full_name, ''), "
+                + "    u_main.username "
+                + ") AS manager_name, "
+                + "CASE WHEN ba.id IS NOT NULL THEN 1 ELSE 0 END "
+                + "AS is_temporary "
+                + "FROM branches b "
+                // Lấy phân công kiêm nhiệm đang còn hiệu lực
+                + "LEFT JOIN branch_manager_assignments ba "
+                + "ON ba.id = ( "
+                + "    SELECT ba2.id "
+                + "    FROM branch_manager_assignments ba2 "
+                + "    WHERE ba2.branch_id = b.id "
+                + "      AND CURDATE() BETWEEN ba2.start_date "
+                + "      AND ba2.end_date "
+                + "    ORDER BY ba2.start_date DESC, ba2.id DESC "
+                + "    LIMIT 1 "
+                + ") "
+                // Thông tin quản lý kiêm nhiệm
+                + "LEFT JOIN users u_temp "
+                + "ON u_temp.id = ba.manager_id "
+                + "LEFT JOIN employee_profiles ep_temp "
+                + "ON ep_temp.user_id = u_temp.id "
+                // Thông tin quản lý chính
+                + "LEFT JOIN users u_main "
+                + "ON u_main.id = b.store_manager_id "
+                + "LEFT JOIN employee_profiles ep_main "
+                + "ON ep_main.user_id = u_main.id "
+                + "ORDER BY b.id DESC";
+
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 Branch b = new Branch();
+
                 b.setId(rs.getInt("id"));
                 b.setCode(rs.getString("code"));
                 b.setName(rs.getString("name"));
                 b.setAddress(rs.getString("address"));
                 b.setStatus(rs.getString("status"));
-                b.setStoreManagerId(rs.getInt("store_manager_id"));
+                b.setStoreManagerId(
+                        rs.getInt("store_manager_id"));
+
+                b.setManagerName(
+                        rs.getString("manager_name"));
+
+                b.setTemporaryManager(
+                        rs.getBoolean("is_temporary"));
+
                 list.add(b);
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         return list;
     }
 
@@ -257,9 +303,11 @@ public class BranchDAO {
     }
 
     /**
-     * Hàm này sẽ lấy các chi nhánh đang hoạt động mà SM quản lý trực tiếp, cùng các chi nhánh được kiêm nhiệm trong thời gian có hiệu lực.
+     * Hàm này sẽ lấy các chi nhánh đang hoạt động mà SM quản lý trực tiếp, cùng
+     * các chi nhánh được kiêm nhiệm trong thời gian có hiệu lực.
+     *
      * @param managerId
-     * @return 
+     * @return
      */
     public List<Branch> getManagedBranches(int managerId) {
 

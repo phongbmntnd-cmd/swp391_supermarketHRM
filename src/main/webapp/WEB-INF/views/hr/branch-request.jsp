@@ -10,9 +10,10 @@
 <html lang="vi">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Yêu cầu mở chi nhánh - HR</title>
-        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Yêu cầu mở chi nhánh - HR Management</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
             * {
@@ -20,118 +21,233 @@
             }
             body {
                 margin: 0;
+                font-family: 'Roboto', sans-serif;
                 background: #f4f7f6;
-                color: #334155;
-                font-family: Roboto, Arial, sans-serif;
+                color: #333;
+                display: flex;
+                min-height: 100vh;
             }
-            .topbar {
+            .sidebar {
+                width: 260px;
                 background: #1e293b;
-                color: white;
-                padding: 18px 32px;
+                color: #94a3b8;
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                inset: 0 auto 0 0;
+                z-index: 100;
+                box-shadow: 2px 0 10px rgba(0,0,0,.1);
+            }
+            .sidebar-brand {
+                padding: 25px 20px;
+                font-size: 18px;
+                font-weight: 700;
+                color: #fff;
+                background: #0f172a;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .sidebar-brand i {
+                color: #38bdf8;
+                font-size: 22px;
+            }
+            .sidebar-menu {
+                list-style: none;
+                padding: 20px 0;
+                margin: 0;
+                overflow-y: auto;
+            }
+            .sidebar-menu a {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                padding: 14px 25px;
+                color: #94a3b8;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 500;
+                border-left: 4px solid transparent;
+            }
+            .sidebar-menu a:hover, .sidebar-menu .active a {
+                color: #fff;
+                background: rgba(255,255,255,.05);
+                border-left-color: #38bdf8;
+            }
+            .sidebar-menu i {
+                width: 20px;
+                text-align: center;
+            }
+            .main-wrapper {
+                margin-left: 260px;
+                flex: 1;
+                min-width: 0;
+            }
+            .top-navbar {
+                background: #fff;
+                color: #1e293b;
+                padding: 15px 35px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                gap: 16px;
+                gap: 20px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.05);
+                position: sticky;
+                top: 0;
+                z-index: 99;
             }
-            .topbar h1 {
-                font-size: 19px;
+            .top-navbar h1 {
                 margin: 0;
+                font-size: 18px;
+                font-weight: 500;
+                color: #334155;
             }
-            .back {
-                color: white;
+            .user-info {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                font-size: 14px;
+            }
+            .btn-logout {
+                color: #ef4444;
                 text-decoration: none;
-                border: 1px solid #64748b;
+                background: #ffeeef;
+                padding: 6px 14px;
                 border-radius: 6px;
-                padding: 9px 13px;
+                font-weight: 500;
                 font-size: 13px;
+                white-space: nowrap;
             }
-            .wrap {
-                max-width: 1200px;
-                margin: 30px auto;
-                padding: 0 20px;
+            .page-content {
+                max-width: 1400px;
+                margin: 30px;
             }
-            .panel {
-                background: white;
-                border-radius: 10px;
-                padding: 24px;
-                box-shadow: 0 3px 15px rgba(15,23,42,.06);
+            .page-title {
+                background: linear-gradient(135deg,#0284c7,#0369a1);
+                color: #fff;
+                padding: 25px 30px;
+                border-radius: 12px;
+                margin-bottom: 25px;
+                box-shadow: 0 10px 15px -3px rgba(2,132,199,.2);
             }
-            h2 {
+            .page-title h2 {
                 margin: 0 0 8px;
-                font-size: 20px;
+                font-size: 24px;
             }
-            .sub {
-                color: #64748b;
-                font-size: 14px;
-                margin: 0 0 22px;
+            .page-title p {
+                margin: 0;
+                opacity: .9;
             }
-            .notice {
-                border-radius: 6px;
-                padding: 12px 14px;
-                margin-bottom: 15px;
-                background: #fef2f2;
-                color: #991b1b;
+            .card {
+                border: 0;
+                border-radius: 10px;
             }
-            .table-scroll {
-                overflow-x: auto;
+            .card-header {
+                background: #fff;
+                padding: 16px 20px;
             }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                min-width: 870px;
+            @media (max-width: 900px) {
+                .sidebar {
+                    width: 220px;
+                }
+                .main-wrapper {
+                    margin-left: 220px;
+                }
+                .top-navbar {
+                    padding: 14px 20px;
+                }
+                .page-content {
+                    margin: 20px;
+                }
             }
-            th, td {
-                border-bottom: 1px solid #e2e8f0;
-                padding: 13px 12px;
-                text-align: left;
-                font-size: 14px;
-                vertical-align: top;
+            @media (max-width: 650px) {
+                body {
+                    display: block;
+                }
+                .sidebar {
+                    position: static;
+                    width: 100%;
+                }
+                .sidebar-menu {
+                    display: flex;
+                    overflow-x: auto;
+                    padding: 5px 0;
+                }
+                .sidebar-menu li {
+                    flex: 0 0 auto;
+                }
+                .sidebar-menu a {
+                    padding: 12px;
+                }
+                .main-wrapper {
+                    margin-left: 0;
+                }
+                .top-navbar {
+                    position: static;
+                    flex-wrap: wrap;
+                }
+                .page-content {
+                    margin: 15px;
+                }
             }
-            th {
-                background: #f8fafc;
-                font-weight: 600;
-            }
-            .badge {
-                display: inline-block;
-                font-size: 12px;
-                padding: 5px 8px;
-                border-radius: 5px;
-                background: #fef3c7;
-                color: #92400e;
-                font-weight: 600;
-            }
-            .badge.progress {
-                background: #dbeafe;
-                color: #1d4ed8;
-            }
-            .badge.completed {
-                background: #dcfce7;
-                color: #166534;
-            }
-            .empty {
-                color: #64748b;
-                text-align: center;
-                padding: 25px;
-            }
-            .muted {
-                color: #64748b;
-                font-size: 12px;
-            }
+        
+            /* Branch requests - style aligned with HR violation page */
+            .branch-card { border: 0; border-radius: 10px; overflow: hidden; }
+            .branch-card .card-header { border-bottom: 1px solid #e2e8f0; }
+            .branch-table { min-width: 1120px; font-size: 14px; }
+            .branch-table th { background: #f8fafc; white-space: nowrap; color: #334155; font-weight: 600; }
+            .branch-table td { vertical-align: middle; }
+            .branch-table td.actions { min-width: 175px; }
+            .branch-table .badge { font-size: 12px; padding: 6px 9px; font-weight: 600; }
+            .branch-table .badge-progress { background: #dbeafe; color: #1d4ed8; }
+            .branch-table .badge-completed { background: #dcfce7; color: #166534; }
+            .branch-table .badge-pending { background: #fef3c7; color: #92400e; }
+            .branch-table .btn { white-space: nowrap; }
+            .muted { color: #64748b; font-size: 12px; }
+            .notice { border-radius: 6px; padding: 12px 14px; margin-bottom: 15px; background: #fef2f2; color: #991b1b; }
+            .assignment-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.55); align-items: center; justify-content: center; z-index: 9999; padding: 18px; }
+            .assignment-modal-dialog { background: white; padding: 25px; border-radius: 12px; width: 450px; max-width: 100%; max-height: calc(100dvh - 36px); overflow-y: auto; box-shadow: 0 16px 45px rgba(0,0,0,.22); }
+            .assignment-modal-dialog label { display: block; font-weight: 500; margin-bottom: 6px; }
+            .assignment-modal-dialog input, .assignment-modal-dialog select, .assignment-modal-dialog textarea { width: 100%; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; }
+            .assignment-modal-dialog input:focus, .assignment-modal-dialog select:focus, .assignment-modal-dialog textarea:focus { border-color: #0284c7; outline: 2px solid rgba(2,132,199,.1); }
+            .assignment-modal-dialog .modal-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
         </style>
     </head>
     <body>
-        <header class="topbar">
-            <h1><i class="fa-solid fa-store"></i> Yêu cầu mở chi nhánh</h1>
-            <a class="back" href="${pageContext.request.contextPath}/hr/dashboard">
-                <i class="fa-solid fa-arrow-left"></i> Về HR Dashboard
-            </a>
-        </header>
-        <main class="wrap">
-            <section class="panel">
-                <h2>Danh sách yêu cầu từ Director</h2>
-                <p class="sub">Theo dõi các yêu cầu mở chi nhánh mới. Yêu cầu mới có trạng thái PENDING_HR.</p>
-
-
+        <aside class="sidebar">
+            <div class="sidebar-brand"><i class="fa-solid fa-user-tie"></i><span>HR Management</span></div>
+            <ul class="sidebar-menu">
+                <li><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li class="active"><a href="${pageContext.request.contextPath}/hr/branch-request"><i class="fa-solid fa-store"></i> Yêu cầu mở chi nhánh</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
+                <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo toàn chuỗi</a></li> 
+            </ul>
+        </aside>
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <h1>Hệ Thống Quản Trị Nhân Sự Toàn Hệ Thống (HR Portal)</h1>
+                <div class="user-info">
+                    <span>Xin chào, <b><c:out value="${sessionScope.account.username}"/></b></span>
+                    <a href="${pageContext.request.contextPath}/logout" class="btn-logout">
+                        <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                    </a>
+                </div>
+            </header>
+            <main class="page-content">
+                <div class="page-title d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                    <div>
+                        <h2 class="mb-1"><i class="fa-solid fa-store me-2"></i>Yêu cầu mở chi nhánh</h2>
+                        <p class="mb-0">Tiếp nhận và xử lý yêu cầu mở cơ sở mới từ Director, bổ nhiệm quản lý và kích hoạt chi nhánh.</p>
+                    </div>
+                    <a href="${pageContext.request.contextPath}/hr/dashboard"
+                       class="btn btn-light text-primary fw-semibold shadow-sm px-3 py-2">
+                        <i class="fa-solid fa-arrow-left me-1"></i> Quay lại
+                    </a>
+                </div>
                 <!-- Hiển thị lỗi khi gia hạn kiêm nhiệm -->
                 <c:if test="${not empty sessionScope.extendError}">
                     <div style="background:#fee2e2;
@@ -157,9 +273,17 @@
                 <c:if test="${not empty error}">
                     <div class="notice"><c:out value="${error}" /></div>
                 </c:if>
-                <div class="table-scroll">
-                    <table>
-                        <thead>
+                <section class="card branch-card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <div>
+                            <h3 class="h5 mb-1"><i class="fa-solid fa-list-check text-primary me-2"></i>Danh sách yêu cầu từ Director</h3>
+                            <p class="text-secondary small mb-0">Theo dõi tình trạng tiếp nhận, bổ nhiệm quản lý và tiến độ kích hoạt chi nhánh.</p>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 branch-table">
+                        <thead class="table-light">
                             <tr>
                                 <th>ID</th>
                                 <th>Tên chi nhánh</th>
@@ -182,13 +306,13 @@
                                     <td><c:out value="${r.reason}" /></td>
                                     <td><c:out value="${r.requestedBy}" /></td>
                                     <td>
-                                        <span class="badge ${r.status == 'IN_PROGRESS' ? 'progress' : (r.status == 'COMPLETED' ? 'completed' : '')}">
+                                        <span class="badge ${r.status == 'IN_PROGRESS' ? 'badge-progress' : (r.status == 'COMPLETED' ? 'badge-completed' : 'badge-pending')}">
                                             <c:out value="${r.status}" />
                                         </span>
                                     </td>
                                     <td><c:out value="${r.createdAt}" /></td>
 
-                                    <td>
+                                    <td class="actions">
                                         <c:if test="${r.status == 'PENDING_HR'}">
                                             <form action="${pageContext.request.contextPath}/hr/branch-request"
                                                   method="POST"
@@ -214,8 +338,7 @@
                                             <c:if test="${empty r.storeManagerId}">
                                                 <button type="button"
                                                         onclick="showAssignForm('${r.id}', '${r.branchName}')"
-                                                        style="padding:7px 12px; background:#0284c7;
-                                                        color:white; border:none; border-radius:5px;">
+                                                        class="btn btn-primary btn-sm">
                                                     Bổ nhiệm quản lý
                                                 </button>
                                             </c:if>
@@ -224,8 +347,7 @@
                                             <c:if test="${not empty r.storeManagerId}">
                                                 <button type="button"
                                                         onclick="showExtendForm('${r.id}', '${r.branchName}')"
-                                                        style="padding:7px 12px; background:#f59e0b;
-                                                        color:white; border:none; border-radius:5px;">
+                                                        class="btn btn-warning btn-sm">
                                                     Gia hạn kiêm nhiệm
                                                 </button>
 
@@ -246,9 +368,7 @@
                                                         <input type="hidden" name="requestId" value="${r.id}">
 
                                                         <button type="submit"
-                                                                style="background:#16a34a; color:white;
-                                                                border:none; padding:8px 12px;
-                                                                border-radius:5px; cursor:pointer;">
+                                                                class="btn btn-success btn-sm">
                                                             Kích hoạt chi nhánh
                                                         </button>
                                                     </form>
@@ -263,21 +383,19 @@
                                 </tr>
                             </c:forEach>
                             <c:if test="${empty branchRequests}">
-                                <tr><td class="empty" colspan="8">Chưa có yêu cầu mở chi nhánh nào.</td></tr>
+                                <tr><td class="text-center text-secondary py-4" colspan="9">Chưa có yêu cầu mở chi nhánh nào.</td></tr>
                             </c:if>
                         </tbody>
                     </table>
-                </div>
-                <p class="muted" style="margin:16px 0 0;">Bước này chỉ hiển thị yêu cầu. Chức năng Start Processing sẽ được bổ sung sau.</p>
-            </section>
-        </main>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
 
-        <div id="assignModal" style="display:none; position:fixed;
-             inset:0; background:rgba(0,0,0,0.5);
-             align-items:center; justify-content:center; z-index:9999;">
+        <div id="assignModal" class="assignment-modal-overlay">
 
-            <div style="background:white; padding:25px;
-                 border-radius:10px; width:420px; max-width:95%;">
+            <div class="assignment-modal-dialog">
 
                 <h3>Bổ nhiệm Store Manager kiêm nhiệm</h3>
 
@@ -318,15 +436,11 @@
                                required style="width:100%; padding:8px;">
                     </div>
 
-                    <button type="submit"
-                            style="background:#16a34a; color:white;
-                            border:none; padding:9px 15px;
-                            border-radius:5px;">
+                    <button type="submit" class="btn btn-success">
                         Xác nhận bổ nhiệm
                     </button>
 
-                    <button type="button" onclick="closeAssignForm()"
-                            style="padding:9px 15px;">
+                    <button type="button" onclick="closeAssignForm()" class="btn btn-outline-secondary">
                         Hủy
                     </button>
                 </form>
@@ -386,13 +500,9 @@
 
 
         <!-- Modal gia hạn Store Manager kiêm nhiệm -->
-        <div id="extendModal"
-             style="display:none; position:fixed; inset:0;
-             background:rgba(0,0,0,0.5);
-             align-items:center; justify-content:center; z-index:9999;">
+        <div id="extendModal" class="assignment-modal-overlay">
 
-            <div style="background:white; padding:25px;
-                 border-radius:10px; width:420px; max-width:95%;">
+            <div class="assignment-modal-dialog">
 
                 <h3>Gia hạn Store Manager kiêm nhiệm</h3>
 
@@ -421,16 +531,11 @@
                                   placeholder="Nhập lý do gia hạn..."></textarea>
                     </div>
 
-                    <button type="submit"
-                            style="background:#16a34a; color:white;
-                            border:none; padding:9px 15px;
-                            border-radius:5px;">
+                    <button type="submit" class="btn btn-success">
                         Xác nhận gia hạn
                     </button>
 
-                    <button type="button"
-                            onclick="closeExtendForm()"
-                            style="padding:9px 15px;">
+                    <button type="button" onclick="closeExtendForm()" class="btn btn-outline-secondary">
                         Hủy
                     </button>
                 </form>

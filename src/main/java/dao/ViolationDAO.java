@@ -21,6 +21,7 @@ import java.util.List;
 public class ViolationDAO {
 
     public static final class ReviewResult {
+
         private final boolean updated;
         private final int terminatedEmployeeId;
 
@@ -57,12 +58,25 @@ public class ViolationDAO {
 
     public List<User> getBranchEmployees(int branchId) throws SQLException {
         List<User> employees = new ArrayList<>();
+
         String sql = "SELECT u.id, u.username, ep.full_name FROM users u "
                 + "JOIN employee_profiles ep ON ep.user_id = u.id "
-                + "WHERE ep.home_branch_id = ? AND u.role_id = 5 AND u.status = 'ACTIVE' "
+                + "WHERE u.role_id = 5 AND u.status = 'ACTIVE' "
+                + "AND (ep.home_branch_id = ? "
+                + "OR EXISTS ( "
+                + "    SELECT 1 FROM temporary_transfers t "
+                + "    JOIN temporary_transfer_employees tte "
+                + "      ON tte.transfer_id = t.id "
+                + "    WHERE t.destination_store_id = ? "
+                + "      AND tte.employee_id = u.id "
+                + "      AND t.status = 'APPROVED' "
+                + "      AND tte.status = 'APPROVED' "
+                + ")) "
                 + "ORDER BY ep.full_name";
+
         try (Connection conn = connection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, branchId);
+            ps.setInt(2, branchId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     User employee = new User();
@@ -135,27 +149,55 @@ public class ViolationDAO {
     public boolean createReport(int employeeId, int branchId, int reporterId, String title,
             String category, String description, String evidenceUrl, Date violationDate,
             BigDecimal deductionAmount) throws SQLException {
+
         String sql = "INSERT INTO violations "
-                + "(user_id, branch_id, title, category, description, evidence_url, violation_date, "
-                + "reported_by, status, deduction_amount) "
-                + "SELECT u.id, ep.home_branch_id, ?, ?, ?, ?, ?, ?, 'PENDING_REVIEW', ? "
-                + "FROM users u JOIN employee_profiles ep ON ep.user_id = u.id "
-                + "WHERE u.id = ? AND u.role_id = 5 AND u.status = 'ACTIVE' AND ep.home_branch_id = ?";
+                + "(user_id, branch_id, title, category, description, evidence_url, "
+                + "violation_date, reported_by, status, deduction_amount) "
+                + "SELECT u.id, ?, ?, ?, ?, ?, ?, ?, 'PENDING_REVIEW', ? "
+                + "FROM users u "
+                + "JOIN employee_profiles ep ON ep.user_id = u.id "
+                + "WHERE u.id = ? "
+                + "AND u.role_id = 5 "
+                + "AND u.status = 'ACTIVE' "
+                + "AND (ep.home_branch_id = ? "
+                + "OR EXISTS ( "
+                + "    SELECT 1 FROM temporary_transfers t "
+                + "    JOIN temporary_transfer_employees tte "
+                + "      ON tte.transfer_id = t.id "
+                + "    JOIN shift_schedules ss "
+                + "      ON ss.temporary_transfer_id = t.id "
+                + "      AND ss.user_id = u.id "
+                + "    WHERE t.destination_store_id = ? "
+                + "      AND tte.employee_id = u.id "
+                + "      AND t.status = 'APPROVED' "
+                + "      AND tte.status = 'APPROVED' "
+                + "      AND t.work_date = ? "
+                + "      AND ss.branch_id = t.destination_store_id "
+                + "))";
+
         try (Connection conn = connection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, title);
-            ps.setString(2, category);
-            ps.setString(3, description);
+
+            ps.setInt(1, branchId);
+            ps.setString(2, title);
+            ps.setString(3, category);
+            ps.setString(4, description);
+
             if (evidenceUrl == null) {
-                ps.setNull(4, Types.VARCHAR);
+                ps.setNull(5, Types.VARCHAR);
             } else {
-                ps.setString(4, evidenceUrl);
+                ps.setString(5, evidenceUrl);
             }
-            ps.setDate(5, violationDate);
-            ps.setInt(6, reporterId);
-            ps.setBigDecimal(7, deductionAmount);
-            ps.setInt(8, employeeId);
-            ps.setInt(9, branchId);
+
+            ps.setDate(6, violationDate);
+            ps.setInt(7, reporterId);
+            ps.setBigDecimal(8, deductionAmount);
+            ps.setInt(9, employeeId);
+            ps.setInt(10, branchId);
+            ps.setInt(11, branchId);
+            ps.setDate(12, violationDate);
+
             return ps.executeUpdate() == 1;
+
         }
     }
 
@@ -237,9 +279,11 @@ public class ViolationDAO {
 
     public BigDecimal getDeductionTotalForPayroll(int employeeId, int month, int year) throws SQLException {
         YearMonth payrollMonth = YearMonth.of(year, month);
+
         String sql = "SELECT COALESCE(SUM(deduction_amount), 0) AS total_deduction "
-                + "FROM violations WHERE user_id = ? AND status <> 'REJECTED' "
+                + "FROM violations WHERE user_id = ? AND status = 'APPROVED' "
                 + "AND violation_date >= ? AND violation_date < ?";
+
         try (Connection conn = connection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, employeeId);
             ps.setDate(2, Date.valueOf(payrollMonth.atDay(1)));

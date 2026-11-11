@@ -131,9 +131,19 @@ public class StoreManagerDashboardServlet extends BaseServlet {
                     .filter(e -> e.getHomeBranchId() == branchId && e.getRoleId() == 5)
                     .mapToInt(e -> 1).sum();
 
-            // 6. Tổng số đề xuất tuyển dụng của chi nhánh
-            RecruitmentProposalDAO proposalDao = new RecruitmentProposalDAO();
-            int totalProposals = proposalDao.getProposalsByBranch(branchId).size();
+            // 6. Tổng đề xuất nhân sự của chi nhánh
+            // Bao gồm đề xuất tiếp nhận và đề xuất tuyển dụng
+            RecruitmentProposalDAO proposalDao
+                    = new RecruitmentProposalDAO();
+
+            int receptionProposals
+                    = proposalDao.getProposalsByBranch(branchId).size();
+
+            int recruitmentProposals
+                    = countRecruitmentRequestsByBranch(branchId);
+
+            int totalProposals
+                    = receptionProposals + recruitmentProposals;
 
             // 7. Tổng số ca trực trong ngày hôm nay của chi nhánh
             ShiftScheduleDAO scheduleDao = new ShiftScheduleDAO();
@@ -161,6 +171,29 @@ public class StoreManagerDashboardServlet extends BaseServlet {
         }
 
         request.getRequestDispatcher("/WEB-INF/views/store-manager/dashboard.jsp").forward(request, response);
+    }
+
+    private int countRecruitmentRequestsByBranch(int branchId) {
+        String sql = "SELECT COUNT(*) "
+                + "FROM recruitment_requests "
+                + "WHERE branch_id = ?";
+
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, branchId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Không thể đếm đề xuất tuyển dụng của chi nhánh.", e);
+        }
+
+        return 0;
     }
 
     /**

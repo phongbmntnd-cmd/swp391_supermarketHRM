@@ -329,10 +329,9 @@
                 <li class="active"><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
-                <li><a href="${pageContext.request.contextPath}/hr/branch-request"><i class="fa-solid fa-store"></i>Yêu cầu mở chi nhánh</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
-                <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/branch-request"><i class="fa-solid fa-store"></i>Yêu cầu mở chi nhánh</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
                 <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo toàn chuỗi</a></li>
             </ul>
@@ -423,7 +422,7 @@
                         <a href="${pageContext.request.contextPath}/hr/recruitment" class="card-link">Phê duyệt đề xuất <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Tính năng mới: Phê duyệt điều chuyển nhân sự -->
+                    <!-- Tính năng 2: Phê duyệt điều chuyển nhân sự -->
                     <div class="card-custom">
                         <div>
                             <div class="card-icon-title">
@@ -437,7 +436,7 @@
                         <a href="${pageContext.request.contextPath}/hr/transfer-requests" class="card-link">Xem đơn điều chuyển <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Tính năng 2: Quản lý hồ sơ nhân sự -->
+                    <!-- Tính năng 3: Quản lý hồ sơ nhân sự -->
                     <div class="card-custom">
                         <div>
                             <div class="card-icon-title">
@@ -451,21 +450,7 @@
                         <a href="${pageContext.request.contextPath}/hr/employee-list" class="card-link">Quản lý nhân sự <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Tính năng 3: Quản lý chấm công & ca làm -->
-                    <div class="card-custom">
-                        <div>
-                            <div class="card-icon-title">
-                                <div class="card-icon" style="background-color: #10b981;">
-                                    <i class="fa-solid fa-business-time"></i>
-                                </div>
-                                <h3>Quản Lý Chấm Công & Ca Làm</h3>
-                            </div>
-                            <p>Theo dõi bảng chấm công, giờ làm và tình trạng có mặt tại các chi nhánh trong khoảng thời gian được chọn.</p>
-                        </div>
-                        <a href="${pageContext.request.contextPath}/hr/attendance-management" class="card-link">Xem bảng công <i class="fa-solid fa-arrow-right"></i></a>
-                    </div>
-                    
-                    <!-- Tính năng 4: Quản lý vi phạm -->
+                    <!-- Tính năng 5: Quản lý vi phạm -->
                     <div class="card-custom">
                         <div>
                             <div class="card-icon-title">
@@ -478,12 +463,12 @@
                         </div>
                         <a href="${pageContext.request.contextPath}/hr/violations" class="card-link">Xác nhận vi phạm <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
-                    
-                    <!-- Tính năng 5: Quản lý yêu cầu mở chi nhánh -->
+
+                    <!-- Tính năng 6: Quản lý yêu cầu mở chi nhánh -->
                     <div class="card-custom">
                         <div>
                             <div class="card-icon-title">
-                                <div class="card-icon" style="background-color: #ef4444;">
+                                <div class="card-icon" style="background-color: #0d9488;">
                                     <i class="fa-solid fa-store"></i>
                                 </div>
                                 <h3>Quản Lý Yêu Cầu Mở Chi Nhánh</h3>
@@ -492,61 +477,35 @@
                         </div>
                         <a href="${pageContext.request.contextPath}/hr/branch-request" class="card-link">Xem yêu cầu <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
-                </div>
 
-                <!-- Section Tích hợp Bảng Phê Duyệt Điều Chuyển Nhân Sự Ngay Trên Dashboard -->
-                <div class="section-transfer">
-                    <h3><i class="fa-solid fa-list-check"></i> Đơn Đề Xuất Điều Chuyển Chờ Xử Lý</h3>
+                    <!-- Tính năng 7: Quản lý lương nhân sự -->
+                    <div class="card-custom">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #1d4ed8;">
+                                    <i class="fa-solid fa-money-bill-wave"></i>
+                                </div>
+                                <h3>Quản Lý Lương Nhân Sự</h3>
+                            </div>
+                            <p>HR xem xét thông tin, tính lương, tạo bảng lương và chốt sổ.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/hr/payroll" class="card-link">Xem bảng lương <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
 
-                    <!-- Thông báo thành công / lỗi nếu có -->
-                    <c:if test="${not empty message}"><div class="alert alert-success mt-3"><c:out value="${message}"/></div></c:if>
-                    <c:if test="${not empty error}"><div class="alert alert-danger mt-3"><c:out value="${error}"/></div></c:if>
-
-                        <div class="table-responsive mt-3">
-                            <table class="table table-bordered align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Đơn</th>
-                                        <th>Từ → Đến</th>
-                                        <th>Ngày / Ca / Vị trí</th>
-                                        <th>Nhân viên đề cử</th>
-                                        <th>Xử lý</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                <c:forEach var="t" items="${requests}">
-                                    <tr>
-                                        <td><strong>#${t.id}</strong> (${t.requestedCount} người)<div class="text-muted small"><c:out value="${t.reason}"/></div></td>
-                                        <td><span class="badge bg-secondary"><c:out value="${t.sourceStoreName}"/></span> → <span class="badge bg-primary"><c:out value="${t.destinationStoreName}"/></span></td>
-                                        <td>${t.workDate} / <c:out value="${t.shiftName}"/> / <span class="fw-semibold"><c:out value="${t.positionName}"/></span></td>
-                                        <td>
-                                            <c:forEach var="e" items="${selectedByTransfer[t.id]}">
-                                                <div><i class="fa-solid fa-user text-secondary me-1"></i> <c:out value="${e.fullName}"/></div>
-                                            </c:forEach>
-                                        </td>
-                                        <td>
-                                            <form method="POST" action="${pageContext.request.contextPath}/hr/transfer-requests" class="mb-2" onsubmit="return confirm('Duyệt và chuyển phân công ca?')">
-                                                <input type="hidden" name="action" value="approve">
-                                                <input type="hidden" name="requestId" value="${t.id}">
-                                                <button class="btn btn-success btn-sm w-100"><i class="fa-solid fa-check me-1"></i> Duyệt</button>
-                                            </form>
-                                            <form method="POST" action="${pageContext.request.contextPath}/hr/transfer-requests">
-                                                <input type="hidden" name="action" value="reject">
-                                                <input type="hidden" name="requestId" value="${t.id}">
-                                                <textarea class="form-control form-control-sm mb-2" name="rejectReason" placeholder="Lý do từ chối" required maxlength="500" rows="1"></textarea>
-                                                <button class="btn btn-danger btn-sm w-100"><i class="fa-solid fa-xmark me-1"></i> Từ chối</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                </c:forEach>
-                                <c:if test="${empty requests}">
-                                    <tr><td colspan="5" class="text-center text-muted py-4">Không có đề xuất điều chuyển nào đang chờ HR xử lý</td></tr>
-                                </c:if>
-                            </tbody>
-                        </table>
+                    <!-- Tính năng 8: Báo cáo toàn chuỗi -->
+                    <div class="card-custom">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #db2777;">
+                                    <i class="fa-solid fa-chart-column"></i>
+                                </div>
+                                <h3>Báo Cáo Toàn Chuỗi</h3>
+                            </div>
+                            <p>Theo dõi nhân sự, ca làm, chấm công,vi phạm và tình hình lương tại chi nhánhđang quản lý.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/director/reports"class="card-link">Thông tin chi tiết<i class="fa-solid fa-arrow-right"></i></a>
                     </div>
                 </div>
-
             </div>
         </div>
 

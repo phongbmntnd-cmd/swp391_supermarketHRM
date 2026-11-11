@@ -23,6 +23,29 @@ public class StoreManagerViolationsServlet extends BaseServlet {
     private final ViolationDAO violationDAO = new ViolationDAO();
     private final BranchDAO branchDAO = new BranchDAO();
 
+    private int resolveManagedBranchId(
+            HttpServletRequest request,
+            User currentUser) {
+
+        if (currentUser == null
+                || currentUser.getRoleId() != ROLE_STORE_MANAGER) {
+            return -1;
+        }
+
+        int selectedBranchId = getCurrentBranchId(request);
+
+        for (Branch branch
+                : branchDAO.getManagedBranches(currentUser.getId())) {
+
+            if (branch.getId() == selectedBranchId
+                    && "ACTIVE".equals(branch.getStatus())) {
+                return selectedBranchId;
+            }
+        }
+
+        return -1;
+    }
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -31,14 +54,17 @@ public class StoreManagerViolationsServlet extends BaseServlet {
             redirectToLogin(request, response);
             return;
         }
-        if (user.getRoleId() != ROLE_STORE_MANAGER || user.getHomeBranchId() <= 0) {
-            sendForbidden(request, response, "Chỉ quản lý cửa hàng có cơ sở hợp lệ mới được báo cáo vi phạm.");
+
+        int branchId = resolveManagedBranchId(request, user);
+
+        if (branchId <= 0) {
+            sendForbidden(request, response,
+                    "Bạn không có quyền xem báo cáo vi phạm tại chi nhánh này.");
             return;
         }
 
         try {
-            // Lấy thông tin chi tiết chi nhánh để hiển thị lên giao diện
-            int branchId = user.getHomeBranchId();
+            // Lấy thông tin chi nhánh SM đang quản lý
             Branch currentBranch = branchDAO.getBranchById(branchId);
             if (currentBranch == null) {
                 currentBranch = new Branch();
@@ -69,8 +95,12 @@ public class StoreManagerViolationsServlet extends BaseServlet {
             redirectToLogin(request, response);
             return;
         }
-        if (user.getRoleId() != ROLE_STORE_MANAGER || user.getHomeBranchId() <= 0) {
-            sendForbidden(request, response, "Chỉ quản lý cửa hàng có cơ sở hợp lệ mới được báo cáo vi phạm.");
+
+        int branchId = resolveManagedBranchId(request, user);
+
+        if (branchId <= 0) {
+            sendForbidden(request, response,
+                    "Bạn không có quyền báo cáo vi phạm tại chi nhánh này.");
             return;
         }
 
@@ -96,8 +126,9 @@ public class StoreManagerViolationsServlet extends BaseServlet {
             LocalDate violationDate = LocalDate.parse(dateValue);
             if (violationDate.isAfter(LocalDate.now())) {
                 setErrorMessage(request, "Ngày xảy ra vi phạm không được ở tương lai.");
-            } else if (violationDAO.createReport(employeeId, user.getHomeBranchId(), user.getId(),
-                    title, category, description, evidenceUrl, Date.valueOf(violationDate), deductionAmount)) {
+            } else if (violationDAO.createReport(employeeId, branchId, user.getId(),
+                    title, category, description, evidenceUrl,
+                    Date.valueOf(violationDate), deductionAmount)) {
                 setSuccessMessage(request, "Đã ghi nhận báo cáo và khoản khấu trừ lương. Dữ liệu đã sẵn sàng để tổng hợp theo tháng xảy ra vi phạm khi tính lương.");
             } else {
                 setErrorMessage(request, "Không tạo được báo cáo. Nhân viên có thể không thuộc chi nhánh hoặc đã ngừng hoạt động.");

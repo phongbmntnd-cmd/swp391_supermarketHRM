@@ -269,12 +269,13 @@
             </div>
             <ul class="sidebar-menu">
                 <li><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Nhân sự cơ sở</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Quản lí nhân sự cơ sở</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng/tiếp nhận</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clock-rotate-left"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-week"></i> Xếp lịch & Phân ca</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/violations"><i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo chi nhánh</a></li>
                 <li class="active"><a href="${pageContext.request.contextPath}/store-manager/leave-requests"><i class="fa-solid fa-plane-departure"></i> Duyệt nghỉ phép</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-rotate"></i> Duyệt đổi ca</a></li>
             </ul>
@@ -294,12 +295,10 @@
                 <!-- Thanh hiển thị Cơ sở hiện tại -->
                 <div class="branch-info-bar">
                     <i class="fa-solid fa-location-dot"></i>
-                    <span>Cơ sở hiện tại: <b><c:choose>
-                            <c:when test="${not empty currentBranch}">
-                                <c:out value="${currentBranch.name}"/> (<c:out value="${currentBranch.code}"/>) - <c:out value="${currentBranch.address}"/>
-                            </c:when>
-                            <c:otherwise>Không xác định được cơ sở của bạn</c:otherwise>
-                        </c:choose></b></span>
+                    <span>Cơ sở hiện tại: <strong>
+                            <c:out value="${displayBranchInfo}"
+                                   default="Không xác định được cơ sở của bạn"/>
+                        </strong></span>
                 </div>
 
                 <div class="page-title d-flex justify-content-between align-items-center">
@@ -307,9 +306,9 @@
                         <h2 class="mb-1"><i class="fa-solid fa-plane-departure me-2"></i>Quản lý đơn nghỉ phép</h2>
                         <p class="mb-0">Xét duyệt đơn xin nghỉ phép của nhân viên và theo dõi tải trọng nghỉ của chi nhánh.</p>
                     </div>
-                    <button class="btn btn-light text-primary fw-semibold shadow-sm px-3 py-2" onclick="history.back()">
-                        <i class="fa-solid fa-arrow-left me-1"></i> Quay lại
-                    </button>
+                    <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-light btn-dashboard px-3 py-2">
+                            <i class="fa-solid fa-arrow-left me-1"></i> Quay về Dashboard
+                        </a>
                 </div>
 
                 <c:if test="${param.success eq '1'}">

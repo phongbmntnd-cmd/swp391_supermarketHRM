@@ -9,13 +9,6 @@
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Phê duyệt đề xuất tuyển dụng</title>
-    <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
-</head>
-<body>
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -198,6 +191,31 @@
                     margin: 15px;
                 }
             }
+
+            /* Modal thêm nhân viên - luôn giữ footer trong màn hình */
+            .hire-dialog {
+                margin-top: 16px;
+                margin-bottom: 16px;
+            }
+
+            .hire-dialog .modal-content {
+                max-height: calc(100dvh - 32px);
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            .hire-dialog .modal-body {
+                overflow-y: auto;
+                min-height: 0;
+                flex: 1 1 auto;
+            }
+
+            .hire-dialog .modal-header,
+            .hire-dialog .modal-footer {
+                flex-shrink: 0;
+            }
+
         </style>
     </head>
     <body>
@@ -207,10 +225,11 @@
                 <li><a href="${pageContext.request.contextPath}/hr/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
                 <li class="active"><a href="${pageContext.request.contextPath}/hr/recruitment"><i class="fa-solid fa-user-plus"></i> Phê duyệt đề xuất</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/transfer-requests"><i class="fa-solid fa-right-left"></i> Phê duyệt điều chuyển</a></li>
-                <li><a href="${pageContext.request.contextPath}/hr/employee-management"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
-                <li><a href="${pageContext.request.contextPath}/hr/attendance-management"><i class="fa-solid fa-clock"></i> Chấm công & Ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/employee-list"><i class="fa-solid fa-address-book"></i> Quản lý hồ sơ</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/violations"><i class="fa-solid fa-scale-balanced"></i> Quản lý vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/hr/branch-request"><i class="fa-solid fa-store"></i>Yêu cầu mở chi nhánh</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
+                <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo toàn chuỗi</a></li>
             </ul>
         </aside>
 
@@ -226,19 +245,78 @@
             <main class="page-content">
                 <div class="page-title d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="mb-1"><i class="fa-solid fa-user-plus me-2"></i>Phê duyệt đề xuất tuyển dụng</h2>
-                        <p class="mb-0">Xem xét và phê duyệt yêu cầu tuyển dụng do Store Manager các cơ sở gửi lên.</p>
+                        <h2 class="mb-1"><i class="fa-solid fa-user-plus me-2"></i>Quản lý đề xuất tiếp nhận / tuyển dụng</h2>
+                        <p class="mb-0">Xem xét hồ sơ tiếp nhận ứng viên và nhu cầu tuyển thêm nhân sự từ các cơ sở.</p>
                     </div>
-                    <button class="btn btn-light text-primary fw-semibold shadow-sm px-3 py-2" onclick="history.back()">
-                        <i class="fa-solid fa-arrow-left me-1"></i> Quay lại
-                    </button>
+                    <div>
+                        <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-light px-3 py-2 fw-semibold">
+                            <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+                        </a>
+                    </div>
                 </div>
 
-                <c:if test="${param.msg == 'rejected'}">
-                    <div class="alert alert-success">Đã từ chối đề xuất tuyển dụng!</div>
+                <c:if test="${param.type eq 'hiring' and param.msg eq 'approved'}">
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">Đã phê duyệt nhu cầu tuyển dụng.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button></div>
+                    </c:if>
+                    <c:if test="${param.type eq 'hiring' and param.msg eq 'rejected'}">
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">Đã từ chối nhu cầu tuyển dụng.<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button></div>
+                    </c:if>
+                    <c:if test="${param.type eq 'hiring' and param.err eq 'review'}">
+                    <div class="alert alert-warning">Không xử lý được đề xuất. Có thể đề xuất đã được duyệt hoặc từ chối trước đó.</div>
+                </c:if>
+                <c:if test="${param.type ne 'hiring' and param.msg eq 'rejected'}">
+                    <div class="alert alert-success">Đã từ chối đề xuất tiếp nhận nhân sự.</div>
                 </c:if>
 
-                <!-- Tabs lọc nhanh -->
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <a href="#hiring-requests" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-users me-1"></i>Nhu cầu tuyển dụng</a>
+                    <a href="#intake-proposals" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-address-card me-1"></i>Tiếp nhận ứng viên</a>
+                </div>
+
+
+                <!-- THÔNG BÁO CẤP TÀI KHOẢN THÀNH CÔNG -->
+                <c:if test="${requestScope.createRecruitmentSuccess eq true}">
+
+                    <div class="alert alert-success shadow-sm mb-4">
+
+                        <h5 class="fw-bold mb-3">
+                            <i class="fa-solid fa-circle-check me-2"></i>
+                            Cấp tài khoản nhân viên thành công!
+                        </h5>
+
+                        <p>
+                            Đã tạo tài khoản cho nhân viên
+                            <strong>
+                                <c:out value="${requestScope.createdEmployeeFullName}"/>
+                            </strong>
+                            và phân về chi nhánh theo đề xuất tuyển dụng.
+                        </p>
+
+                        <div class="bg-white border rounded p-3">
+
+                            <p class="mb-2">
+                                <strong>Tên đăng nhập:</strong>
+                                <span class="text-primary fw-bold">
+                                    <c:out value="${requestScope.createdEmployeeUsername}"/>
+                                </span>
+                            </p>
+
+                            <p class="mb-2">
+                                <strong>Mật khẩu mặc định:</strong>
+                                <code>123456</code>
+                            </p>
+
+                            <p class="small text-muted mb-0">
+                                HR bàn giao thông tin đăng nhập trực tiếp cho nhân viên.
+                                Nhân viên cần đổi mật khẩu khi đăng nhập lần đầu.
+                            </p>
+
+                        </div>
+                    </div>
+
+                </c:if>
+
+                <!-- Tabs lọc nhanh (chỉ áp dụng cho bảng tiếp nhận bên dưới) -->
                 <ul class="nav nav-pills mb-4">
                     <li class="nav-item me-2">
                         <a class="nav-link ${filter == 'pending' ? 'active' : 'bg-white text-dark shadow-sm'}" 
@@ -306,8 +384,9 @@
                     </div>
                 </div>
 
-                <!-- Bảng danh sách đề xuất -->
-                <div class="card shadow-sm">
+                <!-- Bảng danh sách đề xuất tiếp nhận ứng viên -->
+                <div id="intake-proposals" class="card shadow-sm">
+                    <div class="card-header fw-semibold"><i class="fa-solid fa-address-card text-primary me-2"></i>Đề xuất tiếp nhận ứng viên</div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
@@ -369,7 +448,321 @@
                     </div>
                 </div>
 
+
+                <!-- Đề xuất tuyển dụng theo nhu cầu, độc lập với đề xuất tiếp nhận -->
+                <div id="hiring-requests" class="card shadow-sm mt-4">
+                    <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                        <span class="fw-semibold"><i class="fa-solid fa-people-group text-primary me-2"></i>Đề xuất tuyển dụng theo nhu cầu</span>
+                        <span class="small text-muted">Phê duyệt nhu cầu không tự động tạo tài khoản nhân viên</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ngày tạo</th>
+                                    <th>Chi nhánh</th>
+                                    <th>Vị trí</th>
+                                    <th class="text-center">Số lượng</th>
+                                    <th>Hình thức / Ca</th>
+                                    <th>Ngày cần</th>
+                                    <th>Lý do</th>
+                                    <th>Trạng thái</th>
+                                    <th>Ghi chú HR</th>
+                                    <th class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <c:forEach var="rr" items="${recruitmentRequests}">
+                                    <tr>
+                                        <td class="text-nowrap"><fmt:formatDate value="${rr.createdAt}" pattern="dd/MM/yyyy HH:mm"/></td>
+                                        <td><c:out value="${rr.branchName}"/></td>
+                                        <td class="fw-semibold"><c:out value="${rr.positionTitle}"/></td>
+                                        <td class="text-center"><span class="badge bg-primary"><c:out value="${rr.quantity}"/> người</span></td>
+                                        <td><span class="badge bg-info text-dark"><c:out value="${rr.employmentType}"/></span>
+                                            <div class="small text-muted mt-1"><c:out value="${rr.shiftType}"/></div></td>
+                                        <td class="text-nowrap"><c:out value="${rr.targetDate}"/></td>
+                                        <td style="min-width:150px;max-width:260px;white-space:normal;overflow-wrap:anywhere;"><c:out value="${rr.reason}"/></td>
+                                        <td>
+                                            <c:choose>
+                                                <c:when test="${rr.status eq 'PENDING'}"><span class="badge bg-warning text-dark">Chờ duyệt</span></c:when>
+                                                <c:when test="${rr.status eq 'APPROVED'}"><span class="badge bg-success">Đã duyệt</span></c:when>
+                                                <c:when test="${rr.status eq 'REJECTED'}"><span class="badge bg-danger">Từ chối</span></c:when>
+                                                <c:otherwise><span class="badge bg-secondary"><c:out value="${rr.status}"/></span></c:otherwise>
+                                            </c:choose>
+                                        </td>
+                                        <td class="small text-muted"><c:out value="${empty rr.hrNote ? '---' : rr.hrNote}"/></td>
+                                        <td class="text-center text-nowrap">
+                                            <c:if test="${rr.status eq 'PENDING'}">
+                                                <button type="button" class="btn btn-sm btn-outline-success mb-1" data-bs-toggle="modal" data-bs-target="#hiringReviewModal" data-review-action="approveRecruitmentRequest" data-request-id="${rr.id}" data-position="<c:out value='${rr.positionTitle}'/>" aria-label="Duyệt đề xuất tuyển dụng"><i class="fa-solid fa-check me-1"></i>Duyệt</button>
+                                                <button type="button" class="btn btn-sm btn-outline-danger mb-1" data-bs-toggle="modal" data-bs-target="#hiringReviewModal" data-review-action="rejectRecruitmentRequest" data-request-id="${rr.id}" data-position="<c:out value='${rr.positionTitle}'/>" aria-label="Từ chối đề xuất tuyển dụng"><i class="fa-solid fa-xmark me-1"></i>Từ chối</button>
+                                            </c:if>
+
+                                            <c:if test="${rr.status eq 'APPROVED'}">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-success"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#hireModal${rr.id}">
+                                                    <i class="fa-solid fa-user-plus me-1"></i>
+                                                    Thêm nhân viên
+                                                </button>
+                                            </c:if>
+
+                                            <c:if test="${rr.status eq 'REJECTED'}">
+                                                <span class="text-muted small">Đã từ chối</span>
+                                            </c:if>
+
+                                        </td>
+                                    </tr>
+                                </c:forEach>
+                                <c:if test="${empty recruitmentRequests}">
+                                    <tr><td colspan="10" class="text-center text-muted py-4">Chưa có đề xuất tuyển dụng nào từ các chi nhánh.</td></tr>
+                                </c:if>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <c:forEach var="rr" items="${recruitmentRequests}">
+                    <c:if test="${rr.status eq 'APPROVED'}">
+
+                        <div class="modal fade"
+                             id="hireModal${rr.id}"
+                             tabindex="-1">
+                            <div class="modal-dialog modal-lg modal-dialog-scrollable hire-dialog">
+                                <div class="modal-content">
+
+                                    <form method="post"
+                                          action="${pageContext.request.contextPath}/hr/create-user">
+
+                                        <input type="hidden"
+                                               name="recruitmentRequestId"
+                                               value="${rr.id}">
+
+                                        <div class="modal-header">
+                                            <h5 class="modal-title text-primary">
+                                                <i class="fa-solid fa-user-plus me-2"></i>
+                                                Thêm nhân viên đã tuyển
+                                            </h5>
+                                            <button type="button"
+                                                    class="btn-close"
+                                                    data-bs-dismiss="modal">
+                                            </button>
+                                        </div>
+
+                                        <div class="modal-body">
+
+                                            <c:if test="${not empty hireError and hireRequestId eq rr.id}">
+                                                <div class="alert alert-danger">
+                                                    <i class="fa-solid fa-circle-exclamation me-2"></i>
+                                                    <c:out value="${hireError}"/>
+                                                </div>
+                                            </c:if>
+
+
+                                            <div class="alert alert-info small">
+                                                <strong>Chi nhánh:</strong>
+                                                <c:out value="${rr.branchName}"/>
+
+                                                <div>
+                                                    <strong>Vị trí:</strong>
+                                                    <c:out value="${rr.positionTitle}"/>
+                                                </div>
+
+                                                <div>
+                                                    <strong>Hình thức:</strong>
+                                                    <c:out value="${rr.employmentType}"/>
+                                                    -
+                                                    <c:out value="${rr.shiftType}"/>
+                                                </div>
+                                            </div>
+
+                                            <div class="row g-3 mb-3">
+
+                                                <div class="col-md-5">
+                                                    <label class="form-label fw-bold small">
+                                                        Họ và tên *
+                                                    </label>
+                                                    <input type="text"
+                                                           name="fullName"
+                                                           class="form-control"
+                                                           value="${hireRequestId eq rr.id ? hireFullName : ''}"
+                                                           required>
+                                                </div>
+
+                                                <div class="col-md-3">
+                                                    <label class="form-label fw-bold small">
+                                                        Số điện thoại *
+                                                    </label>
+                                                    <input type="text"
+                                                           name="phone"
+                                                           class="form-control"
+                                                           pattern="0[0-9]{9}"
+                                                           value="${hireRequestId eq rr.id ? hirePhone : ''}"
+                                                           required>
+                                                </div>
+
+                                                <div class="col-md-4">
+                                                    <label class="form-label fw-bold small">
+                                                        CCCD/CMND *
+                                                    </label>
+                                                    <input type="text"
+                                                           name="identityCard"
+                                                           class="form-control"
+                                                           pattern="([0-9]{9}|[0-9]{12})"
+                                                           value="${hireRequestId eq rr.id ? hireIdentityCard : ''}"
+                                                           required>
+                                                </div>
+
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold small">
+                                                    Email (tùy chọn)
+                                                </label>
+                                                <input type="email"
+                                                       name="email"
+                                                       value="${hireRequestId eq rr.id ? hireEmail : ''}"
+                                                       class="form-control">
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold small">
+                                                    Mã nhân viên / Username
+                                                </label>
+
+                                                <input type="text"
+                                                       class="form-control"
+                                                       placeholder="Hệ thống tự động cấp mã khi tạo tài khoản"
+                                                       readonly>
+
+                                                <div class="form-text">
+                                                    Mã nhân viên được hệ thống tự động tạo.
+                                                </div>
+                                            </div>
+
+                                            <div class="row g-3 mb-3">
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold small">
+                                                        Loại hợp đồng *
+                                                    </label>
+                                                    <select class="form-select"
+                                                            onchange="
+                                                                    const input = this.form.querySelector('[name=expirationDate]');
+                                                                    const seasonal = this.value === 'THOI_VU';
+                                                                    input.disabled = !seasonal;
+                                                                    input.required = seasonal;
+                                                                    if (!seasonal)
+                                                                        input.value = '';
+                                                            ">
+                                                        <option value="CHINH_THUC">
+                                                            Hợp đồng chính thức
+                                                        </option>
+                                                        <option value="THOI_VU">
+                                                            Hợp đồng thời vụ
+                                                        </option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold small">
+                                                        Ngày kết thúc hợp đồng
+                                                    </label>
+                                                    <input type="date"
+                                                           name="expirationDate"
+                                                           class="form-control"
+                                                           value="${hireRequestId eq rr.id ? hireExpirationDate : ''}"
+                                                           disabled>
+                                                </div>
+                                            </div>
+
+                                        </div>
+
+                                        <div class="modal-footer">
+                                            <button type="button"
+                                                    class="btn btn-secondary"
+                                                    data-bs-dismiss="modal">
+                                                Đóng
+                                            </button>
+
+                                            <button type="submit"
+                                                    class="btn btn-primary">
+                                                <i class="fa-solid fa-user-check me-1"></i>
+                                                Tạo tài khoản nhân viên
+                                            </button>
+                                        </div>
+
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                    </c:if>
+                </c:forEach>
+
             </main>
         </div>
+
+        <!-- Modal xác nhận duyệt/từ chối nhu cầu tuyển dụng -->
+        <div class="modal fade" id="hiringReviewModal" tabindex="-1" aria-labelledby="hiringReviewTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <form method="post" action="${pageContext.request.contextPath}/hr/recruitment" id="hiringReviewForm">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="hiringReviewTitle">Xử lý đề xuất tuyển dụng</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" name="requestId" id="hiringRequestId">
+                            <input type="hidden" name="action" id="hiringReviewAction">
+                            <p class="text-secondary small mb-3" id="hiringReviewDescription"></p>
+                            <label for="hiringHrNote" class="form-label fw-semibold">Ghi chú của HR <span id="hiringNoteRequired" class="text-danger" style="display:none">*</span></label>
+                            <textarea id="hiringHrNote" name="hrNote" rows="3" maxlength="2000" class="form-control" placeholder="Nhập ghi chú; bắt buộc nếu từ chối"></textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                            <button type="submit" class="btn btn-success" id="hiringSubmit">Xác nhận duyệt</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+        <c:if test="${not empty hireError and hireRequestId gt 0}">
+            <script>
+                                                                document.addEventListener("DOMContentLoaded", function () {
+                                                                    const modalElement = document.getElementById(
+                                                                            "hireModal${hireRequestId}"
+                                                                            );
+
+                                                                    if (modalElement) {
+                                                                        const modal = new bootstrap.Modal(modalElement);
+                                                                        modal.show();
+                                                                    }
+                                                                });
+            </script>
+        </c:if>
+
+        <script>
+            document.getElementById('hiringReviewModal').addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                if (!button)
+                    return;
+                const action = button.getAttribute('data-review-action');
+                const reject = action === 'rejectRecruitmentRequest';
+                document.getElementById('hiringRequestId').value = button.getAttribute('data-request-id');
+                document.getElementById('hiringReviewAction').value = action;
+                document.getElementById('hiringReviewTitle').textContent = reject ? 'Từ chối đề xuất tuyển dụng' : 'Phê duyệt đề xuất tuyển dụng';
+                document.getElementById('hiringReviewDescription').textContent = 'Đề xuất #' + button.getAttribute('data-request-id') + ' - ' + button.getAttribute('data-position');
+                const note = document.getElementById('hiringHrNote');
+                note.value = '';
+                note.required = reject;
+                document.getElementById('hiringNoteRequired').style.display = reject ? 'inline' : 'none';
+                const submit = document.getElementById('hiringSubmit');
+                submit.className = reject ? 'btn btn-danger' : 'btn btn-success';
+                submit.textContent = reject ? 'Xác nhận từ chối' : 'Xác nhận duyệt';
+            });
+        </script>
     </body>
 </html>

@@ -4,12 +4,15 @@ import controller.base.BaseServlet;
 import dao.BranchDAO;
 import dao.CommonDAO;
 import dao.RecruitmentProposalDAO;
+import dao.RecruitmentRequestDAO;
 import model.Branch;
 import model.Position;
 import model.User;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
+import java.sql.SQLException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -68,6 +71,130 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         if (branchId == -1) {
             sendForbidden(request, response,
                     "Bạn không có chi nhánh được phép quản lý!");
+            return;
+        }
+
+        String requestAction = getStringParameter(request, "action");
+
+        // LUỒNG MỚI: Tạo đề xuất tuyển dụng theo nhu cầu
+        if ("createRecruitmentRequest".equals(requestAction)) {
+
+            String error = null;
+
+            int positionIdNew
+                    = getIntParameter(request, "positionId", -1);
+
+            int quantity
+                    = getIntParameter(request, "quantity", -1);
+
+            String employeeTypeNew
+                    = getStringParameter(request, "employeeType");
+
+            String shiftTypeNew
+                    = getStringParameter(request, "shiftType");
+
+            String targetDateNew
+                    = getStringParameter(request, "targetDate");
+
+            String reasonNew
+                    = getStringParameter(request, "reason");
+
+            LocalDate parsedDate = null;
+
+            try {
+                if (targetDateNew != null) {
+                    parsedDate = LocalDate.parse(targetDateNew);
+                }
+            } catch (Exception e) {
+                error = "Ngày cần nhân sự không hợp lệ.";
+            }
+
+            // Kiểm tra vị trí có thuộc nhóm nhân viên cửa hàng
+            boolean validPosition = false;
+
+            for (Position p
+                    : new CommonDAO().getStoreEmployeePositions()) {
+
+                if (p.getId() == positionIdNew) {
+                    validPosition = true;
+                    break;
+                }
+            }
+
+            if (error == null) {
+                if (!validPosition) {
+                    error = "Vị trí tuyển dụng không hợp lệ.";
+                } else if (quantity <= 0 || quantity > 100) {
+                    error = "Số lượng cần tuyển phải từ 1 đến 100.";
+                } else if (!"FULL_TIME".equals(employeeTypeNew)
+                        && !"PART_TIME".equals(employeeTypeNew)) {
+                    error = "Hình thức làm việc không hợp lệ.";
+                } else if (shiftTypeNew == null
+                        || shiftTypeNew.trim().isEmpty()) {
+                    error = "Vui lòng chọn loại ca làm việc.";
+                } else if (parsedDate == null
+                        || parsedDate.isBefore(LocalDate.now())) {
+                    error = "Ngày cần nhân sự không được trong quá khứ.";
+                } else if (reasonNew == null
+                        || reasonNew.trim().isEmpty()) {
+                    error = "Vui lòng nhập lý do tuyển dụng.";
+                }
+            }
+
+            boolean success = false;
+
+            if (error == null) {
+                try {
+                    RecruitmentRequestDAO dao
+                            = new RecruitmentRequestDAO();
+
+                    success = dao.createRequest(
+                            branchId,
+                            user.getId(),
+                            positionIdNew,
+                            quantity,
+                            employeeTypeNew,
+                            shiftTypeNew,
+                            parsedDate,
+                            reasonNew
+                    );
+                } catch (Exception e) {
+                    throw new ServletException(
+                            "Không thể lưu đề xuất tuyển dụng.", e);
+                }
+            }
+
+            if (success) {
+                request.getSession().setAttribute(
+                        "message",
+                        "Đã gửi đề xuất tuyển dụng. Vui lòng chờ HR phê duyệt."
+                );
+
+                response.sendRedirect(
+                        request.getContextPath()
+                        + "/store-manager/recruitment"
+                );
+                return;
+            }
+
+            request.setAttribute(
+                    "error",
+                    error != null
+                            ? error
+                            : "Không thể tạo đề xuất tuyển dụng."
+            );
+
+            // Để JSP mở lại đúng modal tuyển dụng khi có lỗi
+            request.setAttribute(
+                    "errorModal", "recruitmentRequest"
+            );
+
+            loadFormData(request, user, branchId);
+
+            request.getRequestDispatcher(
+                    "/WEB-INF/views/store-manager/recruitment.jsp"
+            ).forward(request, response);
+
             return;
         }
 
@@ -142,9 +269,9 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         if ("resubmit".equals(action)) {
             int proposalId = getIntParameter(request, "proposalId", -1);
             success = proposalDAO.resubmitProposal(
-                proposalId, branchId, positionId, employmentType, shiftType,
-                fullName, email, phone, identityCard,
-                departmentId, expirationDate, targetDate, reason
+                    proposalId, branchId, positionId, employmentType, shiftType,
+                    fullName, email, phone, identityCard,
+                    departmentId, expirationDate, targetDate, reason
             );
             if (success) {
                 request.getSession().setAttribute("message", "Cập nhật và gửi lại đề xuất thành công!");
@@ -173,7 +300,7 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
 
     private void loadFormData(HttpServletRequest request,
             User user,
-            int branchId) {
+            int branchId) throws ServletException {
 
         CommonDAO commonDAO = new CommonDAO();
         RecruitmentProposalDAO proposalDAO
@@ -192,6 +319,21 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
                 "proposals",
                 proposalDAO.getProposalsByBranch(branchId)
         );
+
+        try {
+            RecruitmentRequestDAO recruitmentRequestDAO
+                    = new RecruitmentRequestDAO();
+
+            request.setAttribute(
+                    "recruitmentRequests",
+                    recruitmentRequestDAO.getByBranch(branchId)
+            );
+
+        } catch (SQLException e) {
+            throw new ServletException(
+                    "Không thể tải lịch sử đề xuất tuyển dụng.", e
+            );
+        }
 
         request.setAttribute("currentBranch", currentBranch);
     }

@@ -144,15 +144,6 @@ public class DirectorController extends BaseServlet {
                 ).forward(request, response);
                 return;
             }
-
-        } else if ("assign".equals(action)) {
-            // Gán quản lý cho cơ sở
-            int branchId = getIntParameter(request, "branchId", -1);
-            int managerId = getIntParameter(request, "managerId", -1);
-
-            branchDAO.assignStoreManager(branchId, managerId);
-            response.sendRedirect(request.getContextPath() + "/director/branch-management?action=list");
-
         } else if ("toggleStatus".equals(action)) {
             int branchId = getIntParameter(request, "branchId", -1);
             String currentStatus = getStringParameter(request, "currentStatus");

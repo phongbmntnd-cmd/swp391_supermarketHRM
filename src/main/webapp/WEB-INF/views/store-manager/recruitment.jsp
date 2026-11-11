@@ -12,7 +12,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Quản Lý Đề Xuất Tuyển Dụng - Store Manager</title>
+        <title>Quản lý đề xuất tiếp nhận / tuyển dụng - Store Manager</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -195,19 +195,86 @@
                 font-size: 12px;
                 font-weight: bold;
             }
+            /* Nhóm thao tác đề xuất: hai nút xếp dọc, giữ phong cách gốc */
+            .proposal-actions {
+                display: flex;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                min-width: 242px;
+            }
+            .proposal-actions .btn {
+                text-align: left;
+                border-radius: 8px;
+                padding: 10px 14px;
+                white-space: nowrap;
+                font-size: 13px;
+            }
+            .proposal-actions .btn i {
+                width: 18px;
+                text-align: center;
+            }
+            .proposal-actions .btn-recruitment {
+                background: rgba(255,255,255,.12);
+                border: 1px solid rgba(255,255,255,.8);
+                color: #fff;
+            }
+            .proposal-actions .btn-recruitment:hover {
+                background: #fff;
+                color: #b45309;
+            }
+            .proposal-actions .btn-dashboard {
+                align-self: flex-end;
+            }
             @media (max-width: 900px) {
-                .sidebar { width: 220px; }
-                .main-wrapper { margin-left: 220px; }
-                .dashboard-container { margin: 20px; }
+                .sidebar {
+                    width: 220px;
+                }
+                .main-wrapper {
+                    margin-left: 220px;
+                }
+                .dashboard-container {
+                    margin: 20px;
+                }
             }
             @media (max-width: 650px) {
-                body { display: block; }
-                .sidebar { position: static; width: 100%; }
-                .sidebar-menu { display: flex; overflow-x: auto; padding: 5px 0; }
-                .sidebar-menu li { flex: 0 0 auto; }
-                .main-wrapper { margin-left: 0; }
-                .top-navbar { position: static; flex-wrap: wrap; }
-                .dashboard-container { margin: 15px; }
+                .page-title {
+                    flex-direction: column;
+                    align-items: stretch !important;
+                    gap: 18px;
+                }
+                .proposal-actions {
+                    width: 100%;
+                    min-width: 0;
+                }
+                .proposal-actions .btn-dashboard {
+                    align-self: stretch;
+                }
+                body {
+                    display: block;
+                }
+                .sidebar {
+                    position: static;
+                    width: 100%;
+                }
+                .sidebar-menu {
+                    display: flex;
+                    overflow-x: auto;
+                    padding: 5px 0;
+                }
+                .sidebar-menu li {
+                    flex: 0 0 auto;
+                }
+                .main-wrapper {
+                    margin-left: 0;
+                }
+                .top-navbar {
+                    position: static;
+                    flex-wrap: wrap;
+                }
+                .dashboard-container {
+                    margin: 15px;
+                }
             }
         </style>
     </head>
@@ -221,12 +288,13 @@
             </div>
             <ul class="sidebar-menu">
                 <li><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Nhân sự cơ sở</a></li>
-                <li class="active"><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Quản lí nhân sự cơ sở</a></li>
+                <li class="active"><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng/tiếp nhận</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clock-rotate-left"></i> Chấm công & Ca làm</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-week"></i> Xếp lịch & Phân ca</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/violations"><i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo chi nhánh</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/leave-requests"><i class="fa-solid fa-plane-departure"></i> Duyệt nghỉ phép</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-rotate"></i> Duyệt đổi ca</a></li>
             </ul>
@@ -260,15 +328,18 @@
                 <!-- Page Header Banner -->
                 <div class="page-title d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="mb-1"><i class="fa-solid fa-file-pen me-2"></i>Quản Lý Đề Xuất Tuyển Dụng Nhân Sự</h2>
-                        <p class="mb-0">Lập các yêu cầu tiếp nhận nhân sự mới, gửi trực tiếp lên bộ phận Nhân sự (HR) xem xét và phê duyệt.</p>
+                        <h2 class="mb-1"><i class="fa-solid fa-file-pen me-2"></i>Quản Lý Đề Xuất Tiếp Nhận / Tuyển Dụng Nhân Sự</h2>
+                        <p class="mb-0">Tạo đề xuất tiếp nhận ứng viên cụ thể hoặc đề xuất nhu cầu tuyển thêm nhân sự để HR xem xét.</p>
                     </div>
-                    <div>
-                        <button class="btn btn-light text-warning fw-semibold shadow-sm px-3 py-2 me-2" data-bs-toggle="modal" data-bs-target="#createProposalModal">
-                            <i class="fa-solid fa-plus me-1"></i> Tạo Đề Xuất Mới
+                    <div class="proposal-actions">
+                        <button type="button" class="btn btn-light text-warning fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#createProposalModal">
+                            <i class="fa-solid fa-user-check me-1"></i> Tạo đề xuất tiếp nhận
                         </button>
-                        <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-light px-3 py-2">
-                            <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+                        <button type="button" class="btn btn-recruitment fw-semibold" data-bs-toggle="modal" data-bs-target="#createHiringRequestModal">
+                            <i class="fa-solid fa-users me-1"></i> Tạo đề xuất tuyển dụng
+                        </button>
+                        <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-light btn-dashboard px-3 py-2">
+                            <i class="fa-solid fa-arrow-left me-1"></i> Quay về Dashboard
                         </a>
                     </div>
                 </div>
@@ -281,9 +352,9 @@
                     </div>
                 </c:if>
 
-                <!-- BẢNG LỊCH SỬ ĐỀ XUẤT -->
+                <!-- BẢNG LỊCH SỬ ĐỀ XUẤT TIẾP NHẬN -->
                 <div class="card shadow-sm border-0 p-3 bg-white rounded-3">
-                    <h5 class="text-secondary mb-3"><i class="fa-solid fa-clock-rotate-left me-2 text-warning"></i>Lịch sử đề xuất tuyển dụng của chi nhánh</h5>
+                    <h5 class="text-secondary mb-3"><i class="fa-solid fa-clock-rotate-left me-2 text-warning"></i>Lịch sử đề xuất tiếp nhận của chi nhánh (đã triển khai)</h5>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
@@ -337,30 +408,136 @@
                                     </tr>
                                 </c:forEach>
                                 <c:if test="${empty proposals}">
-                                    <tr><td colspan="7" class="text-center text-muted py-4">Chưa có đề xuất tuyển dụng nào.</td></tr>
+                                    <tr><td colspan="7" class="text-center text-muted py-4">Chưa có đề xuất tiếp nhận nào.</td></tr>
                                 </c:if>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
+
+                <!-- LỊCH SỬ ĐỀ XUẤT TUYỂN DỤNG THEO NHU CẦU -->
+                <div class="card shadow-sm border-0 p-3 bg-white rounded-3 mt-4">
+
+                    <h5 class="text-secondary mb-3">
+                        <i class="fa-solid fa-users text-warning me-2"></i>
+                        Lịch sử đề xuất tuyển dụng nhân sự
+                    </h5>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ngày tạo</th>
+                                    <th>Vị trí cần tuyển</th>
+                                    <th>Số lượng</th>
+                                    <th>Hình thức & Ca làm</th>
+                                    <th>Ngày cần nhân sự</th>
+                                    <th>Lý do</th>
+                                    <th>Trạng thái</th>
+                                    <th>Ghi chú từ HR</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                <c:forEach var="rr" items="${recruitmentRequests}">
+                                    <tr>
+                                        <td>
+                                            <fmt:formatDate
+                                                value="${rr.createdAt}"
+                                                pattern="dd/MM/yyyy HH:mm"/>
+                                        </td>
+
+                                        <td class="fw-semibold">
+                                            <c:out value="${rr.positionTitle}"/>
+                                        </td>
+
+                                        <td>
+                                            <span class="badge bg-primary">
+                                                <c:out value="${rr.quantity}"/> người
+                                            </span>
+                                        </td>
+
+                                        <td>
+                                            <span class="badge bg-info text-dark">
+                                                <c:out value="${rr.employmentType}"/>
+                                            </span>
+                                            <div class="small text-muted mt-1">
+                                                Ca: <c:out value="${rr.shiftType}"/>
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            <c:out value="${rr.targetDate}"/>
+                                        </td>
+
+                                        <td>
+                                            <c:out value="${rr.reason}"/>
+                                        </td>
+
+                                        <td>
+                                            <c:choose>
+                                                <c:when test="${rr.status eq 'PENDING'}">
+                                                    <span class="status-PENDING">
+                                                        Chờ duyệt
+                                                    </span>
+                                                </c:when>
+
+                                                <c:when test="${rr.status eq 'APPROVED'}">
+                                                    <span class="status-APPROVED">
+                                                        Đã duyệt
+                                                    </span>
+                                                </c:when>
+
+                                                <c:when test="${rr.status eq 'REJECTED'}">
+                                                    <span class="status-REJECTED">
+                                                        Từ chối
+                                                    </span>
+                                                </c:when>
+                                            </c:choose>
+                                        </td>
+
+                                        <td>
+                                            <small class="text-muted">
+                                                <c:out value="${empty rr.hrNote ? '---' : rr.hrNote}"/>
+                                            </small>
+                                        </td>
+                                    </tr>
+                                </c:forEach>
+
+                                <c:if test="${empty recruitmentRequests}">
+                                    <tr>
+                                        <td colspan="8"
+                                            class="text-center text-muted py-4">
+                                            Chưa có đề xuất tuyển dụng nào.
+                                        </td>
+                                    </tr>
+                                </c:if>
+                            </tbody>
+
+                        </table>
+                    </div>
+                </div>
+
+
             </div>
         </div>
 
-        <!-- MODAL TẠO ĐỀ XUẤT MỚI -->
+        <!-- MODAL TẠO ĐỀ XUẤT TIẾP NHẬN (luồng hiện có) -->
         <div class="modal fade" id="createProposalModal" tabindex="-1">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <form action="${pageContext.request.contextPath}/store-manager/recruitment" method="post">
                         <div class="modal-header">
-                            <h5 class="modal-title text-primary"><i class="fa-solid fa-file-circle-plus me-2"></i>Tạo Đề Xuất Tuyển Dụng Mới</h5>
+                            <h5 class="modal-title text-primary"><i class="fa-solid fa-file-circle-plus me-2"></i>Tạo Đề Xuất Tiếp Nhận Nhân Sự</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
                             <input type="hidden" name="action" value="create">
 
                             <!-- HIỂN THỊ LỖI NGAY TRONG MODAL -->
-                            <c:if test="${not empty error}">
+                            <c:if test="${not empty error and errorModal ne 'recruitmentRequest'}">
                                 <div class="alert alert-danger py-2 mb-3" role="alert">
                                     <i class="fa-solid fa-circle-exclamation me-2"></i>${error}
                                 </div>
@@ -445,6 +622,72 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
                             <button type="submit" class="btn btn-primary btn-sm">Gửi Đề Xuất</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- MODAL ĐỀ XUẤT TUYỂN DỤNG: UI trước, backend nối sau -->
+        <div class="modal fade" id="createHiringRequestModal" tabindex="-1" aria-labelledby="createHiringRequestLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow">
+                    <form id="createHiringRequestForm" method="post" action="${pageContext.request.contextPath}/store-manager/recruitment">
+                        <input type="hidden" name="action" value="createRecruitmentRequest">
+                        <div class="modal-header" style="background:#fff7ed; border-bottom:1px solid #fed7aa;">
+                            <div>
+                                <h5 class="modal-title fw-semibold" id="createHiringRequestLabel" style="color:#b45309;">
+                                    <i class="fa-solid fa-users me-2"></i>Tạo đề xuất tuyển dụng nhân sự
+                                </h5>
+                                <small class="text-muted">Đề xuất nhu cầu tuyển người, chưa cần thông tin ứng viên cụ thể.</small>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="form-label small fw-bold">Vị trí cần tuyển <span class="text-danger">*</span></label>
+                                    <select name="positionId" class="form-select" required>
+                                        <option value="">-- Chọn vị trí --</option>
+                                        <c:forEach var="p" items="${positions}">
+                                            <option value="${p.id}"><c:out value="${p.title}"/></option>
+                                        </c:forEach>
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold">Số lượng cần tuyển <span class="text-danger">*</span></label>
+                                    <input type="number" name="quantity" min="1" max="100" step="1" class="form-control" placeholder="VD: 3" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Hình thức làm việc <span class="text-danger">*</span></label>
+                                    <select name="employeeType" id="hiringEmployeeType" class="form-select" onchange="updateShiftOptions('hiringEmployeeType', 'hiringShiftType')" required>
+                                        <option value="FULL_TIME">FULL_TIME (Toàn thời gian)</option>
+                                        <option value="PART_TIME">PART_TIME (Bán thời gian)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold">Loại ca dự kiến <span class="text-danger">*</span></label>
+                                    <select name="shiftType" id="hiringShiftType" class="form-select" required></select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Ngày mong muốn có nhân sự <span class="text-danger">*</span></label>
+                                    <input type="date" name="targetDate" id="hiringTargetDate" class="form-control" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small fw-bold">Lý do tuyển dụng <span class="text-danger">*</span></label>
+                                    <textarea name="reason" class="form-control" rows="3" maxlength="2000" placeholder="Ví dụ: Thiếu nhân viên thu ngân cho ca chiều..." required></textarea>
+                                </div>
+                            </div>
+                            <c:if test="${not empty error and errorModal eq 'recruitmentRequest'}">
+                                <div class="alert alert-danger mt-3 mb-0" role="alert">
+                                    <i class="fa-solid fa-circle-exclamation me-2"></i><c:out value="${error}"/>
+                                </div>
+                            </c:if>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                            <button type="submit" class="btn btn-warning text-white btn-sm">Gửi đề xuất tuyển dụng</button>
                         </div>
                     </form>
                 </div>
@@ -546,88 +789,97 @@
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            function updateShiftOptions(employeeTypeId, shiftTypeId, selectedValue = '') {
-                const empType = document.getElementById(employeeTypeId).value;
-                const shiftSelect = document.getElementById(shiftTypeId);
+                                        function updateShiftOptions(employeeTypeId, shiftTypeId, selectedValue = '') {
+                                            const empType = document.getElementById(employeeTypeId).value;
+                                            const shiftSelect = document.getElementById(shiftTypeId);
 
-                shiftSelect.innerHTML = '';
+                                            shiftSelect.innerHTML = '';
 
-                if (empType === 'FULL_TIME') {
-                    shiftSelect.innerHTML = `
+                                            if (empType === 'FULL_TIME') {
+                                                shiftSelect.innerHTML = `
                         <option value="FT_ROTATING">Ca xoay linh hoạt (Sáng - Chiều - Tối)</option>
                         <option value="FT_FIXED_MORNING">Ca cố định sáng</option>
                         <option value="FT_FIXED_EVENING">Ca cố định tối</option>
                     `;
-                } else if (empType === 'PART_TIME') {
-                    shiftSelect.innerHTML = `
+                                            } else if (empType === 'PART_TIME') {
+                                                shiftSelect.innerHTML = `
                         <option value="PT_FLEXIBLE">Ca xoay linh hoạt (Theo lịch rảnh hàng tuần)</option>
                         <option value="PT_FIXED_MORNING">Chỉ làm ca sáng</option>
                         <option value="PT_FIXED_AFTERNOON">Chỉ làm ca chiều</option>
                         <option value="PT_FIXED_EVENING">Chỉ làm ca tối</option>
                         <option value="PT_SEASONAL_WEEKEND">Thời vụ / Cuối tuần</option>
                     `;
-                }
+                                            }
 
-                if (selectedValue) {
-                    shiftSelect.value = selectedValue;
-                }
-            }
+                                            if (selectedValue) {
+                                                shiftSelect.value = selectedValue;
+                                        }
+                                        }
 
-            function handleContractTypeChange(selectId, expContId) {
-                const contractType = document.getElementById(selectId).value;
-                const expContainer = document.getElementById(expContId);
-                const expInput = expContainer.querySelector('input');
+                                        function handleContractTypeChange(selectId, expContId) {
+                                            const contractType = document.getElementById(selectId).value;
+                                            const expContainer = document.getElementById(expContId);
+                                            const expInput = expContainer.querySelector('input');
 
-                if (contractType === 'THOI_VU') {
-                    expContainer.style.display = 'block';
-                    expInput.required = true;
-                } else {
-                    expContainer.style.display = 'none';
-                    expInput.required = false;
-                    expInput.value = '';
-                }
-            }
+                                            if (contractType === 'THOI_VU') {
+                                                expContainer.style.display = 'block';
+                                                expInput.required = true;
+                                            } else {
+                                                expContainer.style.display = 'none';
+                                                expInput.required = false;
+                                                expInput.value = '';
+                                            }
+                                        }
 
-            document.addEventListener("DOMContentLoaded", function () {
-                const today = new Date().toISOString().split('T')[0];
+                                        document.addEventListener("DOMContentLoaded", function () {
+                                            const today = new Date().toISOString().split('T')[0];
 
-                const targetDateInput = document.getElementById('targetDateInput');
-                if (targetDateInput) targetDateInput.min = today;
+                                            const targetDateInput = document.getElementById('targetDateInput');
+                                            if (targetDateInput)
+                                                targetDateInput.min = today;
 
-                const expirationDateInput = document.getElementById('expirationDateInput');
-                if (expirationDateInput) expirationDateInput.min = today;
+                                            const expirationDateInput = document.getElementById('expirationDateInput');
+                                            if (expirationDateInput)
+                                                expirationDateInput.min = today;
 
-                const editTargetDate = document.getElementById('editTargetDate');
-                if (editTargetDate) editTargetDate.min = today;
+                                            const editTargetDate = document.getElementById('editTargetDate');
+                                            if (editTargetDate)
+                                                editTargetDate.min = today;
 
-                const editExpirationDate = document.getElementById('editExpirationDate');
-                if (editExpirationDate) editExpirationDate.min = today;
+                                            const editExpirationDate = document.getElementById('editExpirationDate');
+                                            if (editExpirationDate)
+                                                editExpirationDate.min = today;
 
-                updateShiftOptions('employeeTypeSelect', 'shiftTypeSelect');
+                                            updateShiftOptions('employeeTypeSelect', 'shiftTypeSelect');
+                                            updateShiftOptions('hiringEmployeeType', 'hiringShiftType');
+                                            const hiringTargetDate = document.getElementById('hiringTargetDate');
+                                            if (hiringTargetDate)
+                                                hiringTargetDate.min = today;
 
-                <c:if test="${not empty error}">
-                    var createModal = new bootstrap.Modal(document.getElementById('createProposalModal'));
-                    createModal.show();
-                </c:if>
-            });
+            <c:if test="${not empty error}">
+                                            var errorModalId = "${errorModal eq 'recruitmentRequest' ? 'createHiringRequestModal' : 'createProposalModal'}";
+                                            var createModal = new bootstrap.Modal(document.getElementById(errorModalId));
+                                            createModal.show();
+            </c:if>
+                                        });
 
-            function openResubmitModal(id, fullName, phone, identityCard, email, positionId, employmentType, shiftType, targetDate, reason) {
-                document.getElementById('editProposalId').value = id;
-                document.getElementById('editFullName').value = fullName;
-                document.getElementById('editPhone').value = phone;
-                document.getElementById('editIdentityCard').value = identityCard;
-                document.getElementById('editEmail').value = (email !== 'null' && email !== 'undefined') ? email : '';
-                document.getElementById('editPositionId').value = positionId;
-                document.getElementById('editEmployeeType').value = employmentType;
+                                        function openResubmitModal(id, fullName, phone, identityCard, email, positionId, employmentType, shiftType, targetDate, reason) {
+                                            document.getElementById('editProposalId').value = id;
+                                            document.getElementById('editFullName').value = fullName;
+                                            document.getElementById('editPhone').value = phone;
+                                            document.getElementById('editIdentityCard').value = identityCard;
+                                            document.getElementById('editEmail').value = (email !== 'null' && email !== 'undefined') ? email : '';
+                                            document.getElementById('editPositionId').value = positionId;
+                                            document.getElementById('editEmployeeType').value = employmentType;
 
-                updateShiftOptions('editEmployeeType', 'editShiftType', shiftType);
+                                            updateShiftOptions('editEmployeeType', 'editShiftType', shiftType);
 
-                document.getElementById('editTargetDate').value = (targetDate !== 'null' && targetDate !== 'undefined') ? targetDate : '';
-                document.getElementById('editReason').value = reason;
+                                            document.getElementById('editTargetDate').value = (targetDate !== 'null' && targetDate !== 'undefined') ? targetDate : '';
+                                            document.getElementById('editReason').value = reason;
 
-                var resubmitModal = new bootstrap.Modal(document.getElementById('resubmitModal'));
-                resubmitModal.show();
-            }
+                                            var resubmitModal = new bootstrap.Modal(document.getElementById('resubmitModal'));
+                                            resubmitModal.show();
+                                        }
         </script>
     </body>
 </html>

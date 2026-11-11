@@ -315,18 +315,42 @@
                 font-weight: 600;
             }
             @media (max-width: 900px) {
-                .sidebar { width: 220px; }
-                .main-wrapper { margin-left: 220px; }
-                .dashboard-container { margin: 20px; }
+                .sidebar {
+                    width: 220px;
+                }
+                .main-wrapper {
+                    margin-left: 220px;
+                }
+                .dashboard-container {
+                    margin: 20px;
+                }
             }
             @media (max-width: 650px) {
-                body { display: block; }
-                .sidebar { position: static; width: 100%; }
-                .sidebar-menu { display: flex; overflow-x: auto; padding: 5px 0; }
-                .sidebar-menu li { flex: 0 0 auto; }
-                .main-wrapper { margin-left: 0; }
-                .topbar { position: static; flex-wrap: wrap; }
-                .dashboard-container { margin: 15px; }
+                body {
+                    display: block;
+                }
+                .sidebar {
+                    position: static;
+                    width: 100%;
+                }
+                .sidebar-menu {
+                    display: flex;
+                    overflow-x: auto;
+                    padding: 5px 0;
+                }
+                .sidebar-menu li {
+                    flex: 0 0 auto;
+                }
+                .main-wrapper {
+                    margin-left: 0;
+                }
+                .topbar {
+                    position: static;
+                    flex-wrap: wrap;
+                }
+                .dashboard-container {
+                    margin: 15px;
+                }
             }
         </style>
     </head>
@@ -340,12 +364,13 @@
             </div>
             <ul class="sidebar-menu">
                 <li><a href="${pageContext.request.contextPath}/store-manager/dashboard"><i class="fa-solid fa-chart-line"></i> Bảng điều khiển</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Nhân sự cơ sở</a></li>
-                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/employees"><i class="fa-solid fa-users-gear"></i> Quản lí nhân sự cơ sở</a></li>
+                <li><a href="${pageContext.request.contextPath}/store-manager/recruitment"><i class="fa-solid fa-file-pen"></i> Đề xuất tuyển dụng/tiếp nhận</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/transfer-requests"><i class="fa-solid fa-right-left"></i> Quản lý điều chuyển</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/attendance"><i class="fa-solid fa-clock-rotate-left"></i> Chấm công & Ca làm</a></li>
                 <li class="active"><a href="${pageContext.request.contextPath}/store-manager/schedule"><i class="fa-solid fa-calendar-week"></i> Xếp lịch & Phân ca</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/violations"><i class="fa-solid fa-triangle-exclamation"></i> Báo cáo vi phạm</a></li>
+                <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo chi nhánh</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/leave-requests"><i class="fa-solid fa-plane-departure"></i> Duyệt nghỉ phép</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-rotate"></i> Duyệt đổi ca</a></li>
             </ul>
@@ -371,12 +396,10 @@
                 <!-- Thanh hiển thị Cơ sở hiện tại -->
                 <div class="branch-info-bar">
                     <i class="fa-solid fa-location-dot"></i>
-                    <span>Cơ sở hiện tại: <b><c:choose>
-                        <c:when test="${not empty currentBranch}">
-                            <c:out value="${currentBranch.name}"/> (<c:out value="${currentBranch.code}"/>) - <c:out value="${currentBranch.address}"/>
-                        </c:when>
-                        <c:otherwise>Không xác định được cơ sở của bạn</c:otherwise>
-                    </c:choose></b></span>
+                    <span>Cơ sở hiện tại: <strong>
+                            <c:out value="${displayBranchInfo}"
+                                   default="Không xác định được cơ sở của bạn"/>
+                        </strong></span>
                 </div>
 
                 <%-- Thông báo phản hồi chuyển hướng từ TransferRequestsServlet --%>
@@ -463,9 +486,9 @@
                                     <thead>
                                         <tr>
                                             <th style="width: 15%;">Ca Làm Việc</th>
-                                            <c:forEach var="dName" items="${dayNames}">
-                                            <th>${dName}</th>
-                                            </c:forEach>
+                                                <c:forEach var="dName" items="${dayNames}">
+                                                <th>${dName}</th>
+                                                </c:forEach>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -812,178 +835,178 @@
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            const isPublished = ${isPublished};
+                                                                                 const isPublished = ${isPublished};
 
-            function openShortageModal(branchId, positionId, shiftId, workDate, requiredCount, assignedCount, positionTitle, shiftName) {
-                if (isPublished) {
-                    alert('Lịch làm việc tuần này đã được Publish. Không thể mở đăng ký bổ sung hoặc tạo đề xuất điều chuyển.');
-                    return;
-                }
+                                                                                 function openShortageModal(branchId, positionId, shiftId, workDate, requiredCount, assignedCount, positionTitle, shiftName) {
+                                                                                     if (isPublished) {
+                                                                                         alert('Lịch làm việc tuần này đã được Publish. Không thể mở đăng ký bổ sung hoặc tạo đề xuất điều chuyển.');
+                                                                                         return;
+                                                                                     }
 
-                const required = parseInt(requiredCount, 10) || 0;
-                const assigned = parseInt(assignedCount, 10) || 0;
-                const dateText = workDate || '';
+                                                                                     const required = parseInt(requiredCount, 10) || 0;
+                                                                                     const assigned = parseInt(assignedCount, 10) || 0;
+                                                                                     const dateText = workDate || '';
 
-                if (assigned >= required) {
-                    alert('Ca này đã đủ số lượng nhân sự.');
-                    return;
-                }
+                                                                                     if (assigned >= required) {
+                                                                                         alert('Ca này đã đủ số lượng nhân sự.');
+                                                                                         return;
+                                                                                     }
 
-                if (assigned === 0) {
-                    document.getElementById('transferPositionId').value = positionId;
-                    document.getElementById('transferShiftId').value = shiftId;
-                    document.getElementById('transferWorkDate').value = dateText;
-                    document.getElementById('transferPositionTitle').value = positionTitle;
-                    document.getElementById('transferShiftName').value = shiftName;
-                    document.getElementById('transferDateDisplay').value = dateText;
-                    document.getElementById('transferAssignedDisplay').value = assigned;
-                    document.getElementById('transferRequiredDisplay').value = required;
-                    document.getElementById('requestedCount').max = Math.max(1, required - assigned);
-                    document.getElementById('requestedCount').value = 1;
-                    bootstrap.Modal.getOrCreateInstance(document.getElementById('transferProposalModal')).show();
-                } else {
-                    document.getElementById('suppBranchId').value = branchId;
-                    document.getElementById('suppPositionId').value = positionId;
-                    document.getElementById('suppShiftId').value = shiftId;
-                    document.getElementById('suppWorkDate').value = dateText;
-                    document.getElementById('suppRequiredCount').value = requiredCount;
-                    document.getElementById('suppAssignedCount').value = assignedCount;
-                    document.getElementById('suppPositionTitle').value = positionTitle;
-                    document.getElementById('suppShiftName').value = shiftName;
-                    document.getElementById('suppDateDisplay').value = dateText;
-                    document.getElementById('suppAssignedDisplay').value = assigned;
-                    document.getElementById('suppRequiredDisplay').value = required;
-                    bootstrap.Modal.getOrCreateInstance(document.getElementById('supplementaryModal')).show();
-                }
-            }
+                                                                                     if (assigned === 0) {
+                                                                                         document.getElementById('transferPositionId').value = positionId;
+                                                                                         document.getElementById('transferShiftId').value = shiftId;
+                                                                                         document.getElementById('transferWorkDate').value = dateText;
+                                                                                         document.getElementById('transferPositionTitle').value = positionTitle;
+                                                                                         document.getElementById('transferShiftName').value = shiftName;
+                                                                                         document.getElementById('transferDateDisplay').value = dateText;
+                                                                                         document.getElementById('transferAssignedDisplay').value = assigned;
+                                                                                         document.getElementById('transferRequiredDisplay').value = required;
+                                                                                         document.getElementById('requestedCount').max = Math.max(1, required - assigned);
+                                                                                         document.getElementById('requestedCount').value = 1;
+                                                                                         bootstrap.Modal.getOrCreateInstance(document.getElementById('transferProposalModal')).show();
+                                                                                     } else {
+                                                                                         document.getElementById('suppBranchId').value = branchId;
+                                                                                         document.getElementById('suppPositionId').value = positionId;
+                                                                                         document.getElementById('suppShiftId').value = shiftId;
+                                                                                         document.getElementById('suppWorkDate').value = dateText;
+                                                                                         document.getElementById('suppRequiredCount').value = requiredCount;
+                                                                                         document.getElementById('suppAssignedCount').value = assignedCount;
+                                                                                         document.getElementById('suppPositionTitle').value = positionTitle;
+                                                                                         document.getElementById('suppShiftName').value = shiftName;
+                                                                                         document.getElementById('suppDateDisplay').value = dateText;
+                                                                                         document.getElementById('suppAssignedDisplay').value = assigned;
+                                                                                         document.getElementById('suppRequiredDisplay').value = required;
+                                                                                         bootstrap.Modal.getOrCreateInstance(document.getElementById('supplementaryModal')).show();
+                                                                                     }
+                                                                                 }
 
-            document.getElementById('supplementaryForm').addEventListener('submit', function (event) {
-                const deadline = document.getElementById('supplementaryDeadline').value;
-                if (!deadline || new Date(deadline).getTime() <= Date.now()) {
-                    event.preventDefault();
-                    alert('Hạn đăng ký phải là thời điểm trong tương lai.');
-                }
-            });
+                                                                                 document.getElementById('supplementaryForm').addEventListener('submit', function (event) {
+                                                                                     const deadline = document.getElementById('supplementaryDeadline').value;
+                                                                                     if (!deadline || new Date(deadline).getTime() <= Date.now()) {
+                                                                                         event.preventDefault();
+                                                                                         alert('Hạn đăng ký phải là thời điểm trong tương lai.');
+                                                                                     }
+                                                                                 });
 
-            document.getElementById('transferProposalForm').addEventListener('submit', function (event) {
-                const sourceStoreId = document.getElementById('sourceStoreId').value.trim();
-                if (!sourceStoreId) {
-                    event.preventDefault();
-                    alert('Vui lòng chọn một cơ sở cho mượn.');
-                    return;
-                }
-                if (!document.getElementById('transferReason').value.trim()) {
-                    event.preventDefault();
-                    alert('Vui lòng nhập lý do cần điều chuyển.');
-                }
-            });
+                                                                                 document.getElementById('transferProposalForm').addEventListener('submit', function (event) {
+                                                                                     const sourceStoreId = document.getElementById('sourceStoreId').value.trim();
+                                                                                     if (!sourceStoreId) {
+                                                                                         event.preventDefault();
+                                                                                         alert('Vui lòng chọn một cơ sở cho mượn.');
+                                                                                         return;
+                                                                                     }
+                                                                                     if (!document.getElementById('transferReason').value.trim()) {
+                                                                                         event.preventDefault();
+                                                                                         alert('Vui lòng nhập lý do cần điều chuyển.');
+                                                                                     }
+                                                                                 });
 
-            function toggleAssignment(element, userId, shiftId, branchId, workDate, positionId) {
-                if (isPublished) {
-                    alert('Lịch làm việc tuần này đã được Publish. Không thể thay đổi phân công ca!');
-                    return;
-                }
+                                                                                 function toggleAssignment(element, userId, shiftId, branchId, workDate, positionId) {
+                                                                                     if (isPublished) {
+                                                                                         alert('Lịch làm việc tuần này đã được Publish. Không thể thay đổi phân công ca!');
+                                                                                         return;
+                                                                                     }
 
-                const formData = new URLSearchParams();
-                formData.append('action', 'assign');
-                formData.append('userId', userId);
-                formData.append('positionId', positionId);
-                formData.append('shiftId', shiftId);
-                formData.append('branchId', branchId);
-                formData.append('workDate', workDate);
+                                                                                     const formData = new URLSearchParams();
+                                                                                     formData.append('action', 'assign');
+                                                                                     formData.append('userId', userId);
+                                                                                     formData.append('positionId', positionId);
+                                                                                     formData.append('shiftId', shiftId);
+                                                                                     formData.append('branchId', branchId);
+                                                                                     formData.append('workDate', workDate);
 
-                fetch('schedule', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                    body: formData.toString()
-                })
-                .then(response => {
-                    if (response.ok)
-                        return response.text();
-                    throw new Error('Lỗi kết nối server.');
-                })
-                .then(result => {
-                    if (result.trim() === 'published_locked') {
-                        alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
-                        location.reload();
-                        return;
-                    }
-                    const icon = element.querySelector('.check-icon');
-                    if (result.trim() === 'on_leave') {
-                        alert('Nhân viên đang nghỉ phép (đơn đã duyệt) trong ngày này. Không thể xếp hoặc bỏ xếp ca.');
-                        location.reload();
-                        return;
-                    }
-                    if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
-                        alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
-                        location.reload();
-                        return;
-                    }
-                    if (result.trim() === 'added') {
-                        element.classList.add('assigned');
-                        icon.className = 'fa-solid fa-check-circle text-success check-icon';
-                    } else if (result.trim() === 'removed') {
-                        element.classList.remove('assigned');
-                        icon.className = 'fa-solid fa-circle text-muted check-icon';
-                    }
-                    setTimeout(() => location.reload(), 300);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra khi lưu phân công.');
-                });
-            }
+                                                                                     fetch('schedule', {
+                                                                                         method: 'POST',
+                                                                                         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                                                                                         body: formData.toString()
+                                                                                     })
+                                                                                             .then(response => {
+                                                                                                 if (response.ok)
+                                                                                                     return response.text();
+                                                                                                 throw new Error('Lỗi kết nối server.');
+                                                                                             })
+                                                                                             .then(result => {
+                                                                                                 if (result.trim() === 'published_locked') {
+                                                                                                     alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
+                                                                                                     location.reload();
+                                                                                                     return;
+                                                                                                 }
+                                                                                                 const icon = element.querySelector('.check-icon');
+                                                                                                 if (result.trim() === 'on_leave') {
+                                                                                                     alert('Nhân viên đang nghỉ phép (đơn đã duyệt) trong ngày này. Không thể xếp hoặc bỏ xếp ca.');
+                                                                                                     location.reload();
+                                                                                                     return;
+                                                                                                 }
+                                                                                                 if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
+                                                                                                     alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
+                                                                                                     location.reload();
+                                                                                                     return;
+                                                                                                 }
+                                                                                                 if (result.trim() === 'added') {
+                                                                                                     element.classList.add('assigned');
+                                                                                                     icon.className = 'fa-solid fa-check-circle text-success check-icon';
+                                                                                                 } else if (result.trim() === 'removed') {
+                                                                                                     element.classList.remove('assigned');
+                                                                                                     icon.className = 'fa-solid fa-circle text-muted check-icon';
+                                                                                                 }
+                                                                                                 setTimeout(() => location.reload(), 300);
+                                                                                             })
+                                                                                             .catch(error => {
+                                                                                                 console.error('Error:', error);
+                                                                                                 alert('Có lỗi xảy ra khi lưu phân công.');
+                                                                                             });
+                                                                                 }
 
-            function openRequirementPrompt(branchId, positionId, shiftId, workDate, currentCount) {
-                if (isPublished) {
-                    alert('Lịch làm việc tuần này đã được Publish. Không thể chỉnh sửa định mức!');
-                    return;
-                }
+                                                                                 function openRequirementPrompt(branchId, positionId, shiftId, workDate, currentCount) {
+                                                                                     if (isPublished) {
+                                                                                         alert('Lịch làm việc tuần này đã được Publish. Không thể chỉnh sửa định mức!');
+                                                                                         return;
+                                                                                     }
 
-                let newCount = prompt("Nhập số lượng nhân sự yêu cầu cho ca này:", currentCount);
-                if (newCount !== null && newCount.trim() !== "") {
-                    let parsedCount = parseInt(newCount);
-                    if (isNaN(parsedCount) || parsedCount < 1) {
-                        alert("Số lượng yêu cầu phải là số nguyên lớn hơn hoặc bằng 1!");
-                        return;
-                    }
+                                                                                     let newCount = prompt("Nhập số lượng nhân sự yêu cầu cho ca này:", currentCount);
+                                                                                     if (newCount !== null && newCount.trim() !== "") {
+                                                                                         let parsedCount = parseInt(newCount);
+                                                                                         if (isNaN(parsedCount) || parsedCount < 1) {
+                                                                                             alert("Số lượng yêu cầu phải là số nguyên lớn hơn hoặc bằng 1!");
+                                                                                             return;
+                                                                                         }
 
-                    const formData = new URLSearchParams();
-                    formData.append('action', 'updateRequirement');
-                    formData.append('branchId', branchId);
-                    formData.append('positionId', positionId);
-                    formData.append('shiftId', shiftId);
-                    formData.append('workDate', workDate);
-                    formData.append('requiredCount', parsedCount);
+                                                                                         const formData = new URLSearchParams();
+                                                                                         formData.append('action', 'updateRequirement');
+                                                                                         formData.append('branchId', branchId);
+                                                                                         formData.append('positionId', positionId);
+                                                                                         formData.append('shiftId', shiftId);
+                                                                                         formData.append('workDate', workDate);
+                                                                                         formData.append('requiredCount', parsedCount);
 
-                    fetch('schedule', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                        body: formData.toString()
-                    })
-                    .then(response => {
-                        if (response.ok)
-                            return response.text();
-                        throw new Error('Lỗi cập nhật định mức.');
-                    })
-                    .then(result => {
-                        if (result.trim() === 'published_locked') {
-                            alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
-                            location.reload();
-                            return;
-                        }
-                        if (result.trim() === 'success') {
-                            location.reload();
-                        } else {
-                            alert('Không thể cập nhật định mức.');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('Có lỗi xảy ra khi kết nối server.');
-                    });
-                }
-            }
+                                                                                         fetch('schedule', {
+                                                                                             method: 'POST',
+                                                                                             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                                                                                             body: formData.toString()
+                                                                                         })
+                                                                                                 .then(response => {
+                                                                                                     if (response.ok)
+                                                                                                         return response.text();
+                                                                                                     throw new Error('Lỗi cập nhật định mức.');
+                                                                                                 })
+                                                                                                 .then(result => {
+                                                                                                     if (result.trim() === 'published_locked') {
+                                                                                                         alert('Lịch đã được Publish, hệ thống từ chối cập nhật.');
+                                                                                                         location.reload();
+                                                                                                         return;
+                                                                                                     }
+                                                                                                     if (result.trim() === 'success') {
+                                                                                                         location.reload();
+                                                                                                     } else {
+                                                                                                         alert('Không thể cập nhật định mức.');
+                                                                                                     }
+                                                                                                 })
+                                                                                                 .catch(error => {
+                                                                                                     console.error('Error:', error);
+                                                                                                     alert('Có lỗi xảy ra khi kết nối server.');
+                                                                                                 });
+                                                                                     }
+                                                                                 }
         </script>
     </body>
 </html>

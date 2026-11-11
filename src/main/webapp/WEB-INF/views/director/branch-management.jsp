@@ -292,7 +292,7 @@
                             <th>Tên Cơ Sở</th>
                             <th>Địa Chỉ</th>
                             <th>Trạng Thái</th>
-                            <th>Mã Quản Lý</th>
+                            <th>Người Quản Lý</th>
                             <th>Thao Tác Quản Lý</th>
                             <th>Hành Động</th>
                         </tr>
@@ -316,14 +316,36 @@
                                         </button>
                                     </form>
                                 </td>
+
                                 <td>
-                                    <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" class="input-group" style="margin: 0;">
-                                        <input type="hidden" name="action" value="assign">
-                                        <input type="hidden" name="branchId" value="${b.id}">
-                                        <input type="number" name="managerId" value="${b.storeManagerId}" required>
-                                        <button type="submit" class="btn-action">Gán / Đổi</button>
-                                    </form>
+                                    <c:choose>
+                                        <c:when test="${not empty b.managerName}">
+                                            <div class="fw-semibold">
+                                                <c:out value="${b.managerName}"/>
+                                            </div>
+
+                                            <c:choose>
+                                                <c:when test="${b.temporaryManager}">
+                                                    <span class="badge bg-info text-dark">
+                                                        Quản lý kiêm nhiệm
+                                                    </span>
+                                                </c:when>
+                                                <c:otherwise>
+                                                    <span class="badge bg-success">
+                                                        Quản lý chính
+                                                    </span>
+                                                </c:otherwise>
+                                            </c:choose>
+                                        </c:when>
+
+                                        <c:otherwise>
+                                            <span class="text-muted">
+                                                Chưa phân công
+                                            </span>
+                                        </c:otherwise>
+                                    </c:choose>
                                 </td>
+
                                 <td>
                                     <a href="${pageContext.request.contextPath}/director/branch-management?action=viewEmployees&id=${b.id}" class="link-detail">Xem Nhân Sự</a>
                                 </td>

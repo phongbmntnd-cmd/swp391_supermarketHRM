@@ -4,6 +4,7 @@ import controller.base.BaseServlet;
 import dao.CommonDAO;
 import dao.EmployeeProfileDAO;
 import dao.RecruitmentProposalDAO;
+import dao.RecruitmentRequestDAO;
 import dao.UserDAO;
 import model.Candidate;
 import model.RecruitmentProposal;
@@ -32,6 +33,54 @@ public class HRRecruitmentServlet extends BaseServlet {
         if (currentUser.getRoleId() != ROLE_HR_MANAGER && currentUser.getRoleId() != ROLE_ADMIN) {
             sendForbidden(request, response, "Bạn không có quyền truy cập trang Tuyển dụng!");
             return;
+        }
+        
+        // Khôi phục thông tin khi HR tạo nhân viên thất bại
+        jakarta.servlet.http.HttpSession session =
+                request.getSession(false);
+
+        if (session != null
+                && session.getAttribute("hireError") != null) {
+
+            String[] keys = {
+                "hireError",
+                "hireRequestId",
+                "hireFullName",
+                "hirePhone",
+                "hireIdentityCard",
+                "hireEmail",
+                "hireExpirationDate"
+            };
+
+            for (String key : keys) {
+                request.setAttribute(key,
+                        session.getAttribute(key));
+                session.removeAttribute(key);
+            }
+        }
+
+        if (session != null
+                && Boolean.TRUE.equals(
+                        session.getAttribute("createRecruitmentSuccess"))) {
+
+            request.setAttribute(
+                    "createRecruitmentSuccess", true
+            );
+
+            request.setAttribute(
+                    "createdEmployeeUsername",
+                    session.getAttribute("createdEmployeeUsername")
+            );
+
+            request.setAttribute(
+                    "createdEmployeeFullName",
+                    session.getAttribute("createdEmployeeFullName")
+            );
+
+            // Chỉ hiển thị thông báo một lần
+            session.removeAttribute("createRecruitmentSuccess");
+            session.removeAttribute("createdEmployeeUsername");
+            session.removeAttribute("createdEmployeeFullName");
         }
 
         RecruitmentProposalDAO proposalDAO = new RecruitmentProposalDAO();
@@ -78,6 +127,20 @@ public class HRRecruitmentServlet extends BaseServlet {
         request.setAttribute("branches", commonDAO.getAllBranches());
         request.setAttribute("positions", commonDAO.getStoreEmployeePositions());
 
+        try {
+            RecruitmentRequestDAO recruitmentDAO
+                    = new RecruitmentRequestDAO();
+
+            request.setAttribute(
+                    "recruitmentRequests",
+                    recruitmentDAO.getAllRequests()
+            );
+
+        } catch (Exception e) {
+            throw new ServletException(
+                    "Không thể tải đề xuất tuyển dụng.", e);
+        }
+
         request.getRequestDispatcher("/WEB-INF/views/hr/recruitment.jsp")
                 .forward(request, response);
     }
@@ -102,6 +165,57 @@ public class HRRecruitmentServlet extends BaseServlet {
         int proposalId = getIntParameter(request, "proposalId", -1);
         String action = getStringParameter(request, "action");
         String hrNote = getStringParameter(request, "hrNote");
+
+        // LUỒNG MỚI: HR duyệt/từ chối nhu cầu tuyển dụng
+        if ("approveRecruitmentRequest".equals(action)
+                || "rejectRecruitmentRequest".equals(action)) {
+
+            int requestId = getIntParameter(
+                    request, "requestId", -1);
+
+            boolean approved
+                    = "approveRecruitmentRequest".equals(action);
+
+            if (requestId <= 0) {
+                response.sendError(400,
+                        "Mã đề xuất tuyển dụng không hợp lệ.");
+                return;
+            }
+
+            if (!approved
+                    && (hrNote == null || hrNote.trim().isEmpty())) {
+                response.sendError(400,
+                        "Vui lòng nhập lý do từ chối.");
+                return;
+            }
+
+            try {
+                RecruitmentRequestDAO recruitmentDAO
+                        = new RecruitmentRequestDAO();
+
+                boolean success = recruitmentDAO.reviewRequest(
+                        requestId,
+                        user.getId(),
+                        approved,
+                        hrNote
+                );
+
+                if (success) {
+                    response.sendRedirect(
+                            ctx + "/hr/recruitment?type=hiring&msg="
+                            + (approved ? "approved" : "rejected"));
+                } else {
+                    response.sendRedirect(
+                            ctx + "/hr/recruitment?type=hiring&err=review");
+                }
+
+            } catch (Exception e) {
+                throw new ServletException(
+                        "Không thể xử lý đề xuất tuyển dụng.", e);
+            }
+
+            return;
+        }
 
         if (proposalId == -1) {
             response.sendRedirect(ctx + "/hr/recruitment");
@@ -142,8 +256,7 @@ public class HRRecruitmentServlet extends BaseServlet {
 
             // Nếu hợp lệ -> Chuyển hướng sang form cấp tài khoản nhân sự (CreateUserServlet)
             response.sendRedirect(ctx + "/hr/create-user?proposalId=" + proposalId);
-        } 
-        // Xử lý khi HR chọn TỪ CHỐI đề xuất
+        } // Xử lý khi HR chọn TỪ CHỐI đề xuất
         else if ("reject".equals(action)) {
             if (hrNote == null || hrNote.trim().isEmpty()) {
                 response.sendRedirect(ctx + "/hr/recruitment?id=" + proposalId + "&err=err_note");

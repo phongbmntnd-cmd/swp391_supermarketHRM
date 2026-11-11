@@ -7,38 +7,82 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
-<html>
+<html lang="vi">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Đăng Ký Lịch Làm Việc - Hệ Thống Siêu Thị</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
+            * { box-sizing: border-box; }
             body {
+                margin: 0;
                 font-family: 'Roboto', sans-serif;
-                background-color: #f4f7f6;
+                background: #f4f7f6;
                 color: #333;
+                min-height: 100vh;
             }
-            .top-navbar {
-                background-color: #2c3e50;
+            .sidebar {
+                width: 280px;
+                position: fixed;
+                inset: 0 auto 0 0;
+                display: flex;
+                flex-direction: column;
+                background: #1e293b;
+                z-index: 100;
+                box-shadow: 2px 0 10px rgba(0,0,0,.08);
+            }
+            .sidebar-brand {
+                background: #0f172a;
+                color: #fff;
+                padding: 25px 22px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-size: 19px;
+                font-weight: 700;
+            }
+            .sidebar-brand i { color: #22c55e; font-size: 22px; }
+            .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; overflow-y: auto; }
+            .sidebar-menu a {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                padding: 15px 25px;
+                border-left: 4px solid transparent;
+                color: #94a3b8;
+                font-size: 14px;
+                font-weight: 500;
+                text-decoration: none;
+            }
+            .sidebar-menu a i { width: 20px; text-align: center; }
+            .sidebar-menu a:hover, .sidebar-menu .active a {
                 color: white;
-                padding: 15px 30px;
+                background: rgba(255,255,255,.06);
+                border-left-color: #22c55e;
+            }
+            .main-wrapper { min-width: 0; min-height: 100vh; margin-left: 280px; }
+            .top-navbar {
+                background: white;
+                color: #334155;
+                padding: 18px 32px;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                flex-wrap: wrap;
+                gap: 12px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.06);
             }
-            .top-navbar h1 {
-                font-size: 20px;
-                font-weight: 500;
-                margin: 0;
+            .top-navbar h1 { font-size: 18px; font-weight: 500; margin: 0; }
+            .nav-actions { display: flex; align-items: center; gap: 18px; font-size: 14px; }
+            .btn-logout {
+                padding: 8px 13px; border-radius: 7px;
+                background: #ffeeef; color: #ef4444;
+                font-size: 13px; text-decoration: none; font-weight: 500;
             }
-            .main-container {
-                max-width: 1200px;
-                margin: 40px auto;
-                padding: 0 20px;
-            }
+            .main-container { max-width: 1400px; margin: 30px auto; padding: 0 30px; }
             .card-custom {
                 background: white;
                 border-radius: 12px;
@@ -111,24 +155,61 @@
             .btn-save:hover {
                 background-color: #219653;
             }
-            .btn-back {
-                color: white;
-                text-decoration: none;
-                font-weight: 500;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
+            .btn-back { color: #0369a1; text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
+            .btn-back:hover { text-decoration: underline; }
+            @media (max-width: 900px) {
+                .sidebar { width: 220px; }
+                .main-wrapper { margin-left: 220px; }
+                .main-container { padding: 0 20px; }
+            }
+            @media (max-width: 650px) {
+                .sidebar { position: static; width: 100%; }
+                .sidebar-menu { display: flex; overflow-x: auto; padding: 5px 0; }
+                .sidebar-menu li { flex: 0 0 auto; }
+                .sidebar-menu a { white-space: nowrap; padding: 12px; }
+                .main-wrapper { margin-left: 0; }
+                .top-navbar { padding: 15px 20px; }
+                .main-container { margin: 20px auto; padding: 0 15px; }
             }
         </style>
     </head>
     <body>
+        <!-- Sidebar đồng bộ với Dashboard nhân viên -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-id-badge"></i>
+                <span>Employee Portal</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="${pageContext.request.contextPath}/employee/dashboard"><i class="fa-solid fa-house"></i> Trang chủ</a></li>
+                <li class="active"><a href="${pageContext.request.contextPath}/employee/availability"><i class="fa-solid fa-calendar-plus"></i> Khai báo lịch rảnh</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/my-schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/attendance"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/payroll"><i class="fa-solid fa-money-bill-wave"></i> Phiếu lương</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/leave-request"><i class="fa-solid fa-plane-departure"></i> Xin nghỉ phép</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/forms"><i class="fa-solid fa-rotate"></i> Đổi ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/violations"><i class="fa-solid fa-triangle-exclamation"></i> Vi phạm & kết quả</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/profile"><i class="fa-solid fa-address-card"></i>Hồ sơ cá nhân</a></li>
+            </ul>
+        </aside>
 
-        <div class="top-navbar">
-            <h1><i class="fa-solid fa-store me-2"></i> Hệ Thống Quản Lý Siêu Thị - Nhân Viên</h1>
-            <a href="dashboard" class="btn-back"><i class="fa-solid fa-arrow-left"></i> Quay lại Dashboard</a>
-        </div>
+        <div class="main-wrapper">
+            <header class="top-navbar">
+                <h1>Hệ Thống Quản Lý Siêu Thị - Không Gian Nhân Viên</h1>
+                <div class="nav-actions">
+                    <span>Xin chào, <b><c:out value="${sessionScope.account.username}"/></b></span>
+                    <a class="btn-logout" href="${pageContext.request.contextPath}/logout"><i class="fa-solid fa-right-from-bracket me-1"></i> Đăng xuất</a>
+                </div>
+            </header>
 
-        <div class="main-container">
+            <main class="main-container">
+                <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-4">
+                    <div>
+                        <h2 class="h4 fw-bold mb-1">Khai báo lịch rảnh</h2>
+                        <p class="text-secondary mb-0">Đăng ký các ca có thể làm để quản lý sắp xếp lịch phù hợp.</p>
+                    </div>
+                    <a href="${pageContext.request.contextPath}/employee/dashboard" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-arrow-left me-1"></i> Quay lại Dashboard</a>
+                </div>
 
             <c:if test="${param.success eq 'supplementary'}">
                 <div class="alert alert-success"><i class="fa-solid fa-circle-check me-2"></i>Đăng ký ca bổ sung thành công. Quản lý sẽ xem xét và phân công.</div>
@@ -314,6 +395,7 @@
                 </div>
             </div>
 
+            </main>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

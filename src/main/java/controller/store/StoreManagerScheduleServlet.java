@@ -5,6 +5,8 @@ import dao.EmployeeAvailabilityDAO;
 import dao.ShiftScheduleDAO;
 import dao.SupplementaryShiftDAO;
 import dao.TemporaryTransferDAO;
+import dao.BranchDAO;
+import model.Branch;
 import model.Shift;
 import model.TemporaryTransfer;
 import model.User;
@@ -184,6 +186,18 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         request.setAttribute("transferProposedMap", transferProposedMap);
         request.setAttribute("borrowedAssignments", scheduleDAO.getBorrowedAssignments(managerBranchId, nextMonday.toString(), nextSunday.toString()));
 
+        int currentBranchId = getCurrentBranchId(request);
+        Branch currentBranch = branchDAO.getBranchById(currentBranchId);
+
+        if (currentBranch != null) {
+            String displayBranchInfo
+                    = currentBranch.getName()
+                    + " (" + currentBranch.getCode() + ") - "
+                    + currentBranch.getAddress();
+
+            request.setAttribute("displayBranchInfo", displayBranchInfo);
+        }
+
         request.getRequestDispatcher("/WEB-INF/views/store-manager/schedule.jsp").forward(request, response);
     }
 
@@ -199,7 +213,7 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         String startDate = getStringParameter(request, "startDate"); // Mốc ngày bắt đầu tuần (Thứ Hai)
         int branchId = getIntParameter(request, "branchId", -1);
         int currentBranch = getCurrentBranchId(request);
-        if(currentBranch <= 0 || branchId != currentBranch) {
+        if (currentBranch <= 0 || branchId != currentBranch) {
             sendForbidden(request, response, "Không có quyền sửa lịch cơ sở này");
             return;
         }
@@ -207,15 +221,15 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         ShiftScheduleDAO scheduleDAO = new ShiftScheduleDAO();
 
         // Check publish based on actual workDate, never depend on an optional startDate parameter.
-        if("assign".equals(action) || "updateRequirement".equals(action)){
-            try{
-                LocalDate d = LocalDate.parse(getStringParameter(request,"workDate"));
+        if ("assign".equals(action) || "updateRequirement".equals(action)) {
+            try {
+                LocalDate d = LocalDate.parse(getStringParameter(request, "workDate"));
                 LocalDate monday = d.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-                if(scheduleDAO.isWeekPublished(branchId, monday.toString(), monday.plusDays(6).toString())){
+                if (scheduleDAO.isWeekPublished(branchId, monday.toString(), monday.plusDays(6).toString())) {
                     response.getWriter().write("published_locked");
                     return;
                 }
-            } catch(Exception e){
+            } catch (Exception e) {
                 response.sendError(400, "Ngày không hợp lệ");
                 return;
             }
@@ -236,7 +250,7 @@ public class StoreManagerScheduleServlet extends BaseServlet {
                 }
                 boolean exists = scheduleDAO.checkScheduleExists(branchId, userId, shiftId, workDate);
                 if (exists) {
-                    if(scheduleDAO.isLockedForTransfer(branchId, userId, shiftId, workDate)){
+                    if (scheduleDAO.isLockedForTransfer(branchId, userId, shiftId, workDate)) {
                         response.getWriter().write("transfer_locked");
                         return;
                     }
@@ -250,13 +264,13 @@ public class StoreManagerScheduleServlet extends BaseServlet {
                     boolean eligible = scheduleDAO.hasRegisteredAvailability(
                             branchId, userId, positionId, shiftId, workDate)
                             || scheduleDAO.hasSupplementaryApplication(
-                            branchId, userId, positionId, shiftId, workDate)
+                                    branchId, userId, positionId, shiftId, workDate)
                             || scheduleDAO.isFullTime(branchId, userId);
                     if (!eligible) {
                         response.getWriter().write("not_registered");
                         return;
                     }
-                    if(!scheduleDAO.canAssign(branchId, userId, positionId, shiftId, workDate)){
+                    if (!scheduleDAO.canAssign(branchId, userId, positionId, shiftId, workDate)) {
                         response.getWriter().write("assignment_invalid");
                         return;
                     }
@@ -281,7 +295,10 @@ public class StoreManagerScheduleServlet extends BaseServlet {
 
         } else if ("publish".equals(action)) {
             if (branchId != -1) {
-                if(startDate == null){response.sendError(400, "Thiếu tuần cần Publish");return;}
+                if (startDate == null) {
+                    response.sendError(400, "Thiếu tuần cần Publish");
+                    return;
+                }
                 LocalDate monday = LocalDate.parse(startDate);
                 scheduleDAO.publishSchedules(branchId, monday.toString(), monday.plusDays(6).toString());
                 new SupplementaryShiftDAO().closeRegistrationsForWeek(branchId, monday.toString(), monday.plusDays(6).toString());

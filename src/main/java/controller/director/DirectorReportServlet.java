@@ -2,11 +2,11 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/JSP_Servlet/Servlet.java to edit this template
  */
-
 package controller.director;
 
 import controller.base.BaseServlet;
 import dao.DirectorReportDAO;
+import dao.BranchDAO;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -46,16 +46,20 @@ public class DirectorReportServlet extends BaseServlet {
         try {
             selectedPeriod = parsePeriod(request.getParameter("month"), request.getParameter("year"));
             branchId = storeManager
-                    ? currentUser.getHomeBranchId()
+                    ? resolveManagedBranchId(request, currentUser)
                     : parseBranchId(request.getParameter("branchId"));
+
         } catch (IllegalArgumentException e) {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
             return;
         }
+
         if (storeManager && branchId <= 0) {
-            sendForbidden(request, response, "Tài khoản của bạn chưa được gán chi nhánh.");
+            sendForbidden(request, response,
+                    "Bạn không có quyền xem báo cáo tại chi nhánh này.");
             return;
         }
+
         String reportHomePath = storeManager ? "/store-manager/dashboard"
                 : roleId == ROLE_HR_MANAGER ? "/hr/dashboard" : "/director/dashboard";
 
@@ -97,6 +101,30 @@ public class DirectorReportServlet extends BaseServlet {
             throw new ServletException("Không thể tải báo cáo hoạt động chi nhánh.", e);
         }
         request.getRequestDispatcher("/WEB-INF/views/director/reports.jsp").forward(request, response);
+    }
+
+    private int resolveManagedBranchId(
+            HttpServletRequest request, User user) {
+
+        if (user == null
+                || user.getRoleId() != ROLE_STORE_MANAGER) {
+            return -1;
+        }
+
+        int selectedBranchId = getCurrentBranchId(request);
+
+        BranchDAO branchDAO = new BranchDAO();
+
+        for (Branch branch
+                : branchDAO.getManagedBranches(user.getId())) {
+
+            if (branch.getId() == selectedBranchId
+                    && "ACTIVE".equals(branch.getStatus())) {
+                return selectedBranchId;
+            }
+        }
+
+        return -1;
     }
 
     private YearMonth parsePeriod(String rawMonth, String rawYear) {
