@@ -1,7 +1,6 @@
 package controller.employee;
 
 import controller.base.BaseServlet;
-import dao.AttendanceDAO;
 import model.User;
 import model.Employee;
 import model.Attendance;
@@ -9,6 +8,7 @@ import dao.EmployeeDAO;
 import dao.LeaveRequestDAO;
 import dao.ShiftChangeRequestDAO;
 import dao.ShiftScheduleDAO;
+import dao.AttendanceDAO;
 import java.io.IOException;
 import java.sql.Date;
 import java.time.LocalDate;
@@ -33,8 +33,8 @@ public class EmployeeDashboardServlet extends BaseServlet {
             return;
         }
 
-        // 2. Kiểm tra phân quyền Nhân viên (ROLE_EMPLOYEE = 5) hoặc Admin (ROLE_ADMIN = 1)
-        if (currentUser.getRoleId() != ROLE_EMPLOYEE && currentUser.getRoleId() != ROLE_ADMIN) {
+        // 2. Kiểm tra phân quyền Nhân viên (ROLE_EMPLOYEE = 5)
+        if (currentUser.getRoleId() != ROLE_EMPLOYEE) {
             sendForbidden(request, response, "Bạn không có quyền truy cập trang Nhân viên!");
             return;
         }

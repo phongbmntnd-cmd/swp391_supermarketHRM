@@ -35,6 +35,7 @@ public class LoginServlet extends BaseServlet {
             request.setAttribute("error", "Tài khoản của bạn hiện không hoạt động. Vui lòng liên hệ quản trị viên.");
         }
 
+        //Nếu người dùng chưa từng đăng nhập
         request.getRequestDispatcher("login.jsp").forward(request, response);
     }
 

@@ -211,6 +211,7 @@
 
             <!-- Form Đăng nhập -->
             <form action="${pageContext.request.contextPath}/login" method="post">
+                
                 <div class="form-group">
                     <label class="form-label" for="username">Tên đăng nhập</label>
                     <div class="input-group">
@@ -234,7 +235,7 @@
                 </button>
             </form>
 
-            <!-- Bảng gợi ý tài khoản mẫu để Test nhanh -->
+            <!-- Bảng gợi ý tài khoản mẫu để Test nhanh 
             <div class="demo-accounts">
                 <div class="demo-title">Tài khoản thử nghiệm (Pass: 123456)</div>
                 <div class="demo-grid">
@@ -260,6 +261,7 @@
                     </div>
                 </div>
             </div>
+            -->
         </div>
         <script>
             // Bắt sự kiện khi trang được hiển thị (bao gồm cả khi bấm Back/Forward từ bộ nhớ đệm BFCache)
