@@ -49,7 +49,8 @@ public class HRRecruitmentServlet extends BaseServlet {
                 "hirePhone",
                 "hireIdentityCard",
                 "hireEmail",
-                "hireExpirationDate"
+                "hireExpirationDate",
+                "hireContractType"
             };
 
             for (String key : keys) {
@@ -131,9 +132,12 @@ public class HRRecruitmentServlet extends BaseServlet {
             RecruitmentRequestDAO recruitmentDAO
                     = new RecruitmentRequestDAO();
 
+            // Cùng bộ lọc với danh sách đề xuất tiếp nhận ứng viên.
             request.setAttribute(
                     "recruitmentRequests",
-                    recruitmentDAO.getAllRequests()
+                    recruitmentDAO.getFilteredRequests(
+                            filter == null ? "pending" : filter,
+                            branchId, positionId, employmentType, status)
             );
 
         } catch (Exception e) {

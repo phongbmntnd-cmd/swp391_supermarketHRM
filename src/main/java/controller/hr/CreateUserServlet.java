@@ -73,6 +73,11 @@ public class CreateUserServlet extends BaseServlet {
         int proposalId = getIntParameter(request, "proposalId", -1);
         if (proposalId != -1) {
             RecruitmentProposal proposal = proposalDAO.getProposalById(proposalId);
+            if (proposal == null || !"PENDING".equals(proposal.getStatus())) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                        "Đề xuất không tồn tại hoặc đã được xử lý.");
+                return;
+            }
             if (proposal != null) {
                 if (proposal.getDepartmentId() == null || proposal.getDepartmentId() <= 0) {
                     int autoDeptId = resolveDepartmentByPositionTitle(proposal.getPositionTitle(), departments);
@@ -161,6 +166,7 @@ public class CreateUserServlet extends BaseServlet {
             String email = getStringParameter(request, "email");
             String expirationDate
                     = getStringParameter(request, "expirationDate");
+            String contractType = getStringParameter(request, "contractType");
 
             UserDAO userDAO = new UserDAO();
             EmployeeProfileDAO profileDAO = new EmployeeProfileDAO();
@@ -179,13 +185,27 @@ public class CreateUserServlet extends BaseServlet {
             } else if (email != null && !email.trim().isEmpty()
                     && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
                 error = "Email không hợp lệ.";
-            } else if (expirationDate != null
-                    && !expirationDate.trim().isEmpty()) {
-                try {
-                    java.time.LocalDate.parse(expirationDate);
-                } catch (Exception e) {
-                    error = "Ngày kết thúc hợp đồng không hợp lệ.";
+            } else if (!"CHINH_THUC".equals(contractType)
+                    && !"THOI_VU".equals(contractType)) {
+                error = "Vui lòng chọn loại hợp đồng hợp lệ.";
+            } else if ("THOI_VU".equals(contractType)) {
+                if (expirationDate == null || expirationDate.trim().isEmpty()) {
+                    error = "Vui lòng nhập ngày kết thúc hợp đồng thời vụ.";
+                } else {
+                    try {
+                        java.time.LocalDate endDate = java.time.LocalDate.parse(expirationDate.trim());
+                        if (endDate.isBefore(java.time.LocalDate.now())) {
+                            error = "Ngày kết thúc hợp đồng không được ở trong quá khứ.";
+                        }
+                    } catch (java.time.format.DateTimeParseException e) {
+                        error = "Ngày kết thúc hợp đồng không hợp lệ.";
+                    }
                 }
+            }
+
+            // Hợp đồng chính thức không có hạn hết hạn được gửi đến DAO.
+            if ("CHINH_THUC".equals(contractType)) {
+                expirationDate = null;
             }
 
             if (error == null && userDAO.isUsernameExists(username)) {
@@ -226,10 +246,11 @@ public class CreateUserServlet extends BaseServlet {
                 session.setAttribute("hireIdentityCard", identityCard);
                 session.setAttribute("hireEmail", email);
                 session.setAttribute("hireExpirationDate", expirationDate);
+                session.setAttribute("hireContractType", contractType);
 
                 response.sendRedirect(
                         request.getContextPath()
-                        + "/hr/recruitment?type=hiring"
+                        + "/hr/recruitment?type=hiring&filter=all"
                 );
                 return;
             }
@@ -289,7 +310,7 @@ public class CreateUserServlet extends BaseServlet {
                 );
 
                 response.sendRedirect(
-                        request.getContextPath() + "/hr/recruitment?type=hiring"
+                        request.getContextPath() + "/hr/recruitment?type=hiring&filter=all"
                 );
                 return;
 
@@ -309,10 +330,11 @@ public class CreateUserServlet extends BaseServlet {
             request.getSession().setAttribute("hireIdentityCard", identityCard);
             request.getSession().setAttribute("hireEmail", email);
             request.getSession().setAttribute("hireExpirationDate", expirationDate);
+            request.getSession().setAttribute("hireContractType", contractType);
 
             response.sendRedirect(
                     request.getContextPath()
-                    + "/hr/recruitment?type=hiring"
+                    + "/hr/recruitment?type=hiring&filter=all"
             );
             return;
 
@@ -340,21 +362,38 @@ public class CreateUserServlet extends BaseServlet {
         String identityCard = "";
         String email = "";
 
-        if (proposalId != -1) {
+        if (proposalId > 0) {
             proposal = proposalDAO.getProposalById(proposalId);
-            if (proposal != null) {
-                homeBranchId = proposal.getBranchId(); // Cố định cơ sở gốc
-                // Nếu form không truyền shiftType lên, lấy trực tiếp từ proposal ra
-                if (shiftType == null || shiftType.trim().isEmpty()) {
-                    shiftType = proposal.getShiftType();
-                }
-                // Lấy thông tin chuẩn từ ứng viên gắn liền với đề xuất, chống sửa đổi
-                if (proposal.getCandidate() != null) {
-                    fullName = proposal.getCandidate().getFullName();
-                    phone = proposal.getCandidate().getPhone();
-                    identityCard = proposal.getCandidate().getIdentityCard();
-                    email = proposal.getCandidate().getEmail();
-                }
+            if (proposal == null || !"PENDING".equals(proposal.getStatus())
+                    || proposal.getCandidate() == null) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST,
+                        "Đề xuất không hợp lệ hoặc đã được xử lý.");
+                return;
+            }
+            // Lấy toàn bộ dữ liệu đã được SM đề xuất từ DB, không lấy từ hidden inputs.
+            roleId = ROLE_EMPLOYEE;
+            homeBranchId = proposal.getBranchId();
+            positionId = proposal.getPositionId();
+            if (proposal.getDepartmentId() != null && proposal.getDepartmentId() > 0) {
+                departmentId = proposal.getDepartmentId();
+            } else {
+                departmentId = resolveDepartmentByPositionTitle(
+                        proposal.getPositionTitle(), new CommonDAO().getAllDepartments());
+            }
+            employeeType = proposal.getEmploymentType();
+            shiftType = proposal.getShiftType();
+            expirationDate = proposal.getExpirationDate() == null
+                    ? null : proposal.getExpirationDate().toString();
+            fullName = proposal.getCandidate().getFullName();
+            phone = proposal.getCandidate().getPhone();
+            identityCard = proposal.getCandidate().getIdentityCard();
+            email = proposal.getCandidate().getEmail();
+            if (proposal.getExpirationDate() != null && proposal.getTargetDate() != null
+                    && !proposal.getExpirationDate().after(proposal.getTargetDate())) {
+                request.setAttribute("error",
+                        "Ngày kết thúc hợp đồng phải sau ngày mong muốn có nhân sự.");
+                doGet(request, response);
+                return;
             }
         } else {
             // Nếu tạo thủ công hoàn toàn thì lấy từ form submit lên

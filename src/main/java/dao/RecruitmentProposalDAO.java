@@ -285,14 +285,46 @@ public class RecruitmentProposalDAO {
             conn = new DBContext().getConnection();
             conn.setAutoCommit(false);
 
-            // Lấy shift_type từ đề xuất gốc để gán cho nhân sự mới
-            String shiftType = null;
-            if (proposalId > 0) {
-                RecruitmentProposal prop = getProposalById(proposalId);
-                if (prop != null) {
-                    shiftType = prop.getShiftType();
+            // Khóa bản ghi trong cùng transaction để không cấp tài khoản hai lần.
+            // Luôn dùng dữ liệu nguồn từ DB thay vì các input ẩn trên trình duyệt.
+            if (proposalId <= 0 || hrUserId <= 0) {
+                conn.rollback();
+                return false;
+            }
+            String shiftType;
+            String lockSql = "SELECT rp.branch_id, rp.position_id, rp.department_id, "
+                    + "rp.employment_type, rp.shift_type, rp.expiration_date, "
+                    + "rp.target_date, c.full_name, c.phone, c.identity_card, c.email "
+                    + "FROM recruitment_proposals rp "
+                    + "JOIN candidates c ON c.id = rp.candidate_id "
+                    + "WHERE rp.id = ? AND rp.status = 'PENDING' FOR UPDATE";
+            try (PreparedStatement lockPs = conn.prepareStatement(lockSql)) {
+                lockPs.setInt(1, proposalId);
+                try (ResultSet source = lockPs.executeQuery()) {
+                    if (!source.next()) {
+                        conn.rollback();
+                        return false;
+                    }
+                    homeBranchId = source.getInt("branch_id");
+                    positionId = source.getInt("position_id");
+                    departmentId = source.getInt("department_id");
+                    employeeType = source.getString("employment_type");
+                    shiftType = source.getString("shift_type");
+                    java.sql.Date dbExpiry = source.getDate("expiration_date");
+                    java.sql.Date dbTarget = source.getDate("target_date");
+                    expirationDate = dbExpiry == null ? null : dbExpiry.toString();
+                    fullName = source.getString("full_name");
+                    phone = source.getString("phone");
+                    identityCard = source.getString("identity_card");
+                    email = source.getString("email");
+                    if (dbExpiry != null && dbTarget != null && !dbExpiry.after(dbTarget)) {
+                        conn.rollback();
+                        return false;
+                    }
                 }
             }
+            // Người được tiếp nhận luôn có vai trò Employee.
+            roleId = 5;
 
             PreparedStatement psUser = conn.prepareStatement(sqlUser, PreparedStatement.RETURN_GENERATED_KEYS);
             psUser.setString(1, username);
@@ -360,7 +392,10 @@ public class RecruitmentProposalDAO {
                 psProposal.setInt(1, hrUserId);
                 psProposal.setString(2, customNote);
                 psProposal.setInt(3, proposalId);
-                psProposal.executeUpdate();
+                if (psProposal.executeUpdate() != 1) {
+                    conn.rollback();
+                    return false;
+                }
             }
 
             conn.commit();
@@ -717,6 +752,9 @@ public class RecruitmentProposalDAO {
         rp.setShiftType(rs.getString("shift_type"));
 
         rp.setExpirationDate(rs.getDate("expiration_date"));
+        // Database hiện lưu loại hợp đồng thông qua ngày hết hạn.
+        // FULL_TIME/PART_TIME là hình thức làm việc, không phải loại hợp đồng.
+        rp.setContractType(rp.getExpirationDate() == null ? "CHINH_THUC" : "THOI_VU");
         rp.setTargetDate(rs.getDate("target_date"));
         rp.setReason(rs.getString("reason"));
         rp.setStatus(rs.getString("status"));

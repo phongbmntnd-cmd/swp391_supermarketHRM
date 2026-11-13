@@ -223,7 +223,7 @@
                         <p class="mb-0">Xem xét và phê duyệt các yêu cầu điều chuyển nhân sự giữa các cơ sở trong hệ thống.</p>
                     </div>
                     <div>
-                        <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-light px-3 py-2 fw-semibold">
+                        <a href="${pageContext.request.contextPath}/hr/dashboard" class="btn btn-outline-light px-3 py-2 fw-semibold">
                             <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
                         </a>
                     </div>

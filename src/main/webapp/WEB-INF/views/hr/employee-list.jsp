@@ -231,7 +231,7 @@
                         <p class="mb-0">Thêm mới, cập nhật thông tin chi tiết, theo dõi hợp đồng và thông tin liên lạc của nhân viên các cơ sở.</p>
                     </div>
                     <div>
-                        <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-light px-3 py-2 fw-semibold">
+                        <a href="${pageContext.request.contextPath}/hr/dashboard" class="btn btn-outline-light px-3 py-2 fw-semibold">
                             <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
                         </a>
                     </div>

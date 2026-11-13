@@ -1,6 +1,7 @@
 package controller.store;
 
 import controller.base.BaseServlet;
+import context.DBContext;
 import dao.BranchDAO;
 import dao.CommonDAO;
 import dao.RecruitmentProposalDAO;
@@ -13,6 +14,11 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.Map;
+import java.util.HashMap;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -206,11 +212,12 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         String email = getStringParameter(request, "email");
         String phone = getStringParameter(request, "phone");
         String identityCard = getStringParameter(request, "identityCard");
+        String contractType = getStringParameter(request, "contractType");
         String expirationDate = getStringParameter(request, "expirationDate");
         String targetDate = getStringParameter(request, "targetDate");
         String reason = getStringParameter(request, "reason");
 
-        java.sql.Date today = new java.sql.Date(System.currentTimeMillis());
+        LocalDate today = LocalDate.now();
         java.sql.Date parsedTargetDate = null;
         if (targetDate != null && !targetDate.trim().isEmpty()) {
             try {
@@ -252,13 +259,41 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
             errorMessage = "Vui lòng chọn vị trí đề xuất!";
         } else if (shiftType == null || shiftType.trim().isEmpty()) {
             errorMessage = "Vui lòng chọn loại ca làm việc!";
-        } else if (parsedTargetDate == null || parsedTargetDate.before(today)) {
-            errorMessage = "Ngày mong muốn có nhân sự không được hợp lệ hoặc trong quá khứ!";
+        } else if (departmentId == -1) {
+            errorMessage = "Vị trí công việc không hợp lệ!";
+        } else if (!"FULL_TIME".equals(employmentType) && !"PART_TIME".equals(employmentType)) {
+            errorMessage = "Hình thức làm việc không hợp lệ!";
+        } else if (parsedTargetDate == null || !parsedTargetDate.toLocalDate().isAfter(today)) {
+            errorMessage = "Ngày mong muốn có nhân sự phải sau ngày hiện tại!";
+        } else if (reason == null || reason.trim().isEmpty()) {
+            errorMessage = "Vui lòng nhập lý do đề xuất!";
+        } else if (!"CHINH_THUC".equals(contractType) && !"THOI_VU".equals(contractType)) {
+            errorMessage = "Loại hợp đồng không hợp lệ!";
         }
 
-        // Nếu có lỗi validation -> Set attribute và forward lại trang chứa modal
+        // Ngày hết hạn chỉ lưu cho hợp đồng thời vụ.
+        if (errorMessage == null && "THOI_VU".equals(contractType)) {
+            LocalDate parsedExpirationDate = null;
+            try {
+                if (expirationDate != null && !expirationDate.trim().isEmpty()) {
+                    parsedExpirationDate = LocalDate.parse(expirationDate.trim());
+                }
+            } catch (Exception e) {
+                // Hệ thống sẽ hiển thị thông báo ngày không hợp lệ phía dưới.
+            }
+            if (parsedExpirationDate == null) {
+                errorMessage = "Vui lòng chọn ngày kết thúc hợp đồng thời vụ hợp lệ!";
+            } else if (!parsedExpirationDate.isAfter(parsedTargetDate.toLocalDate())) {
+                errorMessage = "Ngày kết thúc hợp đồng phải sau ngày mong muốn có nhân sự!";
+            }
+        } else if ("CHINH_THUC".equals(contractType)) {
+            expirationDate = null;
+        }
+
+        // Nếu có lỗi validation -> mở lại đúng modal với dữ liệu POST.
         if (errorMessage != null) {
             request.setAttribute("error", errorMessage);
+            request.setAttribute("errorModal", "resubmit".equals(action) ? "resubmit" : "create");
             loadFormData(request, user, branchId);
             request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment.jsp").forward(request, response);
             return;
@@ -283,7 +318,7 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
                     expirationDate, targetDate, reason, user.getId()
             );
             if (success) {
-                request.getSession().setAttribute("message", "Gửi đề xuất tuyển dụng thành công! Vui lòng chờ HR phê duyệt.");
+                request.getSession().setAttribute("message", "Gửi đề xuất tiếp nhận thành công! Vui lòng chờ HR phê duyệt.");
             }
         }
 
@@ -293,6 +328,7 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
         } else {
             // Thất bại khi thao tác với Database
             request.setAttribute("error", "Thực hiện thao tác thất bại! Vui lòng thử lại.");
+            request.setAttribute("errorModal", "resubmit".equals(action) ? "resubmit" : "create");
             loadFormData(request, user, branchId);
             request.getRequestDispatcher("/WEB-INF/views/store-manager/recruitment.jsp").forward(request, response);
         }
@@ -335,6 +371,25 @@ public class StoreManagerRecruitmentServlet extends BaseServlet {
             );
         }
 
+        // RecruitmentProposalDAO lưu ngày hết hạn trong recruitment_proposals.expiration_date.
+        // Map này giúp form Edit lấy chính xác ngày hợp đồng dù model chưa expose getter.
+        Map<Integer, String> expirationDateByProposal = new HashMap<>();
+        String datesSql = "SELECT id, expiration_date FROM recruitment_proposals WHERE branch_id = ?";
+        try (Connection conn = new DBContext().getConnection();
+             PreparedStatement ps = conn.prepareStatement(datesSql)) {
+            ps.setInt(1, branchId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    java.sql.Date endDate = rs.getDate("expiration_date");
+                    if (endDate != null) {
+                        expirationDateByProposal.put(rs.getInt("id"), endDate.toString());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            throw new ServletException("Không thể tải ngày kết thúc hợp đồng của đề xuất.", e);
+        }
+        request.setAttribute("expirationDateByProposal", expirationDateByProposal);
         request.setAttribute("currentBranch", currentBranch);
     }
 

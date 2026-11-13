@@ -334,6 +334,7 @@
                 <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo chi nhánh</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/leave-requests"><i class="fa-solid fa-plane-departure"></i> Duyệt nghỉ phép</a></li>
                 <li><a href="${pageContext.request.contextPath}/store-manager/shift-requests"><i class="fa-solid fa-rotate"></i> Duyệt đổi ca</a></li>
+                <li><a href="${pageContext.request.contextPath}/account/change-password"><i class="fa-solid fa-key"></i> Đổi mật khẩu</a></li>
             </ul>
         </aside>
 
@@ -579,6 +580,22 @@
                             <p>Xét duyệt các yêu cầu đổi ca làm việc (đổi với đồng nghiệp hoặc chuyển sang ca trống).</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/store-manager/shift-requests" class="card-link">Xem yêu cầu đổi ca <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
+                    <!-- Tính năng 10: Đổi mật khẩu cá nhân -->
+                    <div class="card-item">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #2563eb;">
+                                    <i class="fa-solid fa-key"></i>
+                                </div>
+                                <h3>Đổi Mật Khẩu</h3>
+                            </div>
+                            <p>Thay đổi mật khẩu đăng nhập của tài khoản Store Manager để bảo vệ thông tin và quyền truy cập hệ thống.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/account/change-password" class="card-link">
+                            Đổi mật khẩu <i class="fa-solid fa-arrow-right"></i>
+                        </a>
                     </div>
 
                 </div>

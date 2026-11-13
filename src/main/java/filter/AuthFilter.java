@@ -105,7 +105,17 @@ public class AuthFilter implements Filter {
         }
 
         if (!hasAccess) {
-            redirectToDashboard(res, req.getContextPath(), roleId);
+            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+
+            req.setAttribute(
+                    "errorMessage",
+                    "Bạn không có quyền truy cập chức năng này."
+            );
+
+            req.getRequestDispatcher(
+                    "/WEB-INF/views/error/403.jsp"
+            ).forward(req, res);
+
             return;
         }
 

@@ -7,6 +7,35 @@
 <%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%-- Flash data after POST -> redirect: preserve once for this render, then remove session data --%>
+<c:if test="${not empty sessionScope.hireError}">
+    <c:set var="hireError" value="${sessionScope.hireError}" scope="request"/>
+    <c:set var="hireRequestId" value="${sessionScope.hireRequestId}" scope="request"/>
+    <c:set var="hireFullName" value="${sessionScope.hireFullName}" scope="request"/>
+    <c:set var="hirePhone" value="${sessionScope.hirePhone}" scope="request"/>
+    <c:set var="hireIdentityCard" value="${sessionScope.hireIdentityCard}" scope="request"/>
+    <c:set var="hireEmail" value="${sessionScope.hireEmail}" scope="request"/>
+    <c:set var="hireExpirationDate" value="${sessionScope.hireExpirationDate}" scope="request"/>
+    <c:if test="${empty requestScope.hireContractType}">
+        <c:set var="hireContractType" value="${sessionScope.hireContractType}" scope="request"/>
+    </c:if>
+    <c:remove var="hireError" scope="session"/>
+    <c:remove var="hireRequestId" scope="session"/>
+    <c:remove var="hireFullName" scope="session"/>
+    <c:remove var="hirePhone" scope="session"/>
+    <c:remove var="hireIdentityCard" scope="session"/>
+    <c:remove var="hireEmail" scope="session"/>
+    <c:remove var="hireExpirationDate" scope="session"/>
+    <c:remove var="hireContractType" scope="session"/>
+</c:if>
+<c:if test="${sessionScope.createRecruitmentSuccess eq true}">
+    <c:set var="createRecruitmentSuccess" value="${sessionScope.createRecruitmentSuccess}" scope="request"/>
+    <c:set var="createdEmployeeUsername" value="${sessionScope.createdEmployeeUsername}" scope="request"/>
+    <c:set var="createdEmployeeFullName" value="${sessionScope.createdEmployeeFullName}" scope="request"/>
+    <c:remove var="createRecruitmentSuccess" scope="session"/>
+    <c:remove var="createdEmployeeUsername" scope="session"/>
+    <c:remove var="createdEmployeeFullName" scope="session"/>
+</c:if>
 <!DOCTYPE html>
 <html lang="vi">
     <head>
@@ -249,7 +278,7 @@
                         <p class="mb-0">Xem xét hồ sơ tiếp nhận ứng viên và nhu cầu tuyển thêm nhân sự từ các cơ sở.</p>
                     </div>
                     <div>
-                        <a href="${pageContext.request.contextPath}/store-manager/dashboard" class="btn btn-outline-light px-3 py-2 fw-semibold">
+                        <a href="${pageContext.request.contextPath}/hr/dashboard" class="btn btn-outline-light px-3 py-2 fw-semibold">
                             <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
                         </a>
                     </div>
@@ -316,7 +345,7 @@
 
                 </c:if>
 
-                <!-- Tabs lọc nhanh (chỉ áp dụng cho bảng tiếp nhận bên dưới) -->
+                <!-- Tabs lọc nhanh áp dụng cho cả hai loại đề xuất -->
                 <ul class="nav nav-pills mb-4">
                     <li class="nav-item me-2">
                         <a class="nav-link ${filter == 'pending' ? 'active' : 'bg-white text-dark shadow-sm'}" 
@@ -363,7 +392,7 @@
                                         <option value="">-- Tất cả --</option>
                                         <option value="FULL_TIME" ${employmentType == 'FULL_TIME' ? 'selected' : ''}>Toàn thời gian</option>
                                         <option value="PART_TIME" ${employmentType == 'PART_TIME' ? 'selected' : ''}>Bán thời gian</option>
-                                        <option value="CASUAL" ${employmentType == 'CASUAL' ? 'selected' : ''}>Thời vụ</option>
+                                        <!--<option value="CASUAL" ${employmentType == 'CASUAL' ? 'selected' : ''}>Thời vụ</option>-->
                                     </select>
                                 </div>
                                 <div class="col-md-2">
@@ -645,7 +674,7 @@
                                                     <label class="form-label fw-bold small">
                                                         Loại hợp đồng *
                                                     </label>
-                                                    <select class="form-select"
+                                                    <select class="form-select" name="contractType"
                                                             onchange="
                                                                     const input = this.form.querySelector('[name=expirationDate]');
                                                                     const seasonal = this.value === 'THOI_VU';
@@ -654,10 +683,10 @@
                                                                     if (!seasonal)
                                                                         input.value = '';
                                                             ">
-                                                        <option value="CHINH_THUC">
+                                                        <option value="CHINH_THUC" ${hireRequestId eq rr.id and hireContractType eq 'THOI_VU' ? '' : 'selected'}>
                                                             Hợp đồng chính thức
                                                         </option>
-                                                        <option value="THOI_VU">
+                                                        <option value="THOI_VU" ${hireRequestId eq rr.id and hireContractType eq 'THOI_VU' ? 'selected' : ''}>
                                                             Hợp đồng thời vụ
                                                         </option>
                                                     </select>
@@ -671,7 +700,7 @@
                                                            name="expirationDate"
                                                            class="form-control"
                                                            value="${hireRequestId eq rr.id ? hireExpirationDate : ''}"
-                                                           disabled>
+                                                           ${hireRequestId eq rr.id and hireContractType eq 'THOI_VU' ? 'required' : 'disabled'}>
                                                 </div>
                                             </div>
 
@@ -743,6 +772,29 @@
                                                                 });
             </script>
         </c:if>
+
+
+        <script>
+            // Sync temporary contract fields; backend remains the final validator.
+            document.querySelectorAll('[id^="hireModal"]').forEach(function (modalElement) {
+                const form = modalElement.querySelector('form');
+                if (!form) return;
+                const typeSelect = form.querySelector('[name="contractType"]');
+                const dateInput = form.querySelector('[name="expirationDate"]');
+                if (!typeSelect || !dateInput) return;
+
+                function syncContractFields() {
+                    const temporary = typeSelect.value === 'THOI_VU';
+                    dateInput.disabled = !temporary;
+                    dateInput.required = temporary;
+                    // On re-open after a server rejection, retain user-entered date.
+                    if (!temporary) dateInput.value = '';
+                }
+                typeSelect.addEventListener('change', syncContractFields);
+                modalElement.addEventListener('show.bs.modal', syncContractFields);
+                syncContractFields();
+            });
+        </script>
 
         <script>
             document.getElementById('hiringReviewModal').addEventListener('show.bs.modal', function (event) {

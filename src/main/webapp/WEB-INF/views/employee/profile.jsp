@@ -312,6 +312,33 @@
                         </div>
                     </div>
                 </section>
+
+                <section class="card profile-card">
+                    <div class="card-header"><i class="fa-solid fa-key me-2 text-success"></i>Đổi mật khẩu</div>
+                    <div class="card-body">
+                        <form method="post" action="${pageContext.request.contextPath}/employee/profile">
+                            <input type="hidden" name="action" value="changePassword">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="field-label" for="currentPassword">Mật khẩu hiện tại</label>
+                                    <input class="form-control" id="currentPassword" name="currentPassword" type="password" autocomplete="current-password" required>
+                                </div>
+                                <div class="col-md-6"></div>
+                                <div class="col-md-6">
+                                    <label class="field-label" for="newPassword">Mật khẩu mới</label>
+                                    <input class="form-control" id="newPassword" name="newPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="field-label" for="confirmPassword">Xác nhận mật khẩu mới</label>
+                                    <input class="form-control" id="confirmPassword" name="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-save text-white px-4 mt-4">
+                                <i class="fa-solid fa-key me-2"></i>Đổi mật khẩu
+                            </button>
+                        </form>
+                    </div>
+                </section>
             </main>
         </div>
     </body>

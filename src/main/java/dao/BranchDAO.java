@@ -198,7 +198,9 @@ public class BranchDAO {
 
     // Xóa (hoặc chuyển trạng thái cơ sở thành INACTIVE)
     public boolean deleteBranch(int branchId) {
-        String sql = "UPDATE branches SET status = 'INACTIVE' WHERE id = ?";
+        String sql = "UPDATE branches "
+                + "SET status = 'INACTIVE' "
+                + "WHERE id = ? AND status = 'ACTIVE'";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, branchId);
             return ps.executeUpdate() > 0;
@@ -210,15 +212,32 @@ public class BranchDAO {
 
     // Đổi trạng thái cơ sở (ACTIVE <-> INACTIVE)
     public boolean toggleBranchStatus(int branchId, String currentStatus) {
-        String newStatus = "ACTIVE".equals(currentStatus) ? "INACTIVE" : "ACTIVE";
-        String sql = "UPDATE branches SET status = ? WHERE id = ?";
+
+        if (!"ACTIVE".equals(currentStatus)
+                && !"INACTIVE".equals(currentStatus)) {
+            return false;
+        }
+
+        String newStatus = "ACTIVE".equals(currentStatus)
+                ? "INACTIVE"
+                : "ACTIVE";
+
+        String sql
+                = "UPDATE branches SET status = ? "
+                + "WHERE id = ? AND status = ?";
+
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, newStatus);
             ps.setInt(2, branchId);
+            ps.setString(3, currentStatus);
+
             return ps.executeUpdate() > 0;
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         return false;
     }
 

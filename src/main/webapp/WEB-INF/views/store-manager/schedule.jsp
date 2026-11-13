@@ -421,6 +421,18 @@
                 <c:if test="${param.success eq 'published'}">
                     <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã công bố (Publish) lịch làm việc tuần này thành công! Nhân viên đã có thể xem lịch trên hệ thống.</div>
                 </c:if>
+                <c:if test="${param.error eq 'empty_schedule'}">
+                    <div class="alert alert-danger shadow-sm mb-4" role="alert">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                        Không thể công bố lịch làm việc vì chưa có nhân viên nào được phân công trong tuần này. Vui lòng phân công ít nhất một nhân viên trước khi Publish.
+                    </div>
+                </c:if>
+                <c:if test="${param.error eq 'publish_failed'}">
+                    <div class="alert alert-danger shadow-sm mb-4" role="alert">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                        Không thể công bố lịch làm việc. Vui lòng kiểm tra lại lịch phân công và thử lại.
+                    </div>
+                </c:if>
                 <c:if test="${param.success eq 'supplementary_opened'}">
                     <div class="alert alert-success shadow-sm mb-4"><i class="fa-solid fa-circle-check me-2"></i> Đã mở đăng ký bổ sung. Nhân viên phù hợp có thể đăng ký tại trang lịch rảnh.</div>
                 </c:if>
@@ -642,11 +654,9 @@
                                                                     <c:if test="${reg.positionTitle eq pos.title and reg.shiftName eq shift.name and reg.dayOfWeek eq day}">
                                                                         <c:set var="currentKey" value="${reg.userId}_${shift.id}_${workDate}" />
                                                                         <c:set var="isAssigned" value="false" />
-                                                                        <c:set var="assignStatus" value="" />
-                                                                        <c:forEach var="asg" items="${cellAssignments}">
-                                                                            <c:if test="${asg.userId eq ft.userId}">
+                                                                        <c:forEach var="asg" items="${assignedList}">
+                                                                            <c:if test="${asg eq currentKey}">
                                                                                 <c:set var="isAssigned" value="true" />
-                                                                                <c:set var="assignStatus" value="${asg.status}" />
                                                                             </c:if>
                                                                         </c:forEach>
 

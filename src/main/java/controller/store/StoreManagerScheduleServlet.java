@@ -137,6 +137,31 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         Map<String, Map<String, Object>> weeklyRequirements = scheduleDAO.getWeeklyRequirementsMap(managerBranchId, nextMonday.toString(), nextSunday.toString());
         Map<String, Integer> weeklyAssignedCounts = scheduleDAO.getWeeklyAssignedCountMap(managerBranchId, nextMonday.toString(), nextSunday.toString());
 
+        // Dung mot nguon du lieu cho trang thai da phan cong cua FULL_TIME va PART_TIME.
+        // Dinh dang key phai trung voi JSP: userId_shiftId_yyyy-MM-dd.
+        // Doc lai tu bang shift_schedules de giu tich xanh sau khi reload trang.
+        Set<String> assignedList = new HashSet<>();
+        String assignedSql = "SELECT user_id, shift_id, work_date "
+                + "FROM shift_schedules "
+                + "WHERE branch_id = ? AND work_date BETWEEN ? AND ? "
+                + "AND status IN ('DRAFT', 'PUBLISHED', 'ON_LEAVE')";
+        try (Connection conn = context.DBContext.getConnection();
+                PreparedStatement ps = conn.prepareStatement(assignedSql)) {
+            ps.setInt(1, managerBranchId);
+            ps.setDate(2, java.sql.Date.valueOf(nextMonday));
+            ps.setDate(3, java.sql.Date.valueOf(nextSunday));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    assignedList.add(rs.getInt("user_id") + "_"
+                            + rs.getInt("shift_id") + "_"
+                            + rs.getDate("work_date").toString());
+                }
+            }
+        } catch (Exception ex) {
+            throw new ServletException("Khong the tai trang thai phan cong ca", ex);
+        }
+        request.setAttribute("assignedList", assignedList);
+
         // Lấy danh sách các đề xuất điều chuyển của chi nhánh (vai trò là cơ sở đích - mượn người) để mapping
         List<TemporaryTransfer> myOutgoingTransfers = transferDAO.getTransfersByStore(managerBranchId, false);
         Set<String> proposedKeys = new HashSet<>();
@@ -294,33 +319,65 @@ public class StoreManagerScheduleServlet extends BaseServlet {
             }
 
         } else if ("publish".equals(action)) {
-            if (branchId != -1) {
-                if (startDate == null) {
-                    response.sendError(400, "Thiếu tuần cần Publish");
-                    return;
-                }
-                LocalDate monday = LocalDate.parse(startDate);
-                scheduleDAO.publishSchedules(branchId, monday.toString(), monday.plusDays(6).toString());
-                new SupplementaryShiftDAO().closeRegistrationsForWeek(branchId, monday.toString(), monday.plusDays(6).toString());
+            if (startDate == null || startDate.trim().isEmpty()) {
+                response.sendError(400, "Thiếu tuần cần Publish");
+                return;
+            }
 
-                // Khớp lại các đơn nghỉ phép đã duyệt với lịch vừa
-                // publish: đánh dấu ON_LEAVE + đưa ca vào open_shifts.
-                // Nhờ vậy part-time xin nghỉ trước khi lịch được publish
-                // vẫn có hiệu lực đầy đủ.
-                try {
-                    new dao.LeaveRequestDAO().reconcileApprovedLeaves(
-                            branchId,
-                            java.sql.Date.valueOf(monday),
-                            java.sql.Date.valueOf(monday.plusDays(6)));
-                } catch (Exception e) {
-                    e.printStackTrace();
+            LocalDate monday;
+            try {
+                monday = LocalDate.parse(startDate);
+            } catch (Exception e) {
+                response.sendError(400, "Tuần cần Publish không hợp lệ");
+                return;
+            }
+            LocalDate sunday = monday.plusDays(6);
+            String weekQuery = "&startDate=" + monday;
+
+            // Không có phân công trong tuần: DAO không cập nhật bản ghi nào.
+            // Trước đây Servlet vẫn redirect success=published dù thực tế chưa Publish.
+            String countSql = "SELECT COUNT(*) FROM shift_schedules "
+                    + "WHERE branch_id = ? AND work_date BETWEEN ? AND ? "
+                    + "AND status IN ('DRAFT', 'PUBLISHED', 'ON_LEAVE')";
+            int scheduleCount;
+            try (Connection conn = context.DBContext.getConnection();
+                    PreparedStatement ps = conn.prepareStatement(countSql)) {
+                ps.setInt(1, branchId);
+                ps.setDate(2, java.sql.Date.valueOf(monday));
+                ps.setDate(3, java.sql.Date.valueOf(sunday));
+                try (ResultSet rs = ps.executeQuery()) {
+                    scheduleCount = rs.next() ? rs.getInt(1) : 0;
                 }
+            } catch (Exception e) {
+                throw new ServletException("Không thể kiểm tra phân công trước khi Publish", e);
             }
-            String redirectUrl = "schedule?success=published";
-            if (startDate != null && !startDate.trim().isEmpty()) {
-                redirectUrl += "&startDate=" + startDate;
+
+            if (scheduleCount == 0) {
+                response.sendRedirect("schedule?error=empty_schedule" + weekQuery);
+                return;
             }
-            response.sendRedirect(redirectUrl);
+
+            scheduleDAO.publishSchedules(branchId, monday.toString(), sunday.toString());
+
+            // Chỉ báo thành công khi DB thực sự ghi nhận lịch đã được Publish.
+            if (!scheduleDAO.isWeekPublished(branchId, monday.toString(), sunday.toString())) {
+                response.sendRedirect("schedule?error=publish_failed" + weekQuery);
+                return;
+            }
+
+            new SupplementaryShiftDAO().closeRegistrationsForWeek(branchId, monday.toString(), sunday.toString());
+
+            // Khớp đơn nghỉ phép đã duyệt với lịch mới Publish.
+            try {
+                new dao.LeaveRequestDAO().reconcileApprovedLeaves(
+                        branchId,
+                        java.sql.Date.valueOf(monday),
+                        java.sql.Date.valueOf(sunday));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            response.sendRedirect("schedule?success=published" + weekQuery);
         } else if ("openSupplementaryRegistration".equals(action)) {
             int positionId = getIntParameter(request, "positionId", -1);
             int shiftId = getIntParameter(request, "shiftId", -1);

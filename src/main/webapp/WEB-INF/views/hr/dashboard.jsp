@@ -334,6 +334,7 @@
                 <li><a href="${pageContext.request.contextPath}/hr/branch-request"><i class="fa-solid fa-store"></i>Yêu cầu mở chi nhánh</a></li>
                 <li><a href="${pageContext.request.contextPath}/hr/payroll"><i class="fa-solid fa-money-bill-wave"></i> Tính lương</a></li>
                 <li><a href="${pageContext.request.contextPath}/director/reports"><i class="fa-solid fa-chart-pie"></i> Báo cáo toàn chuỗi</a></li>
+                <li><a href="${pageContext.request.contextPath}/account/change-password"><i class="fa-solid fa-key"></i> Đổi mật khẩu</a></li>
             </ul>
         </div>
 
@@ -504,6 +505,19 @@
                             <p>Theo dõi nhân sự, ca làm, chấm công,vi phạm và tình hình lương tại chi nhánhđang quản lý.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/director/reports"class="card-link">Thông tin chi tiết<i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                    <!-- Tính năng 9: Đổi mật khẩu -->
+                    <div class="card-custom">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #0284c7;">
+                                    <i class="fa-solid fa-key"></i>
+                                </div>
+                                <h3>Đổi Mật Khẩu</h3>
+                            </div>
+                            <p>Thay đổi mật khẩu đăng nhập của chính bạn để bảo vệ tài khoản quản lý nhân sự.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/account/change-password" class="card-link">Đổi mật khẩu <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
                 </div>
             </div>

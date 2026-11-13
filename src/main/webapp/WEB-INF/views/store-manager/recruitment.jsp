@@ -394,7 +394,18 @@
                                         <td class="text-center">
                                             <c:if test="${rp.status == 'REJECTED'}">
                                                 <button class="btn btn-sm btn-warning text-white fw-semibold" 
-                                                        onclick="openResubmitModal('${rp.id}', '${rp.candidate.fullName}', '${rp.candidate.phone}', '${rp.candidate.identityCard}', '${rp.candidate.email}', '${rp.positionId}', '${rp.employmentType}', '${rp.shiftType}', '${rp.targetDate}', '${rp.reason}')">
+                                                        data-proposal-id="<c:out value="${rp.id}"/>"
+                                                        data-full-name="<c:out value="${rp.candidate.fullName}"/>"
+                                                        data-phone="<c:out value="${rp.candidate.phone}"/>"
+                                                        data-identity-card="<c:out value="${rp.candidate.identityCard}"/>"
+                                                        data-email="<c:out value="${rp.candidate.email}"/>"
+                                                        data-position-id="<c:out value="${rp.positionId}"/>"
+                                                        data-employment-type="<c:out value="${rp.employmentType}"/>"
+                                                        data-shift-type="<c:out value="${rp.shiftType}"/>"
+                                                        data-target-date="<c:out value="${rp.targetDate}"/>"
+                                                        data-reason="<c:out value="${rp.reason}"/>"
+                                                        data-expiration-date="<c:out value="${expirationDateByProposal[rp.id]}"/>"
+                                                        onclick="openResubmitModal(this)">
                                                     <i class="fa-solid fa-pen-to-square me-1"></i> Sửa & Gửi lại
                                                 </button>
                                             </c:if>
@@ -537,7 +548,7 @@
                             <input type="hidden" name="action" value="create">
 
                             <!-- HIỂN THỊ LỖI NGAY TRONG MODAL -->
-                            <c:if test="${not empty error and errorModal ne 'recruitmentRequest'}">
+                            <c:if test="${not empty error and errorModal eq 'create'}">
                                 <div class="alert alert-danger py-2 mb-3" role="alert">
                                     <i class="fa-solid fa-circle-exclamation me-2"></i>${error}
                                 </div>
@@ -705,25 +716,28 @@
                         </div>
                         <div class="modal-body">
                             <input type="hidden" name="action" value="resubmit">
-                            <input type="hidden" id="editProposalId" name="proposalId">
+                            <input type="hidden" id="editProposalId" name="proposalId" value="<c:out value="${errorModal eq 'resubmit' ? param.proposalId : ''}"/>">
+                            <c:if test="${not empty error and errorModal eq 'resubmit'}">
+                                <div class="alert alert-danger py-2 mb-3" role="alert"><c:out value="${error}"/></div>
+                            </c:if>
 
                             <div class="row g-3 mb-3">
                                 <div class="col-md-5">
                                     <label class="form-label small fw-bold">Họ và tên ứng viên <span class="text-danger">*</span></label>
-                                    <input type="text" id="editFullName" name="fullName" class="form-control" required>
+                                    <input type="text" id="editFullName" name="fullName" class="form-control" required value="<c:out value="${errorModal eq 'resubmit' ? param.fullName : ''}"/>">
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label small fw-bold">Số điện thoại <span class="text-danger">*</span></label>
-                                    <input type="text" id="editPhone" name="phone" class="form-control" required>
+                                    <input type="text" id="editPhone" name="phone" class="form-control" required value="<c:out value="${errorModal eq 'resubmit' ? param.phone : ''}"/>">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold">Số CCCD/CMND <span class="text-danger">*</span></label>
-                                    <input type="text" id="editIdentityCard" name="identityCard" class="form-control" required>
+                                    <input type="text" id="editIdentityCard" name="identityCard" class="form-control" required value="<c:out value="${errorModal eq 'resubmit' ? param.identityCard : ''}"/>">
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">Email ứng viên (Tùy chọn)</label>
-                                <input type="email" id="editEmail" name="email" class="form-control">
+                                <input type="email" id="editEmail" name="email" class="form-control" value="<c:out value="${errorModal eq 'resubmit' ? param.email : ''}"/>">
                             </div>
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
@@ -731,15 +745,15 @@
                                     <select id="editPositionId" name="positionId" class="form-select" required>
                                         <option value="">-- Chọn vị trí --</option>
                                         <c:forEach var="p" items="${positions}">
-                                            <option value="${p.id}">${p.title}</option>
+                                            <option value="${p.id}" <c:if test="${errorModal eq 'resubmit' and param.positionId eq p.id}">selected</c:if>><c:out value="${p.title}"/></option>
                                         </c:forEach>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold">Hình thức làm việc <span class="text-danger">*</span></label>
                                     <select id="editEmployeeType" name="employeeType" class="form-select" onchange="updateShiftOptions('editEmployeeType', 'editShiftType')" required>
-                                        <option value="FULL_TIME">FULL_TIME</option>
-                                        <option value="PART_TIME">PART_TIME</option>
+                                        <option value="FULL_TIME" <c:if test="${errorModal eq 'resubmit' and param.employeeType eq 'FULL_TIME'}">selected</c:if>>FULL_TIME</option>
+                                        <option value="PART_TIME" <c:if test="${errorModal eq 'resubmit' and param.employeeType eq 'PART_TIME'}">selected</c:if>>PART_TIME</option>
                                     </select>
                                 </div>
                             </div>
@@ -748,7 +762,7 @@
                             <div class="row g-3 mb-3">
                                 <div class="col-md-12">
                                     <label class="form-label small fw-bold">Loại ca làm việc <span class="text-danger">*</span></label>
-                                    <select id="editShiftType" name="shiftType" class="form-select" required>
+                                    <select id="editShiftType" name="shiftType" class="form-select" data-selected-shift="<c:out value="${errorModal eq 'resubmit' ? param.shiftType : ''}"/>" required>
                                     </select>
                                 </div>
                             </div>
@@ -757,25 +771,25 @@
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold">Loại hợp đồng <span class="text-danger">*</span></label>
                                     <select id="editContractType" name="contractType" class="form-select" onchange="handleContractTypeChange('editContractType', 'editExpContainer')" required>
-                                        <option value="CHINH_THUC">Hợp đồng chính thức</option>
-                                        <option value="THOI_VU">Hợp đồng thời vụ (Casual)</option>
+                                        <option value="CHINH_THUC" <c:if test="${errorModal eq 'resubmit' and param.contractType eq 'CHINH_THUC'}">selected</c:if>>Hợp đồng chính thức</option>
+                                        <option value="THOI_VU" <c:if test="${errorModal eq 'resubmit' and param.contractType eq 'THOI_VU'}">selected</c:if>>Hợp đồng thời vụ (Casual)</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6" id="editExpContainer" style="display: none;">
                                     <label class="form-label small fw-bold">Ngày kết thúc HĐ <span class="text-danger">*</span></label>
-                                    <input type="date" id="editExpirationDate" name="expirationDate" class="form-control">
+                                    <input type="date" id="editExpirationDate" name="expirationDate" class="form-control" value="<c:out value="${errorModal eq 'resubmit' ? param.expirationDate : ''}"/>">
                                 </div>
                             </div>
 
                             <div class="row g-3 mb-3">
                                 <div class="col-md-12">
                                     <label class="form-label small fw-bold">Ngày mong muốn có nhân sự <span class="text-danger">*</span></label>
-                                    <input type="date" id="editTargetDate" name="targetDate" class="form-control" required>
+                                    <input type="date" id="editTargetDate" name="targetDate" class="form-control" required value="<c:out value="${errorModal eq 'resubmit' ? param.targetDate : ''}"/>">
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label small fw-bold">Lý do đề xuất chỉnh sửa <span class="text-danger">*</span></label>
-                                <textarea id="editReason" name="reason" rows="2" class="form-control" required></textarea>
+                                <textarea id="editReason" name="reason" rows="2" class="form-control" required><c:out value="${errorModal eq 'resubmit' ? param.reason : ''}"/></textarea>
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -857,28 +871,38 @@
                                                 hiringTargetDate.min = today;
 
             <c:if test="${not empty error}">
-                                            var errorModalId = "${errorModal eq 'recruitmentRequest' ? 'createHiringRequestModal' : 'createProposalModal'}";
-                                            var createModal = new bootstrap.Modal(document.getElementById(errorModalId));
-                                            createModal.show();
+                                            var errorModalId = "${errorModal eq 'recruitmentRequest' ? 'createHiringRequestModal' : (errorModal eq 'resubmit' ? 'resubmitModal' : 'createProposalModal')}";
+                                            if (errorModalId === 'resubmitModal') {
+                                                updateShiftOptions('editEmployeeType', 'editShiftType',
+                                                    document.getElementById('editShiftType').dataset.selectedShift);
+                                                handleContractTypeChange('editContractType', 'editExpContainer');
+                                            }
+                                            var errorModal = new bootstrap.Modal(document.getElementById(errorModalId));
+                                            errorModal.show();
             </c:if>
                                         });
 
-                                        function openResubmitModal(id, fullName, phone, identityCard, email, positionId, employmentType, shiftType, targetDate, reason) {
-                                            document.getElementById('editProposalId').value = id;
-                                            document.getElementById('editFullName').value = fullName;
-                                            document.getElementById('editPhone').value = phone;
-                                            document.getElementById('editIdentityCard').value = identityCard;
-                                            document.getElementById('editEmail').value = (email !== 'null' && email !== 'undefined') ? email : '';
-                                            document.getElementById('editPositionId').value = positionId;
-                                            document.getElementById('editEmployeeType').value = employmentType;
+                                        function openResubmitModal(button) {
+                                            const data = button.dataset;
+                                            document.getElementById('editProposalId').value = data.proposalId || '';
+                                            document.getElementById('editFullName').value = data.fullName || '';
+                                            document.getElementById('editPhone').value = data.phone || '';
+                                            document.getElementById('editIdentityCard').value = data.identityCard || '';
+                                            document.getElementById('editEmail').value = data.email || '';
+                                            document.getElementById('editPositionId').value = data.positionId || '';
+                                            document.getElementById('editEmployeeType').value = data.employmentType || 'FULL_TIME';
+                                            updateShiftOptions('editEmployeeType', 'editShiftType', data.shiftType || '');
+                                            document.getElementById('editTargetDate').value = data.targetDate || '';
+                                            document.getElementById('editReason').value = data.reason || '';
 
-                                            updateShiftOptions('editEmployeeType', 'editShiftType', shiftType);
+                                            // DB lưu expiration_date cho hợp đồng thời vụ, NULL cho chính thức.
+                                            const isCasual = Boolean(data.expirationDate && data.expirationDate !== 'null');
+                                            document.getElementById('editContractType').value = isCasual ? 'THOI_VU' : 'CHINH_THUC';
+                                            handleContractTypeChange('editContractType', 'editExpContainer');
+                                            document.getElementById('editExpirationDate').value = isCasual ? data.expirationDate : '';
 
-                                            document.getElementById('editTargetDate').value = (targetDate !== 'null' && targetDate !== 'undefined') ? targetDate : '';
-                                            document.getElementById('editReason').value = reason;
-
-                                            var resubmitModal = new bootstrap.Modal(document.getElementById('resubmitModal'));
-                                            resubmitModal.show();
+                                            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('resubmitModal'));
+                                            modal.show();
                                         }
         </script>
     </body>
