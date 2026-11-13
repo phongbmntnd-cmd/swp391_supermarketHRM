@@ -34,13 +34,22 @@ public class HRDashboardServlet extends BaseServlet {
 
         try {
             EmployeeDAO empDao = new EmployeeDAO();
-            
-            // 1. Tổng nhân sự toàn hệ thống (role 4 và 5)
-            int totalEmployees = empDao.getAllEmployees(null,null,null,null).size();
 
-            // 2. Đề xuất tuyển dụng đang chờ duyệt (PENDING)
-            RecruitmentProposalDAO proposalDao = new RecruitmentProposalDAO();
-            int pendingProposals = proposalDao.getPendingProposals().size();
+            // 1. Tổng nhân sự toàn hệ thống (role 4 và 5)
+            int totalEmployees = empDao.getAllEmployees(null, null, null, null).size();
+
+            // 2. Tổng đề xuất nhân sự đang chờ duyệt
+            // Bao gồm: tiếp nhận ứng viên + tuyển dụng theo nhu cầu
+            RecruitmentProposalDAO proposalDao
+                    = new RecruitmentProposalDAO();
+
+            int pendingReception
+                    = proposalDao.getPendingProposals().size();
+
+            int pendingRecruitment = countPendingRecruitmentRequests();
+
+            int pendingProposals
+                    = pendingReception + pendingRecruitment;
 
             // 3. Tổng số chi nhánh đang hoạt động
             int totalBranches = countTotalBranches();
@@ -60,11 +69,28 @@ public class HRDashboardServlet extends BaseServlet {
         request.getRequestDispatcher("/WEB-INF/views/hr/dashboard.jsp").forward(request, response);
     }
 
+    private int countPendingRecruitmentRequests() {
+        String sql = "SELECT COUNT(*) "
+                + "FROM recruitment_requests "
+                + "WHERE status = 'PENDING'";
+
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Không thể đếm đề xuất tuyển dụng chờ duyệt.", e);
+        }
+
+        return 0;
+    }
+
     private int countTotalBranches() {
         String sql = "SELECT COUNT(*) FROM branches WHERE status = 'ACTIVE'";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             if (rs.next()) {
                 return rs.getInt(1);
             }
@@ -76,9 +102,7 @@ public class HRDashboardServlet extends BaseServlet {
 
     private int countTotalLockedAccounts() {
         String sql = "SELECT COUNT(*) FROM employee_locks WHERE is_active = TRUE";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             if (rs.next()) {
                 return rs.getInt(1);
             }

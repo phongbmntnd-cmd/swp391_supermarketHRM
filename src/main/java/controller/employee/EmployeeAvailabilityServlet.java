@@ -3,6 +3,7 @@ package controller.employee;
 import controller.base.BaseServlet;
 import dao.EmployeeAvailabilityDAO;
 import dao.EmployeeProfileDAO;
+import dao.SupplementaryShiftDAO;
 import model.EmployeeAvailability;
 import model.EmployeeProfile;
 import model.Shift;
@@ -19,7 +20,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @WebServlet(name = "EmployeeAvailabilityServlet", urlPatterns = {"/employee/availability"})
 public class EmployeeAvailabilityServlet extends BaseServlet {
@@ -63,16 +66,30 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
         String employeeType = (profile != null && profile.getEmployeeType() != null) ? profile.getEmployeeType().trim().toUpperCase() : "FULL_TIME";
         String shiftType = (profile != null && profile.getShiftType() != null) ? profile.getShiftType().trim().toUpperCase() : "";
 
+        if (profile != null && !"FULL_TIME".equals(employeeType)) {
+            request.setAttribute("supplementaryRegistrations",
+                new SupplementaryShiftDAO().getOpenRegistrationsForEmployee(
+                    user.getId(), profile.getHomeBranchId(), profile.getPositionId()));
+        }
+
         List<Shift> shifts = dao.getShiftsByEmployeeType(employeeType);
 
         // Lấy lịch rảnh theo đúng user và đúng mốc tuần
         List<EmployeeAvailability> currentAvailabilities = dao.getAvailabilitiesByUserIdAndWeek(user.getId(), nextMonday.format(isoFormatter));
 
+        // Đưa danh sách vào Set định dạng "DAY_shiftId" để JSP kiểm tra nhanh và sạch sẽ
+        Set<String> registeredKeySet = new HashSet<>();
+        if (currentAvailabilities != null) {
+            for (EmployeeAvailability av : currentAvailabilities) {
+                registeredKeySet.add(av.getDayOfWeek() + "_" + av.getShiftId());
+            }
+        }
+
         boolean hasRegistered = (currentAvailabilities != null && !currentAvailabilities.isEmpty());
         request.setAttribute("hasRegistered", hasRegistered);
 
         request.setAttribute("shifts", shifts);
-        request.setAttribute("currentAvailabilities", currentAvailabilities);
+        request.setAttribute("registeredKeySet", registeredKeySet);
         request.setAttribute("employeeType", employeeType);
         request.setAttribute("shiftType", shiftType);
 
@@ -92,7 +109,14 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
             return;
         }
 
-        // Chặn bảo mật phía server: Nếu quá thời hạn (sau ngày Thứ Tư) mà cố tình gửi request lưu
+        if ("applySupplementary".equals(getStringParameter(request, "action"))) {
+            int registrationId = getIntParameter(request, "registrationId", -1);
+            boolean applied = registrationId > 0 && new SupplementaryShiftDAO().apply(registrationId, user.getId());
+            response.sendRedirect(request.getContextPath() + "/employee/availability?"
+                    + (applied ? "success=supplementary" : "error=supplementary"));
+            return;
+        }
+
         LocalDateTime now = LocalDateTime.now();
         DayOfWeek currentDay = now.getDayOfWeek();
         boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY
@@ -103,7 +127,6 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
             return;
         }
 
-        // Lấy mốc tuần từ request form gửi lên
         String weekStartDate = request.getParameter("weekStartDate");
         if (weekStartDate == null || weekStartDate.trim().isEmpty()) {
             LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
@@ -141,7 +164,6 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
                         }
                     }
 
-                    // Chặn bảo mật phân quyền ca cố định
                     if ("PT_FIXED_MORNING".equals(shiftType) && !shiftName.contains("sáng")) {
                         continue;
                     }
@@ -157,7 +179,6 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
             }
         }
 
-        // Kiểm tra định mức tối thiểu 5 ca / tuần cho Part-time
         int minShiftsRequired = 5;
         if (newAvailabilities.size() < minShiftsRequired) {
             response.sendRedirect("availability?error=min_shifts&min=" + minShiftsRequired);

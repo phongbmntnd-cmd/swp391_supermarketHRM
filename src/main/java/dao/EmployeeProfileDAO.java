@@ -31,6 +31,7 @@ public class EmployeeProfileDAO {
     public EmployeeProfile getProfileByUserId(int userId) {
         String sql = "SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, "
                 + "ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.shift_type, "
+                + "COALESCE(ep.standard_hours_per_day, 10.00) AS standard_hours_per_day, "
                 + "p.title AS position_name, d.name AS department_name, "
                 + "u.username, u.email, u.status, u.role_id, r.name AS role_name "
                 + "FROM employee_profiles ep "
@@ -68,6 +69,7 @@ public class EmployeeProfileDAO {
 
         sql.append("SELECT ep.user_id, ep.full_name, ep.phone, ep.identity_card, ");
         sql.append("ep.home_branch_id, ep.position_id, ep.department_id, ep.employee_type, ep.shift_type, "); // <-- Thêm ep.shift_type vào đây
+        sql.append("COALESCE(ep.standard_hours_per_day, 10.00) AS standard_hours_per_day, ");
         sql.append("p.title AS position_name, d.name AS department_name, ");
         sql.append("u.username, u.email, u.status, u.role_id, r.name AS role_name ");
         sql.append("FROM employee_profiles ep ");
@@ -296,6 +298,14 @@ public class EmployeeProfileDAO {
         // Đọc giá trị shift_type từ database lên model
         profile.setShiftType(rs.getString("shift_type"));
 
+        // Định mức giờ làm việc tiêu chuẩn mỗi ngày (mô hình "C trên nền B")
+        try {
+            profile.setStandardHoursPerDay(
+                    rs.getDouble("standard_hours_per_day"));
+        } catch (Exception ignore) {
+            profile.setStandardHoursPerDay(10.00);
+        }
+
         profile.setPositionName(rs.getString("position_name"));
         profile.setDepartmentName(rs.getString("department_name"));
 
@@ -409,4 +419,99 @@ public class EmployeeProfileDAO {
                 return upper;
         }
     }
+
+    /**
+     * Nhân viên tự cập nhật email và số điện thoại. Chỉ cập nhật hồ sơ của tài
+     * khoản đang đăng nhập.
+     */
+    public boolean updateMyContactInfo(
+        int userId, String email, String phone)
+        throws Exception {
+
+        String checkEmailSql
+                = "SELECT 1 FROM users "
+                + "WHERE email = ? AND id <> ? LIMIT 1";
+
+        String checkPhoneSql
+                = "SELECT 1 FROM employee_profiles "
+                + "WHERE phone = ? AND user_id <> ? LIMIT 1";
+
+        String updateEmailSql
+                = "UPDATE users SET email = ? WHERE id = ? AND role_id = 5";
+
+        String updatePhoneSql
+                = "UPDATE employee_profiles "
+                + "SET phone = ? WHERE user_id = ?";
+
+        try (Connection conn = new DBContext().getConnection()) {
+
+            conn.setAutoCommit(false);
+
+            try {
+                if (email != null && !email.isBlank()) {
+                    try (PreparedStatement ps
+                            = conn.prepareStatement(checkEmailSql)) {
+
+                        ps.setString(1, email);
+                        ps.setInt(2, userId);
+
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                throw new IllegalArgumentException(
+                                        "Email đã được sử dụng.");
+                            }
+                        }
+                    }
+                }
+
+                if (phone != null && !phone.isBlank()) {
+                    try (PreparedStatement ps
+                            = conn.prepareStatement(checkPhoneSql)) {
+
+                        ps.setString(1, phone);
+                        ps.setInt(2, userId);
+
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                throw new IllegalArgumentException(
+                                        "Số điện thoại đã tồn tại.");
+                            }
+                        }
+                    }
+                }
+
+                try (PreparedStatement ps
+                        = conn.prepareStatement(updateEmailSql)) {
+
+                    ps.setString(1, email);
+                    ps.setInt(2, userId);
+
+                    if (ps.executeUpdate() != 1) {
+                        throw new IllegalStateException(
+                                "Không tìm thấy tài khoản nhân viên hợp lệ.");
+                    }
+                }
+
+                try (PreparedStatement ps
+                        = conn.prepareStatement(updatePhoneSql)) {
+
+                    ps.setString(1, phone);
+                    ps.setInt(2, userId);
+
+                    if (ps.executeUpdate() != 1) {
+                        throw new IllegalStateException(
+                                "Không tìm thấy hồ sơ nhân viên.");
+                    }
+                }
+
+                conn.commit();
+                return true;
+
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            }
+        }
+    }
+
 }

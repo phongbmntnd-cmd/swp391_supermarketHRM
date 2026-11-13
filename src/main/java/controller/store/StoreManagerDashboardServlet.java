@@ -4,15 +4,19 @@ import controller.base.BaseServlet;
 import model.User;
 import model.Employee;
 import model.Branch;
+import dao.BranchDAO;
 import dao.EmployeeDAO;
 import dao.EmployeeLockDAO;
+import dao.LeaveRequestDAO;
 import dao.RecruitmentProposalDAO;
+import dao.ShiftChangeRequestDAO;
 import dao.ShiftScheduleDAO;
 import context.DBContext;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.List;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,46 +41,115 @@ public class StoreManagerDashboardServlet extends BaseServlet {
         }
 
         try {
+            BranchDAO branchDAO = new BranchDAO();
+
+            List<Branch> managedBranches
+                    = branchDAO.getManagedBranches(currentUser.getId());
+
+            request.setAttribute("managedBranches", managedBranches);
+
             int resolvedBranchId = 0;
 
-            // 1. Ưu tiên tìm chi nhánh mà user này làm Store Manager trực tiếp qua bảng branches
-            resolvedBranchId = getBranchIdByManagerId(currentUser.getId());
+// Ưu tiên chi nhánh đã chọn trong session
+            try {
+                resolvedBranchId = getCurrentBranchId(request);
+            } catch (Exception ignored) {
+                // Chưa có chi nhánh được chọn
+            }
 
-            // 2. Nếu không tìm thấy, fallback lấy theo home_branch_id của nhân viên
-            if (resolvedBranchId == 0) {
-                EmployeeDAO empDao = new EmployeeDAO();
-                Employee currentEmp = empDao.getEmployeeById(currentUser.getId());
-                if (currentEmp != null) {
-                    resolvedBranchId = currentEmp.getHomeBranchId();
+// Kiểm tra SM có quyền quản lý chi nhánh này không
+            boolean hasPermission = false;
+
+            for (Branch b : managedBranches) {
+                if (b.getId() == resolvedBranchId) {
+                    hasPermission = true;
+                    break;
                 }
             }
 
-            // Fallback an toàn cuối cùng nếu vẫn bằng 0
-            if (resolvedBranchId == 0) {
-                resolvedBranchId = 1; 
+// Nếu chi nhánh hiện tại không hợp lệ,
+// chuyển về chi nhánh được phép quản lý đầu tiên
+            if (!hasPermission) {
+                if (managedBranches.isEmpty()) {
+                    sendForbidden(request, response,
+                            "Bạn chưa có chi nhánh được phép quản lý!");
+                    return;
+                }
+
+                resolvedBranchId = managedBranches.get(0).getId();
             }
 
-            // Tạo biến final để sử dụng an toàn bên trong biểu thức Lambda
+            String selectedBranch = request.getParameter("branchId");
+
+            if (selectedBranch != null) {
+                try {
+                    int selectedId = Integer.parseInt(selectedBranch);
+
+                    boolean allowed = managedBranches.stream()
+                            .anyMatch(b -> b.getId() == selectedId);
+
+                    if (!allowed) {
+                        sendForbidden(request, response,
+                                "Bạn không có quyền quản lý chi nhánh này!");
+                        return;
+                    }
+
+                    resolvedBranchId = selectedId;
+
+                } catch (NumberFormatException e) {
+                    response.sendError(400, "Mã chi nhánh không hợp lệ.");
+                    return;
+                }
+            }
+
+            // Lưu chi nhánh hợp lệ vào session
+            request.getSession().setAttribute(
+                    "currentBranchId", resolvedBranchId
+            );
+
             final int branchId = resolvedBranchId;
 
-            // 3. Lấy thông tin chi tiết của cơ sở hiện tại
-            Branch currentBranch = getBranchById(branchId);
+            // 4. Lấy thông tin chi tiết của cơ sở hiện tại thông qua BranchDAO chuẩn
+            Branch currentBranch = branchDAO.getBranchById(branchId);
 
-            // 4. Chỉ đếm nhân viên (role_id = 5) thuộc đúng chi nhánh này
+            // Phòng hờ nếu DAO trả về null, khởi tạo đối tượng mặc định để tránh lỗi hiển thị JSP
+            if (currentBranch == null) {
+                currentBranch = new Branch();
+                currentBranch.setId(branchId);
+                currentBranch.setName("Chi nhánh mặc định");
+                currentBranch.setCode("BRANCH-" + branchId);
+                currentBranch.setAddress("Đang cập nhật");
+            }
+
+            // --- XỬ LÝ GHÉP CHUỖI HIỂN THỊ CHI NHÁNH TẠI SERVLET ---
+            String displayBranchInfo = currentBranch.getName() + " (" + currentBranch.getCode() + ") - " + currentBranch.getAddress();
+            request.setAttribute("displayBranchInfo", displayBranchInfo);
+
+            // 5. Chỉ đếm nhân viên thuộc đúng chi nhánh này
             EmployeeDAO empDao = new EmployeeDAO();
-            int totalEmployees = empDao.getAllEmployees(null,null,null,null).stream()
+            int totalEmployees = empDao.getAllEmployees(null, null, null, null).stream()
                     .filter(e -> e.getHomeBranchId() == branchId && e.getRoleId() == 5)
                     .mapToInt(e -> 1).sum();
 
-            // 5. Tổng số đề xuất tuyển dụng của chi nhánh
-            RecruitmentProposalDAO proposalDao = new RecruitmentProposalDAO();
-            int totalProposals = proposalDao.getProposalsByBranch(branchId).size();
+            // 6. Tổng đề xuất nhân sự của chi nhánh
+            // Bao gồm đề xuất tiếp nhận và đề xuất tuyển dụng
+            RecruitmentProposalDAO proposalDao
+                    = new RecruitmentProposalDAO();
 
-            // 6. Tổng số ca trực trong ngày hôm nay của chi nhánh
+            int receptionProposals
+                    = proposalDao.getProposalsByBranch(branchId).size();
+
+            int recruitmentProposals
+                    = countRecruitmentRequestsByBranch(branchId);
+
+            int totalProposals
+                    = receptionProposals + recruitmentProposals;
+
+            // 7. Tổng số ca trực trong ngày hôm nay của chi nhánh
             ShiftScheduleDAO scheduleDao = new ShiftScheduleDAO();
             int totalShifts = scheduleDao.countTodaySchedulesByBranch(branchId);
 
-            // 7. Số tài khoản đang bị khóa khẩn cấp tại chi nhánh
+            // 8. Số tài khoản đang bị khóa khẩn cấp tại chi nhánh
             EmployeeLockDAO lockDao = new EmployeeLockDAO();
             int lockedCount = lockDao.countLockedEmployeesByBranch(branchId, null, null, null);
 
@@ -87,6 +160,12 @@ public class StoreManagerDashboardServlet extends BaseServlet {
             request.setAttribute("totalShifts", totalShifts);
             request.setAttribute("lockedCount", lockedCount);
 
+            // 9. Tổng số đơn (nghỉ phép + đổi ca) đang chờ duyệt của chi nhánh
+            request.setAttribute(
+                    "pendingRequestCount",
+                    countPendingRequests(branchId)
+            );
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -94,11 +173,54 @@ public class StoreManagerDashboardServlet extends BaseServlet {
         request.getRequestDispatcher("/WEB-INF/views/store-manager/dashboard.jsp").forward(request, response);
     }
 
+    private int countRecruitmentRequestsByBranch(int branchId) {
+        String sql = "SELECT COUNT(*) "
+                + "FROM recruitment_requests "
+                + "WHERE branch_id = ?";
+
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, branchId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Không thể đếm đề xuất tuyển dụng của chi nhánh.", e);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Tổng số đơn (nghỉ phép + đổi ca) của chi nhánh đang chờ duyệt.
+     */
+    private int countPendingRequests(int branchId) {
+        int total = 0;
+
+        try {
+            total += new LeaveRequestDAO().countBranchPendingRequests(branchId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
+            total += new ShiftChangeRequestDAO().countBranchPendingShiftRequests(branchId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return total;
+    }
+
     // Hàm phụ trợ: Lấy branchId dựa vào store_manager_id trong bảng branches
     private int getBranchIdByManagerId(int managerId) {
         String sql = "SELECT id FROM branches WHERE store_manager_id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, managerId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -109,26 +231,5 @@ public class StoreManagerDashboardServlet extends BaseServlet {
             e.printStackTrace();
         }
         return 0;
-    }
-
-    private Branch getBranchById(int branchId) {
-        String sql = "SELECT id, code, name, address, status, store_manager_id FROM branches WHERE id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, branchId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    Branch b = new Branch();
-                    b.setId(rs.getInt("id"));
-                    b.setCode(rs.getString("code"));
-                    b.setName(rs.getString("name"));
-                    b.setAddress(rs.getString("address"));
-                    return b;
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 }

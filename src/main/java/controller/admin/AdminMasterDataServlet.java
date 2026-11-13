@@ -1,7 +1,6 @@
 package controller.admin;
 
 import controller.base.BaseServlet;
-import dao.AuditLogDAO;
 import dao.DepartmentDAO;
 import dao.PositionDAO;
 import dao.RoleDAO;
@@ -10,6 +9,7 @@ import model.Department;
 import model.Position;
 import model.Role;
 import model.User;
+import util.AuditDescription;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,7 +28,6 @@ public class AdminMasterDataServlet extends BaseServlet {
     private final DepartmentDAO deptDAO = new DepartmentDAO();
     private final PositionDAO positionDAO = new PositionDAO();
     private final RoleDAO roleDAO = new RoleDAO();
-    private final AuditLogDAO auditLogDAO = new AuditLogDAO();
 
     // =========================================================
     //  GET: Hiển thị trang quản lý Master Data
@@ -152,8 +151,9 @@ public class AdminMasterDataServlet extends BaseServlet {
         boolean ok = deptDAO.createDepartment(name);
         if (ok) {
             setSuccessMessage(request, "Đã thêm phòng ban mới: " + name);
+            int newId = deptDAO.getDepartmentIdByName(name);
             writeMasterLog(request, AuditLog.ACTION_CREATE_DEPARTMENT,
-                    "Tạo phòng ban mới: '" + name + "'");
+                    AuditLog.ENTITY_DEPARTMENT, newId, "Phòng ban", name, "Tạo", null);
         } else {
             setErrorMessage(request, "Không thể thêm phòng ban. Vui lòng thử lại!");
         }
@@ -176,11 +176,15 @@ public class AdminMasterDataServlet extends BaseServlet {
             response.sendRedirect(request.getContextPath() + "/admin/master-data");
             return;
         }
+        // Lấy tên cũ TRƯỚC khi cập nhật để ghi audit log
+        String oldName = deptDAO.getDepartmentName(id);
         boolean ok = deptDAO.updateDepartment(id, name);
         if (ok) {
             setSuccessMessage(request, "Đã cập nhật phòng ban: " + name);
+            String extra = (oldName != null && !oldName.equals(name))
+                    ? AuditDescription.change("Tên", oldName, name) : null;
             writeMasterLog(request, AuditLog.ACTION_UPDATE_DEPARTMENT,
-                    "Cập nhật phòng ban id=" + id + " thành '" + name + "'");
+                    AuditLog.ENTITY_DEPARTMENT, id, "Phòng ban", name, "Cập nhật", extra);
         } else {
             setErrorMessage(request, "Không thể cập nhật phòng ban. Vui lòng thử lại!");
         }
@@ -206,7 +210,8 @@ public class AdminMasterDataServlet extends BaseServlet {
         if (ok) {
             setSuccessMessage(request, "Đã xóa phòng ban: " + (deptName != null ? deptName : "#" + id));
             writeMasterLog(request, AuditLog.ACTION_DELETE_DEPARTMENT,
-                    "Xóa phòng ban '" + deptName + "' (id=" + id + ")");
+                    AuditLog.ENTITY_DEPARTMENT, id, "Phòng ban",
+                    deptName != null ? deptName : "#" + id, "Xóa", null);
         } else {
             setErrorMessage(request, "Không thể xóa phòng ban. Có thể đang có dữ liệu liên quan.");
         }
@@ -239,8 +244,10 @@ public class AdminMasterDataServlet extends BaseServlet {
         boolean ok = positionDAO.createPosition(title, deptId);
         if (ok) {
             setSuccessMessage(request, "Đã thêm vị trí mới: " + title);
+            int newId = positionDAO.getPositionIdByTitle(title);
             writeMasterLog(request, AuditLog.ACTION_CREATE_POSITION,
-                    "Tạo vị trí mới: '" + title + "' thuộc phòng ban id=" + deptId);
+                    AuditLog.ENTITY_POSITION, newId, "Vị trí", title, "Tạo",
+                    "Phòng ban id=" + deptId);
         } else {
             setErrorMessage(request, "Không thể thêm vị trí. Vui lòng thử lại!");
         }
@@ -263,11 +270,15 @@ public class AdminMasterDataServlet extends BaseServlet {
             response.sendRedirect(request.getContextPath() + "/admin/master-data");
             return;
         }
+        // Lấy tiêu đề cũ TRƯỚC khi cập nhật để ghi audit log
+        String oldTitle = positionDAO.getPositionTitle(id);
         boolean ok = positionDAO.updatePosition(id, title, deptId);
         if (ok) {
             setSuccessMessage(request, "Đã cập nhật vị trí: " + title);
+            String extra = (oldTitle != null && !oldTitle.equals(title))
+                    ? AuditDescription.change("Tiêu đề", oldTitle, title) : null;
             writeMasterLog(request, AuditLog.ACTION_UPDATE_POSITION,
-                    "Cập nhật vị trí id=" + id + " thành '" + title + "', dept=" + deptId);
+                    AuditLog.ENTITY_POSITION, id, "Vị trí", title, "Cập nhật", extra);
         } else {
             setErrorMessage(request, "Không thể cập nhật vị trí. Vui lòng thử lại!");
         }
@@ -287,7 +298,8 @@ public class AdminMasterDataServlet extends BaseServlet {
         if (ok) {
             setSuccessMessage(request, "Đã xóa vị trí: " + (posTitle != null ? posTitle : "#" + id));
             writeMasterLog(request, AuditLog.ACTION_DELETE_POSITION,
-                    "Xóa vị trí '" + posTitle + "' (id=" + id + ")");
+                    AuditLog.ENTITY_POSITION, id, "Vị trí",
+                    posTitle != null ? posTitle : "#" + id, "Xóa", null);
         } else {
             setErrorMessage(request, "Không thể xóa vị trí. Có thể đang có nhân viên giữ vị trí này.");
         }
@@ -316,8 +328,10 @@ public class AdminMasterDataServlet extends BaseServlet {
         boolean ok = roleDAO.createRole(name, description);
         if (ok) {
             setSuccessMessage(request, "Đã thêm vai trò mới: " + name);
+            int newId = roleDAO.getRoleIdByName(name);
             writeMasterLog(request, AuditLog.ACTION_CREATE_ROLE,
-                    "Tạo vai trò mới: '" + name + "' - " + (description != null ? description : ""));
+                    AuditLog.ENTITY_ROLE, newId, "Vai trò", name, "Tạo",
+                    description != null && !description.isEmpty() ? "Mô tả: " + description : null);
         } else {
             setErrorMessage(request, "Không thể thêm vai trò. Vui lòng thử lại!");
         }
@@ -341,11 +355,15 @@ public class AdminMasterDataServlet extends BaseServlet {
             response.sendRedirect(request.getContextPath() + "/admin/master-data");
             return;
         }
+        // Lấy tên cũ TRƯỚC khi cập nhật để ghi audit log
+        String oldRoleName = roleDAO.getRoleName(id);
         boolean ok = roleDAO.updateRole(id, name, description);
         if (ok) {
             setSuccessMessage(request, "Đã cập nhật vai trò: " + name);
+            String extra = (oldRoleName != null && !oldRoleName.equals(name))
+                    ? AuditDescription.change("Tên", oldRoleName, name) : null;
             writeMasterLog(request, AuditLog.ACTION_UPDATE_ROLE,
-                    "Cập nhật vai trò id=" + id + " thành '" + name + "'");
+                    AuditLog.ENTITY_ROLE, id, "Vai trò", name, "Cập nhật", extra);
         } else {
             setErrorMessage(request, "Không thể cập nhật vai trò. Vui lòng thử lại!");
         }
@@ -370,12 +388,9 @@ public class AdminMasterDataServlet extends BaseServlet {
         boolean ok = roleDAO.deleteRole(id);
         if (ok) {
             setSuccessMessage(request, "Đã xóa vai trò: " + (roleName != null ? roleName : "#" + id));
-            try {
-                String ip = getClientIp(request);
-                String desc = "Admin '" + getCurrentUser(request).getUsername() + "' xóa vai trò '"
-                            + roleName + "' (id=" + id + ")";
-                auditLogDAO.log(AuditLog.ACTION_DELETE_ROLE, getCurrentUser(request).getId(), null, desc, ip);
-            } catch (Exception e) { e.printStackTrace(); }
+            writeMasterLog(request, AuditLog.ACTION_DELETE_ROLE,
+                    AuditLog.ENTITY_ROLE, id, "Vai trò",
+                    roleName != null ? roleName : "#" + id, "Xóa", null);
         } else {
             setErrorMessage(request, "Không thể xóa vai trò. Có thể đang có tài khoản sử dụng vai trò này.");
         }
@@ -385,26 +400,31 @@ public class AdminMasterDataServlet extends BaseServlet {
     // =========================================================
     //  AUDIT LOG cho các thao tác CRUD Master Data
     // =========================================================
-    private void writeMasterLog(HttpServletRequest request, String action, String detail) {
+    /**
+     * Ghi audit log cho thao tác Master Data với đối tượng bị tác động
+     * (phòng ban / vị trí / vai trò) và mô tả đã chuẩn hoá.
+     *
+     * @param action     mã hành động
+     * @param entityType loại đối tượng (AuditLog.ENTITY_*)
+     * @param entityId   id đối tượng
+     * @param entityName tên đối tượng
+     * @param entityLabel nhãn hiển thị ("Phòng ban" / "Vị trí" / "Vai trò")
+     * @param actionName hành động hiển thị ("Tạo" / "Cập nhật" / "Xóa")
+     * @param extra      thông tin bổ sung (có thể null)
+     */
+    private void writeMasterLog(HttpServletRequest request, String action,
+                                String entityType, int entityId,
+                                String entityLabel, String entityName,
+                                String actionName, String extra) {
         try {
             User u = getCurrentUser(request);
             if (u == null) return;
-            String ip = getClientIp(request);
-            auditLogDAO.log(action, u.getId(), null, detail, ip);
+            String actorName = u.getUsername();
+            String desc = AuditDescription.masterData(entityLabel, entityName, entityId,
+                    actionName, extra, actorName);
+            writeAuditLog(request, action, null, entityType, entityId, desc);
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    /** Lấy IP client (hỗ trợ X-Forwarded-For) */
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-            int comma = ip.indexOf(',');
-            return comma > 0 ? ip.substring(0, comma).trim() : ip.trim();
-        }
-        ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) return ip;
-        return request.getRemoteAddr();
     }
 }

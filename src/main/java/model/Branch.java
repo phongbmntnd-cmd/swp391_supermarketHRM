@@ -3,15 +3,19 @@ package model;
 import java.sql.Timestamp;
 
 public class Branch {
+
     private int id;
     private String code;
     private String name;
     private String address;
     private String status;
     private int storeManagerId;
+    private String managerName;
+    private boolean temporaryManager;
     private Timestamp createdAt;
 
-    public Branch() {}
+    public Branch() {
+    }
 
     public Branch(int id, String code, String name, String address, String status, int storeManagerId, Timestamp createdAt) {
         this.id = id;
@@ -83,5 +87,20 @@ public class Branch {
         this.createdAt = createdAt;
     }
 
-    
+    public String getManagerName() {
+        return managerName;
+    }
+
+    public void setManagerName(String managerName) {
+        this.managerName = managerName;
+    }
+
+    public boolean isTemporaryManager() {
+        return temporaryManager;
+    }
+
+    public void setTemporaryManager(boolean temporaryManager) {
+        this.temporaryManager = temporaryManager;
+    }
+
 }

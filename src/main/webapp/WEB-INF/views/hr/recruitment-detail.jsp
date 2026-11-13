@@ -6,14 +6,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Chi tiết đề xuất tuyển dụng</title>
+    <title>Chi tiết đề xuất tiếp nhận</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
 </head>
 <body>
 
 <div class="topbar">
     <a class="back-link" href="${pageContext.request.contextPath}/hr/recruitment">&larr; Danh sách đề xuất</a>
-    <h1>Chi tiết đề xuất tuyển dụng</h1>
+    <h1>Chi tiết đề xuất tiếp nhận</h1>
 </div>
 
 <div class="page" style="max-width:780px;">

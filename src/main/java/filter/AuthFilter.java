@@ -92,7 +92,9 @@ public class AuthFilter implements Filter {
 
         if (path.contains("/admin/") && roleId != 1) {
             hasAccess = false;
-        } else if (path.contains("/director/") && roleId != 2) {
+        } else if (path.contains("/director/") && roleId != 2
+                && !(path.equals("/director/reports")
+                && (roleId == 1 || roleId == 3 || roleId == 4))) {
             hasAccess = false;
         } else if (path.contains("/hr/") && roleId != 3) {
             hasAccess = false;
@@ -103,7 +105,17 @@ public class AuthFilter implements Filter {
         }
 
         if (!hasAccess) {
-            redirectToDashboard(res, req.getContextPath(), roleId);
+            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+
+            req.setAttribute(
+                    "errorMessage",
+                    "Bạn không có quyền truy cập chức năng này."
+            );
+
+            req.getRequestDispatcher(
+                    "/WEB-INF/views/error/403.jsp"
+            ).forward(req, res);
+
             return;
         }
 

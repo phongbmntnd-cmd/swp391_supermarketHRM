@@ -13,7 +13,7 @@
     <body>
 
         <div class="topbar">
-            <a class="back-link" href="${pageContext.request.contextPath}/hr/employee-management">&larr; Danh sách nhân sự</a>
+            <a class="back-link" href="${pageContext.request.contextPath}/hr/employee-list">&larr; Danh sách nhân sự</a>
             <h1>Chi tiết hồ sơ nhân viên</h1>
         </div>
 

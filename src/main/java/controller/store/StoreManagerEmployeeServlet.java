@@ -16,16 +16,15 @@ import model.EmployeeProfile;
 import model.EmployeeLock;
 import model.Branch;
 import model.AuditLog;
+import util.AuditDescription;
 import java.io.IOException;
 import java.util.List;
 
 /**
  * Servlet cho Store Manager - Employee Management
- * 
- * Implement đầy đủ:
- * 1. Xem danh sách nhân sự với Search/Filter/Sort/Pagination
- * 2. Emergency Lock nhân sự
- * 3. Emergency Unlock (luồng bổ sung của Lock)
+ *
+ * Implement đầy đủ: 1. Xem danh sách nhân sự với Search/Filter/Sort/Pagination
+ * 2. Emergency Lock nhân sự 3. Emergency Unlock (luồng bổ sung của Lock)
  */
 @WebServlet(urlPatterns = {"/store-manager/employees"})
 public class StoreManagerEmployeeServlet extends BaseServlet {
@@ -45,10 +44,10 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         System.out.println("===========================================");
         System.out.println(">>> StoreManagerEmployeeServlet.doGet() START");
-        
+
         // 1. Kiểm tra đăng nhập
         User currentUser = getCurrentUser(request);
         System.out.println(">>> currentUser: " + currentUser);
@@ -57,7 +56,7 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
             redirectToLogin(request, response);
             return;
         }
-        
+
         System.out.println(">>> currentUser.getId(): " + currentUser.getId());
         System.out.println(">>> currentUser.getRoleId(): " + currentUser.getRoleId());
         System.out.println(">>> currentUser.getHomeBranchId(): " + currentUser.getHomeBranchId());
@@ -69,14 +68,14 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
             return;
         }
 
-        // 3. Xác định branch của Store Manager - KHÔNG TIN branchId TỪ CLIENT
-        int branchId = currentUser.getHomeBranchId();
-        System.out.println(">>> branchId: " + branchId);
+        // 3. Xác định chi nhánh SM đang chọn và kiểm tra quyền
+        int branchId = resolveManagedBranchId(request, currentUser);
         if (branchId <= 0) {
-            System.out.println(">>> ERROR: branchId <= 0!");
-            sendInternalError(request, response, "Không xác định được cơ sở của bạn. Vui lòng liên hệ quản trị viên.");
+            sendForbidden(request, response,
+                    "Bạn không có quyền quản lý chi nhánh này!");
             return;
         }
+        System.out.println(">>> Selected branchId: " + branchId);
 
         // 4. Lấy branch info
         Branch branch = branchDAO.getBranchById(branchId);
@@ -86,11 +85,15 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         // 5. Lấy các tham số filter từ request
         String search = getStringParameter(request, "search");
         Integer positionId = getIntParameter(request, "positionId", -1);
-        if (positionId == -1) positionId = null;
-        
+        if (positionId == -1) {
+            positionId = null;
+        }
+
         Integer departmentId = getIntParameter(request, "departmentId", -1);
-        if (departmentId == -1) departmentId = null;
-        
+        if (departmentId == -1) {
+            departmentId = null;
+        }
+
         String employeeType = getStringParameter(request, "employeeType");
         String status = getStringParameter(request, "status");
         String sortColumn = getStringParameter(request, "sort");
@@ -99,8 +102,10 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         int pageSize = getIntParameter(request, "size", DEFAULT_PAGE_SIZE);
 
         // Validate page
-        if (page < 1) page = 1;
-        
+        if (page < 1) {
+            page = 1;
+        }
+
         // Validate page size
         boolean validPageSize = false;
         for (int ps : PAGE_SIZES) {
@@ -109,25 +114,29 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
                 break;
             }
         }
-        if (!validPageSize) pageSize = DEFAULT_PAGE_SIZE;
+        if (!validPageSize) {
+            pageSize = DEFAULT_PAGE_SIZE;
+        }
 
         // 6. Lấy dữ liệu từ DAO
         int offset = (page - 1) * pageSize;
         System.out.println(">>> Calling getEmployeesPaginated(branchId=" + branchId + ", page=" + page + ", pageSize=" + pageSize + ")");
         List<EmployeeProfile> employees = employeeProfileDAO.getEmployeesPaginated(
-            branchId, search, positionId, departmentId, employeeType, status,
-            sortColumn, sortDirection, offset, pageSize
+                branchId, search, positionId, departmentId, employeeType, status,
+                sortColumn, sortDirection, offset, pageSize
         );
         int totalRecords = employeeProfileDAO.countEmployees(
-            branchId, search, positionId, departmentId, employeeType, status
+                branchId, search, positionId, departmentId, employeeType, status
         );
         System.out.println(">>> employees.size(): " + employees.size());
         System.out.println(">>> totalRecords: " + totalRecords);
 
         // 7. Tính toán pagination
         int totalPages = (int) Math.ceil((double) totalRecords / pageSize);
-        if (totalPages < 1) totalPages = 1;
-        
+        if (totalPages < 1) {
+            totalPages = 1;
+        }
+
         // Tính toán display range cho JSP (tránh EL gọi Math.min/max)
         int displayStart = (page - 1) * pageSize + 1;
         int displayEnd = Math.min(page * pageSize, totalRecords);
@@ -135,11 +144,11 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
             displayStart = 0;
             displayEnd = 0;
         }
-        
+
         // Tính pagination buttons range
         int pagerStart = Math.max(1, page - 2);
         int pagerEnd = Math.min(totalPages, page + 2);
-        
+
         // 8. Đặt các thuộc tính cho JSP
         request.setAttribute("employees", employees);
         request.setAttribute("totalRecords", totalRecords);
@@ -151,7 +160,7 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         request.setAttribute("displayEnd", displayEnd);
         request.setAttribute("pagerStart", pagerStart);
         request.setAttribute("pagerEnd", pagerEnd);
-        
+
         // Filter values
         request.setAttribute("search", search);
         request.setAttribute("positionId", positionId);
@@ -160,12 +169,12 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         request.setAttribute("status", status);
         request.setAttribute("sortColumn", sortColumn);
         request.setAttribute("sortDirection", sortDirection);
-        
+
         // Dropdown data
         request.setAttribute("positions", employeeProfileDAO.getAllPositions());
         request.setAttribute("departments", employeeProfileDAO.getAllDepartments());
         request.setAttribute("employeeTypes", employeeProfileDAO.getDistinctEmployeeTypes());
-        
+
         // =============================================
         // LẤY DANH SÁCH NHÂN VIÊN BỊ KHÓA
         // =============================================
@@ -175,15 +184,19 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         int lockedPage = getIntParameter(request, "lockedPage", 1);
         int lockedPageSize = 5; // Mặc định 5 record mỗi trang
 
-        if (lockedPage < 1) lockedPage = 1;
+        if (lockedPage < 1) {
+            lockedPage = 1;
+        }
 
         int lockedOffset = (lockedPage - 1) * lockedPageSize;
         List<EmployeeLock> lockedEmployees = employeeLockDAO.getLockedEmployeesByBranch(
-            branchId, lockedSearch, lockedReasonSearch, lockedBySearch, lockedOffset, lockedPageSize
+                branchId, lockedSearch, lockedReasonSearch, lockedBySearch, lockedOffset, lockedPageSize
         );
         int totalLockedRecords = employeeLockDAO.countLockedEmployeesByBranch(branchId, lockedSearch, lockedReasonSearch, lockedBySearch);
         int totalLockedPages = (int) Math.ceil((double) totalLockedRecords / lockedPageSize);
-        if (totalLockedPages < 1) totalLockedPages = 1;
+        if (totalLockedPages < 1) {
+            totalLockedPages = 1;
+        }
 
         // Tính pagination buttons range cho locked
         int lockedPagerStart = Math.max(1, lockedPage - 2);
@@ -199,7 +212,7 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         request.setAttribute("lockedBySearch", lockedBySearch);
         request.setAttribute("lockedPagerStart", lockedPagerStart);
         request.setAttribute("lockedPagerEnd", lockedPagerEnd);
-        
+
         // Messages
         request.setAttribute("successMessage", getAndClearSuccessMessage(request));
         request.setAttribute("errorMessage", getAndClearErrorMessage(request));
@@ -243,7 +256,7 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
      */
     private void handleLock(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         // 1. Kiểm tra đăng nhập và role
         User currentUser = getCurrentUser(request);
         if (currentUser == null || currentUser.getRoleId() != ROLE_STORE_MANAGER) {
@@ -274,7 +287,6 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         // ============================================
         // CÁC CHECKS BẢO MẬT
         // ============================================
-        
         // CHECK 1: Không tự khóa chính mình (self-lock)
         if (targetUserId == currentUser.getId()) {
             setErrorMessage(request, "Bạn không thể tự khóa tài khoản của mình!");
@@ -305,13 +317,22 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         }
 
         // CHECK 5: Kiểm tra Local Scope - KHÔNG TIN branchId từ client
-        // Backend tự xác định branch từ current user
-        int currentBranchId = currentUser.getHomeBranchId();
+        int currentBranchId
+                = resolveManagedBranchId(request, currentUser);
+        // Kiểm tra quyền quản lý chi nhánh đang chọn
+        if (currentBranchId <= 0) {
+            sendForbidden(request, response,
+                    "Bạn không có quyền quản lý chi nhánh này!");
+            return;
+        }
+
+        // Kiểm tra nhân viên thuộc chi nhánh đang chọn
         int targetBranchId = userDAO.getUserBranchId(targetUserId);
-        
         if (targetBranchId != currentBranchId) {
-            setErrorMessage(request, "Bạn không có quyền khóa nhân viên không thuộc cơ sở bạn quản lý!");
-            response.sendRedirect(request.getContextPath() + "/store-manager/employees");
+            setErrorMessage(request,
+                    "Bạn không có quyền khóa nhân viên không thuộc chi nhánh đang quản lý!");
+            response.sendRedirect(
+                    request.getContextPath() + "/store-manager/employees");
             return;
         }
 
@@ -326,18 +347,17 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         // ============================================
         // THỰC HIỆN LOCK VỚI TRANSACTION
         // ============================================
-        
         String auditDescription = "Emergency Lock bởi Store Manager";
         if (reason != null && !reason.trim().isEmpty()) {
             auditDescription += ": " + reason;
         }
-        
+
         boolean success = userDAO.updateUserStatusWithAudit(
-            targetUserId,
-            STATUS_EMERGENCY_LOCKED,
-            AuditLog.ACTION_EMERGENCY_LOCK,
-            currentUser.getId(),
-            auditDescription
+                targetUserId,
+                STATUS_EMERGENCY_LOCKED,
+                AuditLog.ACTION_EMERGENCY_LOCK,
+                currentUser.getId(),
+                auditDescription
         );
 
         if (success) {
@@ -356,7 +376,7 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         } else {
             setErrorMessage(request, "Không thể khóa tài khoản. Vui lòng thử lại!");
         }
-        
+
         response.sendRedirect(request.getContextPath() + "/store-manager/employees");
     }
 
@@ -365,7 +385,7 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
      */
     private void handleUnlock(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         // 1. Kiểm tra đăng nhập và role
         User currentUser = getCurrentUser(request);
         if (currentUser == null || currentUser.getRoleId() != ROLE_STORE_MANAGER) {
@@ -393,7 +413,6 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         // ============================================
         // CÁC CHECKS BẢO MẬT
         // ============================================
-        
         // CHECK 1: Kiểm tra target user tồn tại
         User targetUser = userDAO.getUserById(targetUserId);
         if (targetUser == null) {
@@ -403,11 +422,22 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         }
 
         // CHECK 2: Kiểm tra Local Scope - KHÔNG TIN branchId từ client
-        int currentBranchId = currentUser.getHomeBranchId();
+        int currentBranchId = resolveManagedBranchId(request, currentUser);
+        // Kiểm tra SM còn quyền quản lý chi nhánh
+        if (currentBranchId <= 0) {
+            sendForbidden(request, response,
+                    "Bạn không có quyền quản lý chi nhánh này!");
+            return;
+        }
+
+        // Kiểm tra nhân viên thuộc đúng chi nhánh đang chọn
         int targetBranchId = userDAO.getUserBranchId(targetUserId);
         if (targetBranchId != currentBranchId) {
-            setErrorMessage(request, "Bạn không có quyền mở khóa nhân viên không thuộc cơ sở bạn quản lý!");
-            response.sendRedirect(request.getContextPath() + "/store-manager/employees");
+            setErrorMessage(request,
+                    "Bạn không có quyền mở khóa nhân viên không thuộc chi nhánh đang quản lý!");
+
+            response.sendRedirect(
+                    request.getContextPath() + "/store-manager/employees");
             return;
         }
 
@@ -422,15 +452,14 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         // ============================================
         // THỰC HIỆN UNLOCK VỚI TRANSACTION
         // ============================================
-        
         String auditDescription = "Emergency Unlock bởi Store Manager";
-        
+
         boolean success = userDAO.updateUserStatusWithAudit(
-            targetUserId,
-            STATUS_ACTIVE,
-            AuditLog.ACTION_EMERGENCY_UNLOCK,
-            currentUser.getId(),
-            auditDescription
+                targetUserId,
+                STATUS_ACTIVE,
+                AuditLog.ACTION_EMERGENCY_UNLOCK,
+                currentUser.getId(),
+                auditDescription
         );
 
         if (success) {
@@ -446,7 +475,27 @@ public class StoreManagerEmployeeServlet extends BaseServlet {
         } else {
             setErrorMessage(request, "Không thể mở khóa tài khoản. Vui lòng thử lại!");
         }
-        
+
         response.sendRedirect(request.getContextPath() + "/store-manager/employees");
     }
+
+    private int resolveManagedBranchId(
+            HttpServletRequest request,
+            User currentUser) {
+
+        int selectedBranchId = getCurrentBranchId(request);
+
+        List<Branch> managedBranches
+                = branchDAO.getManagedBranches(currentUser.getId());
+
+        for (Branch branch : managedBranches) {
+            if (branch.getId() == selectedBranchId) {
+                return selectedBranchId;
+            }
+        }
+
+        // Không cho truy cập chi nhánh không được phép
+        return -1;
+    }
+
 }

@@ -300,6 +300,7 @@
                 <li><a href="${pageContext.request.contextPath}/admin/accounts"><i class="fa-solid fa-users-gear"></i> Quản lý tài khoản</a></li>
                 <li><a href="${pageContext.request.contextPath}/admin/master-data"><i class="fa-solid fa-database"></i> Quản lý Master Data</a></li>
                 <li><a href="${pageContext.request.contextPath}/admin/audit-logs"><i class="fa-solid fa-shield-cat"></i> Audit Log & Giám sát</a></li>
+                <li><a href="${pageContext.request.contextPath}/account/change-password"><i class="fa-solid fa-key"></i>Đổi mật khẩu</a></li>
             </ul>
         </div>
 
@@ -382,7 +383,7 @@
                             </div>
                             <p>Thực hiện các thao tác CRUD người dùng, khóa/mở khóa tài khoản (Lock/Unlock) khẩn cấp và hỗ trợ reset mật khẩu khi cần thiết.</p>
                         </div>
-                        <li><a href="${pageContext.request.contextPath}/admin/accounts"><i class="fa-solid fa-users-gear"></i> Quản lý tài khoản</a>
+                        <a class="card-link" href="${pageContext.request.contextPath}/admin/accounts"><i class="fa-solid fa-users-gear"></i> Quản lý tài khoản</a>
                     </div>
 
                     <!-- Tính năng 2: Quản lý Master Data -->
@@ -396,7 +397,7 @@
                             </div>
                             <p>Cấu hình và quản lý dữ liệu nền tảng hệ thống bao gồm danh mục phòng ban, vị trí công việc, loại nhân sự và các thông số cấu hình chung.</p>
                         </div>
-                       <a href="${pageContext.request.contextPath}/admin/master-data"><i class="fa-solid fa-database"></i> Quản lý Master Data</a>
+                        <a href="${pageContext.request.contextPath}/admin/master-data"><i class="fa-solid fa-database"></i> Quản lý Master Data</a>
                     </div>
 
                     <!-- Tính năng 3: Giám sát Audit Log -->
@@ -411,6 +412,23 @@
                             <p>Theo dõi lịch sử truy cập, nhật ký thay đổi dữ liệu (Audit Log) và giám sát trạng thái hoạt động bảo mật của toàn bộ hệ thống chuỗi.</p>
                         </div>
                         <a href="${pageContext.request.contextPath}/admin/audit-logs"><i class="fa-solid fa-shield-cat"></i> Audit Log & Giám sát</a>
+                    </div>
+
+                    <!-- Tính năng 4: Đổi mật khẩu cá nhân -->
+                    <div class="card" style="border-left: 4px solid #16a34a;">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #16a34a;">
+                                    <i class="fa-solid fa-key"></i>
+                                </div>
+                                <h3>Đổi Mật Khẩu</h3>
+                            </div>
+                            <p>Thay đổi mật khẩu đăng nhập của chính bạn để tăng cường bảo mật tài khoản quản trị hệ thống.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/account/change-password">
+                            <i class="fa-solid fa-key"></i>
+                            Đổi mật khẩu
+                        </a>
                     </div>
 
                 </div>

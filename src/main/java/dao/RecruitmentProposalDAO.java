@@ -7,9 +7,13 @@ import model.RecruitmentProposal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class RecruitmentProposalDAO {
 
@@ -28,7 +32,8 @@ public class RecruitmentProposalDAO {
             + "LEFT JOIN employee_profiles ep_approver ON rp.approved_by = ep_approver.user_id ";
 
     /**
-     * Tạo mới một đề xuất tuyển dụng (kèm thông tin ứng viên và loại ca làm việc)
+     * Tạo mới một đề xuất tuyển dụng (kèm thông tin ứng viên và loại ca làm
+     * việc)
      */
     public boolean createProposal(
             int branchId, int positionId, String employmentType, String shiftType,
@@ -72,7 +77,7 @@ public class RecruitmentProposalDAO {
 
             PreparedStatement psProposal = conn.prepareStatement(sqlProposal);
             psProposal.setInt(1, candidateId);
-            
+
             if (branchId > 0) {
                 psProposal.setInt(2, branchId);
             } else {
@@ -125,12 +130,21 @@ public class RecruitmentProposalDAO {
         } catch (Exception e) {
             e.printStackTrace();
             if (conn != null) {
-                try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
+                try {
+                    conn.rollback();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
             }
             return false;
         } finally {
             if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (Exception e) { e.printStackTrace(); }
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -138,10 +152,13 @@ public class RecruitmentProposalDAO {
     /**
      * Gửi lại đề xuất (Resubmit) khi bị từ chối
      */
-    public boolean resubmitProposal(int proposalId, int positionId, String employmentType, String shiftType,
+    public boolean resubmitProposal(
+            int proposalId, int branchId,
+            int positionId, String employmentType, String shiftType,
             String fullName, String email, String phone, String identityCard,
-            int departmentId, String expirationDate, String targetDate, String reason) {
-        
+            int departmentId, String expirationDate,
+            String targetDate, String reason) {
+
         RecruitmentProposal proposal = getProposalById(proposalId);
         if (proposal == null || !"REJECTED".equals(proposal.getStatus())) {
             return false;
@@ -151,6 +168,22 @@ public class RecruitmentProposalDAO {
         try {
             conn = new DBContext().getConnection();
             conn.setAutoCommit(false);
+            String checkSql
+                    = "SELECT id FROM recruitment_proposals "
+                    + "WHERE id = ? AND branch_id = ? "
+                    + "AND status = 'REJECTED' FOR UPDATE";
+
+            try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+                ps.setInt(1, proposalId);
+                ps.setInt(2, branchId);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        conn.rollback();
+                        return false;
+                    }
+                }
+            }
 
             String sqlCandidate = "UPDATE candidates SET full_name = ?, email = ?, phone = ?, identity_card = ? WHERE id = ?";
             PreparedStatement psCandidate = conn.prepareStatement(sqlCandidate);
@@ -164,17 +197,17 @@ public class RecruitmentProposalDAO {
             String sqlProposal = "UPDATE recruitment_proposals "
                     + "SET position_id = ?, department_id = ?, employment_type = ?, shift_type = ?, "
                     + "expiration_date = ?, target_date = ?, reason = ?, status = 'PENDING', hr_note = NULL, updated_at = NOW() "
-                    + "WHERE id = ?";
-            
+                    + "WHERE id = ? AND branch_id = ? AND status = 'REJECTED'";
+
             PreparedStatement psProposal = conn.prepareStatement(sqlProposal);
             psProposal.setInt(1, positionId);
-            
+
             if (departmentId > 0) {
                 psProposal.setInt(2, departmentId);
             } else {
                 psProposal.setNull(2, Types.INTEGER);
             }
-            
+
             psProposal.setString(3, employmentType);
             psProposal.setString(4, shiftType);
 
@@ -192,26 +225,43 @@ public class RecruitmentProposalDAO {
 
             psProposal.setString(7, reason);
             psProposal.setInt(8, proposalId);
+            psProposal.setInt(9, branchId);
 
-            psProposal.executeUpdate();
+            int updatedRows = psProposal.executeUpdate();
+
+            if (updatedRows != 1) {
+                conn.rollback();
+                return false;
+            }
+
             conn.commit();
             return true;
 
         } catch (Exception e) {
             e.printStackTrace();
             if (conn != null) {
-                try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
+                try {
+                    conn.rollback();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
             }
             return false;
         } finally {
             if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (Exception e) { e.printStackTrace(); }
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
 
     /**
-     * Transaction phê duyệt đề xuất và cấp tài khoản trọn gói (Đã tích hợp lưu shift_type vào employee_profiles)
+     * Transaction phê duyệt đề xuất và cấp tài khoản trọn gói (Đã tích hợp lưu
+     * shift_type vào employee_profiles)
      */
     public boolean approveProposalAndCreateUser(
             String username, String email, int roleId, String expirationDate,
@@ -235,14 +285,46 @@ public class RecruitmentProposalDAO {
             conn = new DBContext().getConnection();
             conn.setAutoCommit(false);
 
-            // Lấy shift_type từ đề xuất gốc để gán cho nhân sự mới
-            String shiftType = null;
-            if (proposalId > 0) {
-                RecruitmentProposal prop = getProposalById(proposalId);
-                if (prop != null) {
-                    shiftType = prop.getShiftType();
+            // Khóa bản ghi trong cùng transaction để không cấp tài khoản hai lần.
+            // Luôn dùng dữ liệu nguồn từ DB thay vì các input ẩn trên trình duyệt.
+            if (proposalId <= 0 || hrUserId <= 0) {
+                conn.rollback();
+                return false;
+            }
+            String shiftType;
+            String lockSql = "SELECT rp.branch_id, rp.position_id, rp.department_id, "
+                    + "rp.employment_type, rp.shift_type, rp.expiration_date, "
+                    + "rp.target_date, c.full_name, c.phone, c.identity_card, c.email "
+                    + "FROM recruitment_proposals rp "
+                    + "JOIN candidates c ON c.id = rp.candidate_id "
+                    + "WHERE rp.id = ? AND rp.status = 'PENDING' FOR UPDATE";
+            try (PreparedStatement lockPs = conn.prepareStatement(lockSql)) {
+                lockPs.setInt(1, proposalId);
+                try (ResultSet source = lockPs.executeQuery()) {
+                    if (!source.next()) {
+                        conn.rollback();
+                        return false;
+                    }
+                    homeBranchId = source.getInt("branch_id");
+                    positionId = source.getInt("position_id");
+                    departmentId = source.getInt("department_id");
+                    employeeType = source.getString("employment_type");
+                    shiftType = source.getString("shift_type");
+                    java.sql.Date dbExpiry = source.getDate("expiration_date");
+                    java.sql.Date dbTarget = source.getDate("target_date");
+                    expirationDate = dbExpiry == null ? null : dbExpiry.toString();
+                    fullName = source.getString("full_name");
+                    phone = source.getString("phone");
+                    identityCard = source.getString("identity_card");
+                    email = source.getString("email");
+                    if (dbExpiry != null && dbTarget != null && !dbExpiry.after(dbTarget)) {
+                        conn.rollback();
+                        return false;
+                    }
                 }
             }
+            // Người được tiếp nhận luôn có vai trò Employee.
+            roleId = 5;
 
             PreparedStatement psUser = conn.prepareStatement(sqlUser, PreparedStatement.RETURN_GENERATED_KEYS);
             psUser.setString(1, username);
@@ -287,14 +369,14 @@ public class RecruitmentProposalDAO {
                 psProfile.setNull(7, Types.INTEGER);
             }
             psProfile.setString(8, employeeType);
-            
+
             // Set giá trị shift_type cho profile nhân viên
             if (shiftType != null && !shiftType.trim().isEmpty()) {
                 psProfile.setString(9, shiftType);
             } else {
                 psProfile.setNull(9, Types.VARCHAR);
             }
-            
+
             psProfile.executeUpdate();
 
             ContractDAO contractDAO = new ContractDAO();
@@ -310,7 +392,10 @@ public class RecruitmentProposalDAO {
                 psProposal.setInt(1, hrUserId);
                 psProposal.setString(2, customNote);
                 psProposal.setInt(3, proposalId);
-                psProposal.executeUpdate();
+                if (psProposal.executeUpdate() != 1) {
+                    conn.rollback();
+                    return false;
+                }
             }
 
             conn.commit();
@@ -319,12 +404,199 @@ public class RecruitmentProposalDAO {
         } catch (Exception e) {
             e.printStackTrace();
             if (conn != null) {
-                try { conn.rollback(); } catch (Exception ex) { ex.printStackTrace(); }
+                try {
+                    conn.rollback();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
             }
             return false;
         } finally {
             if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (Exception e) { e.printStackTrace(); }
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public boolean createUserFromRecruitmentRequest(
+            int recruitmentRequestId,
+            String username,
+            String fullName,
+            String phone,
+            String identityCard,
+            String email,
+            String expirationDate) {
+
+        if (recruitmentRequestId <= 0
+                || username == null || username.trim().isEmpty()
+                || fullName == null || fullName.trim().isEmpty()
+                || phone == null || phone.trim().isEmpty()
+                || identityCard == null || identityCard.trim().isEmpty()) {
+            return false;
+        }
+
+        Connection conn = null;
+
+        try {
+            conn = DBContext.getConnection();
+            conn.setAutoCommit(false);
+
+            // Lấy thông tin đề xuất đã duyệt trực tiếp từ database
+            String requestSql
+                    = "SELECT rr.branch_id, rr.position_id, "
+                    + "p.department_id, rr.employment_type, rr.shift_type "
+                    + "FROM recruitment_requests rr "
+                    + "JOIN positions p ON p.id = rr.position_id "
+                    + "WHERE rr.id = ? AND rr.status = 'APPROVED' "
+                    + "FOR UPDATE";
+
+            int branchId;
+            int positionId;
+            int departmentId;
+            String employeeType;
+            String shiftType;
+
+            try (PreparedStatement ps = conn.prepareStatement(requestSql)) {
+                ps.setInt(1, recruitmentRequestId);
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        conn.rollback();
+                        return false;
+                    }
+
+                    branchId = rs.getInt("branch_id");
+                    positionId = rs.getInt("position_id");
+                    departmentId = rs.getInt("department_id");
+                    employeeType = rs.getString("employment_type");
+                    shiftType = rs.getString("shift_type");
+                }
+            }
+
+            // Tạo tài khoản nhân viên
+            String userSql
+                    = "INSERT INTO users "
+                    + "(username, password_hash, email, status, "
+                    + "expiration_date, role_id, is_first_login, "
+                    + "created_at, updated_at) "
+                    + "VALUES (?, '123456', ?, 'ACTIVE', ?, 5, 1, "
+                    + "NOW(), NOW())";
+
+            int newUserId;
+
+            try (PreparedStatement ps = conn.prepareStatement(
+                    userSql, Statement.RETURN_GENERATED_KEYS)) {
+
+                ps.setString(1, username.trim());
+                ps.setString(2,
+                        email == null || email.trim().isEmpty()
+                        ? null : email.trim());
+
+                if (expirationDate != null
+                        && !expirationDate.trim().isEmpty()) {
+                    ps.setDate(3,
+                            java.sql.Date.valueOf(expirationDate));
+                } else {
+                    ps.setNull(3, Types.DATE);
+                }
+
+                if (ps.executeUpdate() != 1) {
+                    conn.rollback();
+                    return false;
+                }
+
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (!keys.next()) {
+                        conn.rollback();
+                        return false;
+                    }
+                    newUserId = keys.getInt(1);
+                }
+            }
+
+            // Tạo hồ sơ và gán vào đúng chi nhánh đề xuất
+            String profileSql
+                    = "INSERT INTO employee_profiles "
+                    + "(user_id, full_name, phone, identity_card, "
+                    + "home_branch_id, position_id, department_id, "
+                    + "employee_type, shift_type) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+            try (PreparedStatement ps = conn.prepareStatement(profileSql)) {
+                ps.setInt(1, newUserId);
+                ps.setString(2, fullName.trim());
+                ps.setString(3, phone.trim());
+                ps.setString(4, identityCard.trim());
+                ps.setInt(5, branchId);
+                ps.setInt(6, positionId);
+
+                if (departmentId > 0) {
+                    ps.setInt(7, departmentId);
+                } else {
+                    ps.setNull(7, Types.INTEGER);
+                }
+
+                ps.setString(8, employeeType);
+                ps.setString(9, shiftType);
+
+                if (ps.executeUpdate() != 1) {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            // Tạo hợp đồng bằng chức năng có sẵn
+            ContractDAO contractDAO = new ContractDAO();
+
+            String contractType
+                    = expirationDate != null
+                    && !expirationDate.trim().isEmpty()
+                    ? "Hợp đồng THỜI VỤ"
+                    : "Hợp đồng CHÍNH THỨC";
+
+            boolean contractCreated = contractDAO.addContractWithConn(
+                    conn,
+                    newUserId,
+                    contractType,
+                    null,
+                    expirationDate,
+                    "ACTIVE"
+            );
+
+            if (!contractCreated) {
+                conn.rollback();
+                return false;
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
+
+            return false;
+
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -375,19 +647,25 @@ public class RecruitmentProposalDAO {
     }
 
     public List<RecruitmentProposal> getProposals(String tabFilter, Integer branchId, Integer positionId,
-                                                   String employmentType, String status) {
+            String employmentType, String status) {
         List<RecruitmentProposal> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(BASE_SELECT);
         sql.append("WHERE 1=1 ");
 
         boolean hasBranch = branchId != null && branchId > 0;
-        if (hasBranch) sql.append("AND rp.branch_id = ? ");
+        if (hasBranch) {
+            sql.append("AND rp.branch_id = ? ");
+        }
 
         boolean hasPosition = positionId != null && positionId > 0;
-        if (hasPosition) sql.append("AND rp.position_id = ? ");
+        if (hasPosition) {
+            sql.append("AND rp.position_id = ? ");
+        }
 
         boolean hasEmploymentType = employmentType != null && !employmentType.trim().isEmpty();
-        if (hasEmploymentType) sql.append("AND rp.employment_type = ? ");
+        if (hasEmploymentType) {
+            sql.append("AND rp.employment_type = ? ");
+        }
 
         boolean hasStatus = status != null && !status.trim().isEmpty();
         boolean defaultPending = !hasStatus && "pending".equals(tabFilter);
@@ -400,14 +678,21 @@ public class RecruitmentProposalDAO {
 
         sql.append("ORDER BY rp.created_at DESC");
 
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
 
             int idx = 1;
-            if (hasBranch) ps.setInt(idx++, branchId);
-            if (hasPosition) ps.setInt(idx++, positionId);
-            if (hasEmploymentType) ps.setString(idx++, employmentType);
-            if (hasStatus) ps.setString(idx++, status);
+            if (hasBranch) {
+                ps.setInt(idx++, branchId);
+            }
+            if (hasPosition) {
+                ps.setInt(idx++, positionId);
+            }
+            if (hasEmploymentType) {
+                ps.setString(idx++, employmentType);
+            }
+            if (hasStatus) {
+                ps.setString(idx++, status);
+            }
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -467,6 +752,9 @@ public class RecruitmentProposalDAO {
         rp.setShiftType(rs.getString("shift_type"));
 
         rp.setExpirationDate(rs.getDate("expiration_date"));
+        // Database hiện lưu loại hợp đồng thông qua ngày hết hạn.
+        // FULL_TIME/PART_TIME là hình thức làm việc, không phải loại hợp đồng.
+        rp.setContractType(rp.getExpirationDate() == null ? "CHINH_THUC" : "THOI_VU");
         rp.setTargetDate(rs.getDate("target_date"));
         rp.setReason(rs.getString("reason"));
         rp.setStatus(rs.getString("status"));
@@ -492,4 +780,5 @@ public class RecruitmentProposalDAO {
 
         return rp;
     }
+
 }

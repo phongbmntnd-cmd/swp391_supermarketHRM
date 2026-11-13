@@ -227,54 +227,126 @@
 
         <div class="container">
 
+            <c:if test="${param.updated == '1'}">
+                <div style="background-color: #dcfce7;
+                     color: #166534;
+                     padding: 12px 16px;
+                     border-radius: 6px;
+                     margin-bottom: 20px;
+                     font-size: 14px;">
+                    Cập nhật thông tin chi nhánh thành công!
+                </div>
+            </c:if>
+
+
             <!-- Form Thêm mới / Cập nhật Cơ sở dạng Card đồng bộ -->
-            <div class="card-section" style="border-left-color: ${not empty editingBranch ? '#f39c12' : '#3498db'};">
-                <h3>
-                    <c:choose>
-                        <c:when test="${not empty editingBranch}">
-                            ✏️ Cập Nhật Thông Tin Cơ Sở (ID: ${editingBranch.id})
-                        </c:when>
-                        <c:otherwise>
-                            + Thêm Cơ Sở Mới
-                        </c:otherwise>
-                    </c:choose>
-                </h3>
-                <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" class="form-inline">
 
-                    <!-- Phân biệt hành động là add hay update -->
-                    <input type="hidden" name="action" value="${not empty editingBranch ? 'update' : 'add'}">
+            <!-- Form tạo yêu cầu mở chi nhánh -->
+            <div class="card-section">
+                <h3>+ Tạo Yêu Cầu Mở Chi Nhánh Mới</h3>
 
-                    <!-- Nếu là sửa thì truyền thêm ID ngầm -->
-                    <c:if test="${not empty editingBranch}">
-                        <input type="hidden" name="id" value="${editingBranch.id}">
-                    </c:if>
+                <c:if test="${not empty error}">
+                    <p style="color: red; margin-bottom: 15px;">
+                        <c:out value="${error}" />
+                    </p>
+                </c:if>
 
-                    <div class="form-group">
-                        <label>Mã cơ sở:</label>
-                        <input type="text" name="code" required value="${editingBranch.code}" placeholder="VD: BR004">
-                    </div>
+                <c:if test="${param.success == '1'}">
+                    <p style="color: green; margin-bottom: 15px;">
+                        Gửi yêu cầu mở chi nhánh thành công!
+                    </p>
+                </c:if>
+
+                <form action="${pageContext.request.contextPath}/director/branch-management"
+                      method="POST" class="form-inline">
+
+                    <input type="hidden" name="action" value="createRequest">
 
                     <div class="form-group">
-                        <label>Tên cơ sở:</label>
-                        <input type="text" name="name" required value="${editingBranch.name}" placeholder="Siêu thị Cơ sở 4">
+                        <label>Tên chi nhánh:</label>
+                        <input type="text" name="name"
+                               placeholder="Siêu thị Cơ sở 4" required>
                     </div>
 
                     <div class="form-group" style="flex-grow: 1;">
                         <label>Địa chỉ:</label>
-                        <input type="text" name="address" required value="${editingBranch.address}" placeholder="Nhập địa chỉ chi nhánh..." style="width: 100%;">
+                        <input type="text" name="address"
+                               placeholder="Nhập địa chỉ chi nhánh..."
+                               style="width: 100%;" required>
                     </div>
 
-                    <!-- Nút submit thay đổi màu sắc và tên tùy theo trạng thái Thêm hay Sửa -->
-                    <button type="submit" class="btn-submit" style="background-color: ${not empty editingBranch ? '#f39c12' : '#2ecc71'};">
-                        ${not empty editingBranch ? 'Cập Nhật' : 'Lưu Cơ Sở'}
-                    </button>
+                    <div class="form-group">
+                        <label>Ngày dự kiến khai trương:</label>
+                        <input type="date" name="openingDate" required>
+                    </div>
 
-                    <!-- Nút Hủy nếu đang trong chế độ Sửa -->
-                    <c:if test="${not empty editingBranch}">
-                        <a href="${pageContext.request.contextPath}/director/branch-management" style="padding: 9px 15px; background-color: #95a5a6; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500;">Hủy</a>
-                    </c:if>
+                    <div class="form-group" style="flex-grow: 1;">
+                        <label>Lý do mở chi nhánh:</label>
+                        <input type="text" name="reason"
+                               placeholder="Nhập lý do..."
+                               style="width: 100%;" required>
+                    </div>
+
+                    <button type="submit" class="btn-submit">
+                        Gửi Yêu Cầu
+                    </button>
                 </form>
             </div>
+
+
+            <!-- Form chỉnh sửa: chỉ xuất hiện khi Director chọn nút Sửa -->
+            <c:if test="${not empty editingBranch}">
+                <div class="card-section" id="edit-branch" style="border-left-color: #f39c12; scroll-margin-top: 24px;">
+                    <h3>Chỉnh sửa thông tin chi nhánh</h3>
+
+                    <c:if test="${not empty editError}">
+                        <div style="background-color: #fde8e8;
+                             color: #b91c1c;
+                             padding: 12px 16px;
+                             border-radius: 6px;
+                             margin-bottom: 15px;
+                             font-size: 14px;">
+                            <c:out value="${editError}"/>
+                        </div>
+                    </c:if>
+
+                    <p style="color: #64748b; font-size: 13px; margin-bottom: 16px;">
+                        Đang sửa chi nhánh ID: <strong><c:out value="${editingBranch.id}"/></strong>
+                    </p>
+
+                    <form action="${pageContext.request.contextPath}/director/branch-management"
+                          method="POST" class="form-inline">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="id" value="${editingBranch.id}">
+
+                        <div class="form-group">
+                            <label for="edit-code">Mã chi nhánh:</label>
+                            <input id="edit-code" type="text" name="code"
+                                   value="<c:out value='${editingBranch.code}'/>" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="edit-name">Tên chi nhánh:</label>
+                            <input id="edit-name" type="text" name="name"
+                                   value="<c:out value='${editingBranch.name}'/>" required>
+                        </div>
+
+                        <div class="form-group" style="flex-grow: 1;">
+                            <label for="edit-address">Địa chỉ:</label>
+                            <input id="edit-address" type="text" name="address"
+                                   value="<c:out value='${editingBranch.address}'/>"
+                                   style="width: 100%;" required>
+                        </div>
+
+                        <button type="submit" class="btn-submit">Lưu thay đổi</button>
+                        <a href="${pageContext.request.contextPath}/director/branch-management"
+                           style="display: inline-block; padding: 9px 16px; border: 1px solid #cbd5e1;
+                           border-radius: 4px; color: #334155; text-decoration: none; font-size: 14px;">
+                            Hủy
+                        </a>
+                    </form>
+                </div>
+            </c:if>
 
             <!-- Bảng danh sách cơ sở -->
             <div class="table-container">
@@ -286,7 +358,7 @@
                             <th>Tên Cơ Sở</th>
                             <th>Địa Chỉ</th>
                             <th>Trạng Thái</th>
-                            <th>Mã Quản Lý</th>
+                            <th>Người Quản Lý</th>
                             <th>Thao Tác Quản Lý</th>
                             <th>Hành Động</th>
                         </tr>
@@ -298,40 +370,142 @@
                                 <td><b>${b.code}</b></td>
                                 <td>${b.name}</td>
                                 <td>${b.address}</td>
-                                <td>
-                                    <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" style="margin: 0;"
-                                          onsubmit="return confirm('${b.status == 'ACTIVE' ? 'Bạn có chắc chắn muốn dừng hoạt động cơ sở này không?' : 'Bạn có muốn kích hoạt lại cơ sở này không?'}');">
-                                        <input type="hidden" name="action" value="toggleStatus">
-                                        <input type="hidden" name="branchId" value="${b.id}">
-                                        <input type="hidden" name="currentStatus" value="${b.status}">
 
-                                        <button type="submit" class="${b.status == 'ACTIVE' ? 'badge-active' : 'badge-inactive'}" style="cursor: pointer; border: none;" title="Nhấn để đổi trạng thái">
-                                            ${b.status} 🔄
-                                        </button>
-                                    </form>
-                                </td>
+
                                 <td>
-                                    <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" class="input-group" style="margin: 0;">
-                                        <input type="hidden" name="action" value="assign">
-                                        <input type="hidden" name="branchId" value="${b.id}">
-                                        <input type="number" name="managerId" value="${b.storeManagerId}" required>
-                                        <button type="submit" class="btn-action">Gán / Đổi</button>
-                                    </form>
+                                    <c:choose>
+                                        <c:when test="${b.status eq 'PREPARING'}">
+                                            <span style="display: inline-block;
+                                                  background-color: #fef3c7;
+                                                  color: #92400e;
+                                                  padding: 6px 12px;
+                                                  border-radius: 5px;
+                                                  font-size: 13px;
+                                                  font-weight: 500;">
+                                                PREPARING
+                                            </span>
+                                        </c:when>
+
+                                        <c:when test="${b.status eq 'ACTIVE' or b.status eq 'INACTIVE'}">
+                                            <form action="${pageContext.request.contextPath}/director/branch-management"
+                                                  method="POST"
+                                                  style="margin: 0;"
+                                                  onsubmit="return confirm('${b.status eq 'ACTIVE' ? 'Bạn có chắc chắn muốn dừng hoạt động cơ sở này không?' : 'Bạn có muốn kích hoạt lại cơ sở này không?'}');">
+
+                                                <input type="hidden" name="action" value="toggleStatus">
+                                                <input type="hidden" name="branchId" value="${b.id}">
+                                                <input type="hidden" name="currentStatus" value="${b.status}">
+
+                                                <button type="submit"
+                                                        class="${b.status eq 'ACTIVE' ? 'badge-active' : 'badge-inactive'}"
+                                                        title="Nhấn để đổi trạng thái">
+                                                    ${b.status} 🔄
+                                                </button>
+                                            </form>
+                                        </c:when>
+
+                                        <c:otherwise>
+                                            <span>Không khả dụng</span>
+                                        </c:otherwise>
+                                    </c:choose>
                                 </td>
+
+
+
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${not empty b.managerName}">
+                                            <div class="fw-semibold">
+                                                <c:out value="${b.managerName}"/>
+                                            </div>
+
+                                            <c:choose>
+                                                <c:when test="${b.temporaryManager}">
+                                                    <span class="badge bg-info text-dark">
+                                                        Quản lý kiêm nhiệm
+                                                    </span>
+                                                </c:when>
+                                                <c:otherwise>
+                                                    <span class="badge bg-success">
+                                                        Quản lý chính
+                                                    </span>
+                                                </c:otherwise>
+                                            </c:choose>
+                                        </c:when>
+
+                                        <c:otherwise>
+                                            <span class="text-muted">
+                                                Chưa phân công
+                                            </span>
+                                        </c:otherwise>
+                                    </c:choose>
+                                </td>
+
                                 <td>
                                     <a href="${pageContext.request.contextPath}/director/branch-management?action=viewEmployees&id=${b.id}" class="link-detail">Xem Nhân Sự</a>
                                 </td>
                                 <td>
                                     <div style="display: flex; gap: 5px;">
                                         <!-- Nút Sửa -->
-                                        <a href="${pageContext.request.contextPath}/director/branch-management?action=edit&id=${b.id}" class="btn-edit" style="padding: 5px 10px; background-color: #f39c12; color: white; border-radius: 3px; text-decoration: none; font-size: 13px; font-weight: 500;">Sửa</a>
+                                        <a href="${pageContext.request.contextPath}/director/branch-management?action=edit&amp;id=${b.id}#edit-branch" class="btn-edit" style="padding: 5px 10px; background-color: #f39c12; color: white; border-radius: 3px; text-decoration: none; font-size: 13px; font-weight: 500;">Sửa</a>
 
                                         <!-- Nút Xóa -->
-                                        <form action="${pageContext.request.contextPath}/director/branch-management" method="POST" style="margin: 0;" onsubmit="return confirm('Bạn có chắc chắn muốn dừng hoạt động cơ sở này không?');">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="branchId" value="${b.id}">
-                                            <button type="submit" class="btn-delete">Xóa</button>
-                                        </form>
+
+                                        <!-- Nút Xóa / Ngừng hoạt động -->
+                                        <c:choose>
+
+                                            <%-- Chi nhánh đang hoạt động --%>
+                                            <c:when test="${b.status == 'ACTIVE'}">
+                                                <form action="${pageContext.request.contextPath}/director/branch-management"
+                                                      method="POST"
+                                                      style="margin: 0;"
+                                                      onsubmit="return confirm('Bạn có chắc chắn muốn ngừng hoạt động chi nhánh này không?');">
+
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="branchId" value="${b.id}">
+
+                                                    <button type="submit" class="btn-delete">
+                                                        Xóa
+                                                    </button>
+                                                </form>
+                                            </c:when>
+
+                                            <%-- Chi nhánh đang chuẩn bị --%>
+                                            <c:when test="${b.status == 'PREPARING'}">
+                                                <button type="button"
+                                                        disabled
+                                                        title="Chi nhánh đang trong quá trình chuẩn bị"
+                                                        style="padding: 6px 10px;
+                                                        background-color: #e0e7ff;
+                                                        color: #4338ca;
+                                                        border: none;
+                                                        border-radius: 4px;
+                                                        cursor: not-allowed;">
+                                                    Đang chuẩn bị
+                                                </button>
+                                            </c:when>
+
+                                            <%-- Chi nhánh đã ngừng hoạt động --%>
+                                            <c:when test="${b.status == 'INACTIVE'}">
+                                                <button type="button"
+                                                        disabled
+                                                        style="padding: 6px 10px;
+                                                        background-color: #d1d5db;
+                                                        color: #6b7280;
+                                                        border: none;
+                                                        border-radius: 4px;
+                                                        cursor: not-allowed;">
+                                                    Đã ngừng hoạt động
+                                                </button>
+                                            </c:when>
+
+                                            <c:otherwise>
+                                                <span>Không khả dụng</span>
+                                            </c:otherwise>
+
+                                        </c:choose>
+
+
                                     </div>
                                 </td>
                             </tr>
