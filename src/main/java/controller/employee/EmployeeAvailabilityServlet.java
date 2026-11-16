@@ -3,6 +3,7 @@ package controller.employee;
 import controller.base.BaseServlet;
 import dao.EmployeeAvailabilityDAO;
 import dao.EmployeeProfileDAO;
+import dao.ShiftScheduleDAO;
 import dao.SupplementaryShiftDAO;
 import model.EmployeeAvailability;
 import model.EmployeeProfile;
@@ -18,7 +19,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -40,23 +40,46 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
             return;
         }
 
-        LocalDate today = LocalDate.now();
-        LocalDate nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-        LocalDate nextSunday = nextMonday.plusDays(6);
+        // TUẦN ĐANG XEM = TUẦN HIỆN TẠI (thứ Hai của tuần đang chạy).
+        //
+        // Trước đây dùng TemporalAdjusters.next(MONDAY) -> hàm này
+        // LOẠI TRỪ chính ngày hôm nay, nên vào Thứ Hai nó nhảy sang
+        // tuần kế tiếp. Hôm 16/11 (Thứ Hai) form hiện tuần
+        // 23/11-29/11, trong khi hôm trước (15/11 - Chủ Nhật) lại
+        // hiện tuần 16/11-22/11 -> cùng một ngày hôm nay nhưng mốc
+        // tuần nhảy lung tung, nhân viên tưởng hệ thống lỗi.
+        //
+        // Quan trọng hơn: quy tắc nghiệp vụ của hệ thống là tuần làm
+        // việc = tuần chứa ngày làm việc (previousOrSame), đúng như
+        // ShiftScheduleDAO.hasRegisteredAvailability dùng để tra cứu
+        // lịch rảnh. Trước đây màn này lưu theo tuần kế tiếp trong
+        // khi Store Manager tra cứu theo tuần hiện tại -> KHÔNG BAO
+        // GIỜ nào xếp được ca cho nhân viên đã đăng ký rảnh.
+        LocalDate currentMonday = util.WeekUtil.currentMonday();
+
+        // Cho phép xem lại tuần trước / tuần sau (chỉ xem).
+        LocalDate viewingMonday = util.WeekUtil.resolveWeekStart(
+                request.getParameter("startDate"), currentMonday);
+
+        // Chỉ được ĐĂNG KÝ / SỬA lịch rảnh của tuần hiện tại.
+        // Tuần khác chỉ xem lại, không lưu được.
+        boolean isCurrentWeek = viewingMonday.equals(currentMonday);
+
+        LocalDate viewingSunday = viewingMonday.plusDays(6);
 
         DateTimeFormatter displayFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         DateTimeFormatter isoFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        request.setAttribute("startDate", nextMonday.format(displayFormatter));
-        request.setAttribute("endDate", nextSunday.format(displayFormatter));
-        request.setAttribute("weekStartDate", nextMonday.format(isoFormatter));
+        request.setAttribute("startDate", viewingMonday.format(displayFormatter));
+        request.setAttribute("endDate", viewingSunday.format(displayFormatter));
+        request.setAttribute("weekStartDate", viewingMonday.format(isoFormatter));
+        request.setAttribute("prevWeekDate", currentMonday.minusWeeks(1).toString());
+        request.setAttribute("nextWeekDate", currentMonday.plusWeeks(1).toString());
+        request.setAttribute("isCurrentWeek", isCurrentWeek);
 
         // Kiểm tra thời gian mở cổng: Chỉ mở từ Thứ Hai đến hết Thứ Tư
-        LocalDateTime now = LocalDateTime.now();
-        DayOfWeek currentDay = now.getDayOfWeek();
-        boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY
-                || currentDay == DayOfWeek.TUESDAY
-                || currentDay == DayOfWeek.WEDNESDAY);
+        boolean isRegistrationOpen = util.WeekUtil.isRegistrationWindowOpen(
+                LocalDate.now());
         request.setAttribute("isRegistrationOpen", isRegistrationOpen);
 
         EmployeeAvailabilityDAO dao = new EmployeeAvailabilityDAO();
@@ -74,8 +97,8 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
 
         List<Shift> shifts = dao.getShiftsByEmployeeType(employeeType);
 
-        // Lấy lịch rảnh theo đúng user và đúng mốc tuần
-        List<EmployeeAvailability> currentAvailabilities = dao.getAvailabilitiesByUserIdAndWeek(user.getId(), nextMonday.format(isoFormatter));
+        // Lấy lịch rảnh theo đúng user và đúng mốc tuần ĐANG XEM
+        List<EmployeeAvailability> currentAvailabilities = dao.getAvailabilitiesByUserIdAndWeek(user.getId(), viewingMonday.format(isoFormatter));
 
         // Đưa danh sách vào Set định dạng "DAY_shiftId" để JSP kiểm tra nhanh và sạch sẽ
         Set<String> registeredKeySet = new HashSet<>();
@@ -87,6 +110,19 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
 
         boolean hasRegistered = (currentAvailabilities != null && !currentAvailabilities.isEmpty());
         request.setAttribute("hasRegistered", hasRegistered);
+
+        // LỊCH RẢNH CỦA TUẦN ĐÃ BỊ KHOÁ khi Store Manager đã PUBLISH
+        // tuần đó (lịch đã chốt). Từ thời điểm đó nhân viên không
+        // được đăng ký / sửa lịch rảnh của tuần đó nữa.
+        //
+        // Chỉ khi Store bấm "Publish" mới khoá - trước đó (kể cả khi
+        // Store đã xếp ca dạng nháp DRAFT) nhân viên vẫn đăng ký và
+        // sửa lịch rảnh bình thường.
+        int homeBranchId = (profile != null) ? profile.getHomeBranchId() : -1;
+        boolean isWeekLocked = new ShiftScheduleDAO()
+                .isWeekPublished(homeBranchId,
+                        viewingMonday.format(isoFormatter));
+        request.setAttribute("isWeekLocked", isWeekLocked);
 
         request.setAttribute("shifts", shifts);
         request.setAttribute("registeredKeySet", registeredKeySet);
@@ -117,21 +153,29 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        DayOfWeek currentDay = now.getDayOfWeek();
-        boolean isRegistrationOpen = (currentDay == DayOfWeek.MONDAY
-                || currentDay == DayOfWeek.TUESDAY
-                || currentDay == DayOfWeek.WEDNESDAY);
+        // Cổng đăng ký chỉ mở Thứ Hai -> hết Thứ Tư.
+        boolean isRegistrationOpen = util.WeekUtil.isRegistrationWindowOpen(
+                LocalDate.now());
         if (!isRegistrationOpen) {
             response.sendRedirect("availability?error=closed");
             return;
         }
 
-        String weekStartDate = request.getParameter("weekStartDate");
-        if (weekStartDate == null || weekStartDate.trim().isEmpty()) {
-            LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-            weekStartDate = nextMonday.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        // Chỉ được ghi lịch rảnh vào TUẦN HIỆN TẠI.
+        // Tuần khác (tuần trước / tuần sau) chỉ để xem lại.
+        LocalDate currentMonday = util.WeekUtil.currentMonday();
+
+        String requestedWeek = request.getParameter("weekStartDate");
+        LocalDate requestedMonday = util.WeekUtil.resolveWeekStart(
+                requestedWeek, currentMonday);
+
+        if (!requestedMonday.equals(currentMonday)) {
+            response.sendRedirect("availability?error=invalid_week");
+            return;
         }
+
+        String weekStartDate = currentMonday
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
         EmployeeProfileDAO profileDAO = new EmployeeProfileDAO();
         EmployeeProfile profile = profileDAO.getProfileByUserId(user.getId());
@@ -140,6 +184,16 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
 
         if ("FULL_TIME".equals(employeeType)) {
             response.sendRedirect("availability?error=unauthorized_action");
+            return;
+        }
+
+        // LỊCH RẢNH ĐÃ BỊ KHOÁ: Store Manager đã publish tuần này ->
+        // lịch đã chốt, nhân viên không được sửa nữa.
+        // (Trước khi publish thì đăng ký / sửa bình thường.)
+        int homeBranchId = (profile != null) ? profile.getHomeBranchId() : -1;
+        if (new ShiftScheduleDAO()
+                .isWeekPublished(homeBranchId, weekStartDate)) {
+            response.sendRedirect("availability?error=week_locked");
             return;
         }
 
@@ -164,13 +218,11 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
                         }
                     }
 
-                    if ("PT_FIXED_MORNING".equals(shiftType) && !shiftName.contains("sáng")) {
-                        continue;
-                    }
-                    if ("PT_FIXED_AFTERNOON".equals(shiftType) && !shiftName.contains("chiều")) {
-                        continue;
-                    }
-                    if ("PT_FIXED_EVENING".equals(shiftType) && !shiftName.contains("tối")) {
+                    // Chỉ chặn nếu nhân viên thật sự có nhóm ca cố định.
+                    // NV linh hoạt (PT_FLEXIBLE, PT_SEASONAL_WEEKEND,
+                    // Sang/Toi, ...) được đăng ký mọi ca.
+                    if (!util.ShiftTypeUtil.isAllowedFixedShift(
+                            shiftType, shiftName)) {
                         continue;
                     }
 

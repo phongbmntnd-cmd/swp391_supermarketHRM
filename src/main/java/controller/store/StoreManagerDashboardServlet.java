@@ -168,6 +168,9 @@ public class StoreManagerDashboardServlet extends BaseServlet {
 
         } catch (Exception e) {
             e.printStackTrace();
+            sendInternalError(request, response,
+                    "Không thể tải dữ liệu dashboard cửa hàng: " + e.getMessage());
+            return;
         }
 
         request.getRequestDispatcher("/WEB-INF/views/store-manager/dashboard.jsp").forward(request, response);
@@ -189,8 +192,9 @@ public class StoreManagerDashboardServlet extends BaseServlet {
             }
 
         } catch (Exception e) {
-            throw new IllegalStateException(
-                    "Không thể đếm đề xuất tuyển dụng của chi nhánh.", e);
+            // Bảng recruitment_requests có thể chưa tồn tại -> coi như không có đề xuất
+            System.err.println("[StoreManagerDashboardServlet] Khong dem duoc de xuat tuyen dung: "
+                    + e.getMessage());
         }
 
         return 0;

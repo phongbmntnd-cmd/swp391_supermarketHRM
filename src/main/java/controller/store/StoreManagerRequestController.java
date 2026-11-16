@@ -278,10 +278,27 @@ public class StoreManagerRequestController extends HttpServlet {
                     responseText == null ? null : responseText.trim()
             );
 
+            if (success) {
+                resp.sendRedirect(
+                        req.getContextPath()
+                        + "/store-manager/shift-requests?success=1"
+                );
+                return;
+            }
+
+            // Trả về LÝ DO cụ thể để SM biết vì sao không duyệt được
+            // (trước đây chỉ hiện "invalid=1" trống -> đơn kẹt PENDING
+            // mà không có đường gỡ).
+            String reason = dao.getLastReviewError();
+
             resp.sendRedirect(
                     req.getContextPath()
-                    + "/store-manager/shift-requests?"
-                    + (success ? "success=1" : "invalid=1")
+                    + "/store-manager/shift-requests?invalid=1"
+                    + (reason == null || reason.trim().isEmpty()
+                        ? ""
+                        : "&reason_detail="
+                            + java.net.URLEncoder.encode(
+                                    reason, "UTF-8"))
             );
 
         } catch (IllegalArgumentException e) {

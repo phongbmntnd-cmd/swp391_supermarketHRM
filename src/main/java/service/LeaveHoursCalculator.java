@@ -82,8 +82,17 @@ public class LeaveHoursCalculator {
     // -----------------------------------------------------------------
 
     /**
-     * Lấy các ca đã xếp (PUBLISHED hoặc ON_LEAVE) của nhân viên trong
-     * khoảng [startDate, endDate].
+     * Lấy các ca đã xếp và CÒN HIỆU LỰC (PUBLISHED) của nhân viên
+     * trong khoảng [startDate, endDate].
+     *
+     * <h3>Vì sao KHÔNG lấy ca ON_LEAVE?</h3>
+     * Ca {@code ON_LEAVE} là ca đã bị đánh dấu nghỉ cho một đơn đã
+     * được duyệt. Giờ của ca đó ĐÃ được trừ vào quota rồi. Nếu lấy
+     * cả ON_LEAVE vào đây thì khi NV tạo đơn nghỉ mới trong cùng
+     * khoảng thời gian, giờ nghỉ bị TÍNH TRÙNG -> trừ quota hai lần
+     * cho cùng một ca.
+     *
+     * <p>Ca {@code CANCELLED} cũng bị loại (không còn hiệu lực).
      */
     public List<Map<String, Object>> getScheduledShifts(
             int userId,
@@ -101,7 +110,7 @@ public class LeaveHoursCalculator {
                 + "JOIN shifts s ON s.id = ss.shift_id "
                 + "WHERE ss.user_id = ? "
                 + "AND ss.work_date BETWEEN ? AND ? "
-                + "AND ss.status IN ('PUBLISHED', 'ON_LEAVE') "
+                + "AND ss.status = 'PUBLISHED' "
                 + "ORDER BY ss.work_date, s.start_time";
 
         try (Connection c = DBContext.getConnection();
@@ -176,6 +185,21 @@ public class LeaveHoursCalculator {
      * Tính giờ nghỉ cho một khoảng ngày, dựa trên lịch làm việc thực tế
      * của nhân viên.
      *
+     * <h3>Quy tắc (tính TỪNG NGÀY)</h3>
+     * <ul>
+     *   <li>Ngày CÓ ca đã publish -> tính theo thời lượng ca thật.</li>
+     *   <li>Ngày CHƯA có ca đã publish (lịch chưa publish, hoặc NV
+     *       làm ca khác) -> tính theo định mức
+     *       {@code standard_hours_per_day}.</li>
+     * </ul>
+     *
+     * <h3>Vì sao phải tính từng ngày?</h3>
+     * Trước đây chỉ dùng fallback khi KHÔNG có ca nào trong cả khoảng.
+     * Nếu NV xin nghỉ 5 ngày mà tuần đó mới publish được 1 ngày thì
+     * hệ thống chỉ tính 10h thay vì ~50h -> quota bị trừ thiếu, và
+     * 4 ngày không có ca không được đánh dấu {@code ON_LEAVE} khi
+     * duyệt -> NV "nghỉ" nhưng vẫn bị tính đi làm.
+     *
      * @param userId           nhân viên xin nghỉ
      * @param startDate        ngày bắt đầu
      * @param endDate          ngày kết thúc
@@ -194,31 +218,65 @@ public class LeaveHoursCalculator {
         List<Map<String, Object>> scheduled =
                 getScheduledShifts(userId, startDate, endDate);
 
-        if (scheduled.isEmpty()) {
-            // Fallback: chưa có lịch -> tính theo ngày
-            result.usedFallback = true;
-            result.totalHours = standardHoursPerDay * result.totalDays;
-            result.note = "Chưa có lịch làm việc được công bố cho khoảng "
-                    + "thời gian này, hệ thống tạm tính "
-                    + trimHours(result.totalHours) + " giờ theo định mức "
-                    + trimHours(standardHoursPerDay) + " giờ/ngày.";
-            return result;
+        // Nhóm ca theo ngày -> biết ngày nào ĐÃ có ca thật.
+        Map<LocalDate, List<Map<String, Object>>> byDate =
+                new LinkedHashMap<>();
+
+        for (Map<String, Object> row : scheduled) {
+            Object wd = row.get("workDate");
+
+            if (!(wd instanceof java.sql.Date)) {
+                continue;
+            }
+
+            LocalDate d = ((java.sql.Date) wd).toLocalDate();
+
+            byDate.computeIfAbsent(d, k -> new ArrayList<>())
+                    .add(row);
         }
 
         double sum = 0;
-        for (Map<String, Object> row : scheduled) {
-            double hours = toDouble(row.get("hours"));
-            sum += hours;
+        int fallbackDays = 0;
 
-            LeaveRequestShift d = new LeaveRequestShift();
-            d.setWorkDate((java.sql.Date) row.get("workDate"));
-            d.setShiftId(toInt(row.get("shiftId")));
-            d.setShiftName(String.valueOf(row.get("shiftName")));
-            d.setHours(hours);
-            result.shiftDetails.add(d);
+        // Duyệt TỪNG NGÀY trong khoảng nghỉ.
+        for (LocalDate d = startDate;
+             !d.isAfter(endDate);
+             d = d.plusDays(1)) {
+
+            List<Map<String, Object>> dayShifts = byDate.get(d);
+
+            if (dayShifts == null || dayShifts.isEmpty()) {
+                // Ngày chưa có ca đã publish -> ước lượng theo định mức.
+                sum += standardHoursPerDay;
+                fallbackDays++;
+                continue;
+            }
+
+            for (Map<String, Object> row : dayShifts) {
+                double hours = toDouble(row.get("hours"));
+                sum += hours;
+
+                LeaveRequestShift det = new LeaveRequestShift();
+                det.setWorkDate((java.sql.Date) row.get("workDate"));
+                det.setShiftId(toInt(row.get("shiftId")));
+                det.setShiftName(String.valueOf(row.get("shiftName")));
+                det.setHours(hours);
+                result.shiftDetails.add(det);
+            }
         }
 
         result.totalHours = sum;
+
+        // Có ngày phải ước lượng -> ghi chú để NV / SM hiểu.
+        if (fallbackDays > 0) {
+            result.usedFallback = true;
+            result.note = fallbackDays
+                    + "/" + result.totalDays
+                    + " ngày chưa có lịch làm việc được công bố, "
+                    + "hệ thống tạm tính theo định mức "
+                    + trimHours(standardHoursPerDay) + " giờ/ngày.";
+        }
+
         return result;
     }
 

@@ -10,10 +10,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.sql.*;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,18 +37,17 @@ public class EmployeeScheduleServlet extends BaseServlet {
         int userId = account.getId();
 
         // Giữ nguyên chức năng chọn và chuyển tuần.
-        String startDateParam = request.getParameter("startDate");
-        LocalDate nextMonday;
-        try {
-            if (startDateParam != null && !startDateParam.trim().isEmpty()) {
-                nextMonday = LocalDate.parse(startDateParam)
-                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-            } else {
-                nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-            }
-        } catch (Exception e) {
-            nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-        }
+        // Mặc định là TUẦN HIỆN TẠI (thứ Hai của tuần đang chạy).
+        // Dùng chung util.WeekUtil với màn "Khai báo lịch rảnh",
+        // "Yêu cầu đổi ca" và màn xếp ca của Store Manager để mọi màn
+        // luôn hiển thị cùng 1 tuần.
+        //
+        // Trước đây dùng next(MONDAY) -> hôm nay là Thứ Hai thì mốc
+        // tuần nhảy sang tuần kế tiếp, lệch với tuần mà Store Manager
+        // đang xếp ca (và lệch với mốc tuần dùng để tra cứu lịch
+        // rảnh) -> nhân viên thấy lịch rỗng / đổi ca không ra ca.
+        LocalDate nextMonday = util.WeekUtil.resolveWeekStart(
+                request.getParameter("startDate"));
 
         LocalDate nextSunday = nextMonday.plusDays(6);
         LocalDate prevMonday = nextMonday.minusWeeks(1);

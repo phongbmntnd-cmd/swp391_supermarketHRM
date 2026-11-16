@@ -172,14 +172,22 @@
     <c:if test="${param.invalid eq '1'}">
         <div class="alert alert-warning">
             Không thể gửi đơn. Vui lòng kiểm tra ca đã chọn.
+            <c:if test="${not empty param.reason_detail}">
+                <div class="small mt-1">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <c:out value="${param.reason_detail}"/>
+                </div>
+            </c:if>
             <br>
             <small>
                 Lưu ý: bạn chỉ được đổi ca với đồng nghiệp
                 <strong>cùng chức vụ</strong>,
                 <strong>cùng nhóm làm việc</strong>
                 (full-time chỉ đổi với full-time,
-                part-time chỉ đổi với part-time) và
-                <strong>cùng tuần đang xem</strong>.
+                part-time chỉ đổi với part-time),
+                <strong>cùng nhóm ca cố định</strong>
+                (part-time chỉ làm ca Sáng / Chiều / Tối theo hợp đồng)
+                và <strong>cùng tuần đang xem</strong>.
             </small>
         </div>
     </c:if>
@@ -392,6 +400,29 @@
                         part-time chỉ đổi với part-time) và
                         <strong>cùng tuần đang xem</strong>.
                     </div>
+
+                    <%-- Thông báo khi không có đồng nghiệp nào để đổi ca.
+                         Trước đây bảng chỉ hiện "Không có nhân viên" ở
+                         từng ô mà không giải thích lý do -> nhân viên
+                         tưởng hệ thống bị lỗi. --%>
+                    <c:choose>
+                        <c:when test="${empty colleagueSchedules}">
+                            <div class="alert alert-light border text-muted py-2 px-3"
+                                 style="font-size: 13px;">
+                                <i class="fa-solid fa-circle-info me-1"></i>
+                                Hiện chưa có đồng nghiệp nào
+                                <strong>cùng chi nhánh, cùng chức vụ
+                                và cùng nhóm làm việc</strong>
+                                đang có lịch được công bố trong tuần
+                                này để đổi ca.
+                                <br>
+                                Nếu bạn cần đổi sang ca đang thiếu
+                                người làm, hãy dùng tab
+                                <strong>Chuyển sang ca trống</strong>
+                                hoặc <strong>Nhận làm thêm ca</strong>.
+                            </div>
+                        </c:when>
+                    </c:choose>
 
                     <div class="d-flex justify-content-between
                          align-items-center mb-3">
@@ -786,7 +817,8 @@
             <div class="colleague-row"
                  data-schedule="${s.id}"
                  data-shift="${s.shiftId}"
-                 data-date="${s.workDate}">
+                 data-date="${s.workDate}"
+                 data-cross="${s.crossGroup}">
                 <span><c:out value="${s.colleagueName}"/></span>
             </div>
         </c:forEach>
@@ -811,6 +843,9 @@
             scheduleId: Number(el.dataset.schedule),
             shiftId: Number(el.dataset.shift),
             date: el.dataset.date,
+            // "1" = ca của đồng nghiệp nằm NGOÀI nhóm ca cố định
+            // của tôi -> đổi ca chéo nhóm, cần Store Manager duyệt.
+            crossGroup: el.dataset.cross === "1",
             name: el.querySelector("span").textContent.trim()
         }));
 
@@ -976,6 +1011,18 @@
             name.textContent = p.name;
 
             label.append(radio, name);
+
+            // Cảnh báo đổi ca CHÉO NHÓM CA: ca của đồng nghiệp
+            // nằm ngoài nhóm ca cố định của tôi -> cần Store
+            // Manager duyệt mới được thực hiện.
+            if (p.crossGroup) {
+                const warn = document.createElement("span");
+                warn.className = "badge bg-warning text-dark ms-2";
+                warn.style.fontSize = "10px";
+                warn.textContent = "Đổi chéo nhóm ca - cần SM duyệt";
+                label.appendChild(warn);
+            }
+
             employeeList.appendChild(label);
         });
     }

@@ -53,17 +53,19 @@ public class StoreManagerScheduleServlet extends BaseServlet {
 
         // Nhận tham số startDate từ request để hỗ trợ xem lại các tuần cũ hoặc tuần khác
         String startDateParam = request.getParameter("startDate");
-        LocalDate nextMonday;
-        try {
-            if (startDateParam != null && !startDateParam.trim().isEmpty()) {
-                nextMonday = LocalDate.parse(startDateParam);
-            } else {
-                LocalDate today = LocalDate.now();
-                nextMonday = today.with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-            }
-        } catch (Exception e) {
-            nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
-        }
+
+        // Mặc định là TUẦN HIỆN TẠI (thứ Hai của tuần đang chạy).
+        //
+        // Trước đây dùng TemporalAdjusters.next(MONDAY) -> hàm này loại
+        // trừ chính ngày hôm nay, nên vào Thứ Hai (16/11) màn này nhảy
+        // sang tuần 23/11-29/11 trong khi nhân viên khai báo lịch rảnh
+        // cho tuần 16/11-22/11 -> Store KHÔNG BAO GIỜ thấy lịch rảnh
+        // của nhân viên và không xếp được ca.
+        //
+        // Dùng chung util.WeekUtil với màn "Khai báo lịch rảnh" và
+        // "Lịch của tôi" để mốc tuần của Store luôn khớp nhau.
+        LocalDate nextMonday = util.WeekUtil.resolveWeekStart(
+                startDateParam, util.WeekUtil.currentMonday());
 
         LocalDate nextSunday = nextMonday.plusDays(6);
 
@@ -296,6 +298,20 @@ public class StoreManagerScheduleServlet extends BaseServlet {
                         return;
                     }
                     if (!scheduleDAO.canAssign(branchId, userId, positionId, shiftId, workDate)) {
+                        // Báo rõ lý do: NV bị ràng buộc nhóm ca cố định
+                        // (ví dụ "chỉ làm ca Sáng") mà Store đang xếp vào
+                        // ca khác -> trả mã riêng để UI hiện thông báo
+                        // dễ hiểu thay vì "assignment_invalid" chung chung.
+                        if (!scheduleDAO.isAllowedFixedShift(userId, shiftId)) {
+                            String restriction =
+                                    scheduleDAO.describeFixedShiftRestriction(
+                                            userId, shiftId);
+                            response.getWriter().write(
+                                    "fixed_shift_mismatch:"
+                                    + (restriction == null
+                                        ? "" : restriction));
+                            return;
+                        }
                         response.getWriter().write("assignment_invalid");
                         return;
                     }

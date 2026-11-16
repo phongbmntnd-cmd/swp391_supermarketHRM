@@ -653,18 +653,40 @@ public class EmployeeLeaveRequestServlet extends HttpServlet {
 
         // Ca THẬT của nhân viên trong cửa sổ (để đối chiếu).
         // Nhân viên chỉ được nghỉ ca đã được Store xếp cho mình.
+        //
+        // Loại ca ON_LEAVE: ca đó đã bị đánh dấu nghỉ cho một đơn
+        // đã duyệt (giờ đã trừ quota rồi). Nếu vẫn cho tick thì NV
+        // có thể tạo đơn nghỉ thứ hai cho cùng ca -> trừ quota 2 lần.
         java.util.Set<String> allowedShifts =
                 new java.util.HashSet<>();
         for (Map<String, Object> row
                 : new LeaveShiftOptionDAO().getAssignedShifts(
                         user.getId(), today, windowEnd)) {
+            Object st = row.get("status");
+            if (st != null
+                    && "ON_LEAVE".equalsIgnoreCase(String.valueOf(st))) {
+                continue;
+            }
             allowedShifts.add(
                     row.get("workDate") + "_" + row.get("shiftId"));
         }
 
+        // Loại bỏ ca bị tick TRÙNG NHAU.
+        // Nếu không, cùng một ca/ngày có thể bị tick nhiều lần
+        // (double-click, form submit 2 lần,...) -> giờ nghỉ bị
+        // tính trùng -> trừ quota nhiều hơn thực tế.
+        java.util.Set<String> seenSelections =
+                new java.util.HashSet<>();
+
         for (String raw : rawSelections) {
             LeaveShiftSelection sel = LeaveShiftSelection.parse(raw);
             if (sel == null) {
+                continue;
+            }
+
+            // Chống tick trùng ca/ngày.
+            String selKey = sel.getWorkDate() + "_" + sel.getShiftId();
+            if (!seenSelections.add(selKey)) {
                 continue;
             }
             // Chặn nghỉ trong quá khứ

@@ -414,12 +414,128 @@ public class ShiftScheduleDAO {
             if (isOnApprovedLeave(userId, workDate)) {
                 return false;
             }
+            // NHÓM CA CỐ ĐỊNH: không được xếp NV vào ca ngoài nhóm ca
+            // đã cam kết trong hợp đồng (ví dụ NV "chỉ làm ca Sáng"
+            // không được xếp vào "Ca Tối").
+            // Trước đây thiếu bước này -> DB có nhiều dòng lịch vi phạm
+            // (NV ca sáng bị xếp ca tối và ngược lại) -> lịch hiển thị
+            // lộn xộn và nhân viên không đổi ca được.
+            if (!isAllowedFixedShift(userId, shiftId)) {
+                return false;
+            }
             for(String q:new String[]{conflict,held})try(PreparedStatement p=c.prepareStatement(q)){
                 p.setInt(1,shiftId);p.setInt(2,userId);p.setDate(3,Date.valueOf(workDate));
                 try(ResultSet rs=p.executeQuery()){if(rs.next()&&rs.getInt(1)>0)return false;}
             }
             return true;
         }catch(Exception e){throw new IllegalStateException("Không kiểm tra được xung đột",e);}
+    }
+
+    /**
+     * Ca có thuộc nhóm ca cố định của nhân viên không?
+     *
+     * <p>Dùng chung {@link util.ShiftTypeUtil} để khớp với logic trong
+     * {@code ShiftChangeRequestDAO}. Chỉ các giá trị {@code *_FIXED_*}
+     * mới là ràng buộc thật sự; nhân viên linh hoạt được xếp mọi ca.
+     */
+    public boolean isAllowedFixedShift(int userId, int shiftId) {
+        String sql = "SELECT ep.shift_type, s.name "
+                + "FROM employee_profiles ep "
+                + "CROSS JOIN shifts s "
+                + "WHERE ep.user_id = ? AND s.id = ?";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement st = conn.prepareStatement(sql)) {
+
+            st.setInt(1, userId);
+            st.setInt(2, shiftId);
+
+            try (ResultSet rs = st.executeQuery()) {
+                if (rs.next()) {
+                    return util.ShiftTypeUtil.isAllowedFixedShift(
+                            rs.getString(1), rs.getString(2));
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Không kiểm tra được nhóm ca cố định", e);
+        }
+
+        return true;
+    }
+
+    /**
+     * Mô tả ràng buộc nhóm ca của nhân viên (để báo lỗi cho Store).
+     *
+     * @return ví dụ "nhân viên chỉ làm Ca Sáng", hoặc null nếu NV linh hoạt
+     */
+    public String describeFixedShiftRestriction(int userId, int shiftId) {
+        String sql = "SELECT ep.shift_type, s.name "
+                + "FROM employee_profiles ep "
+                + "CROSS JOIN shifts s "
+                + "WHERE ep.user_id = ? AND s.id = ?";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement st = conn.prepareStatement(sql)) {
+
+            st.setInt(1, userId);
+            st.setInt(2, shiftId);
+
+            try (ResultSet rs = st.executeQuery()) {
+                if (rs.next()) {
+                    return util.ShiftTypeUtil.describeRestriction(
+                            rs.getString(1));
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Không kiểm tra được nhóm ca cố định", e);
+        }
+
+        return null;
+    }
+
+    /**
+     * Tuần lịch của chi nhánh đã được PUBLISH chưa?
+     *
+     * <p><b>Quy tắc nghiệp vụ:</b> Store Manager chỉ "chốt" lịch khi
+     * bấm Publish. Từ thời điểm đó, lịch rảnh của tuần đó được KHOÁ
+     * lại -> nhân viên không được đăng ký / sửa nữa.
+     *
+     * <p>Trước khi publish, nhân viên đăng ký và sửa lịch rảnh bình
+     * thường (kể cả khi Store đã XẾP CA dạng nháp - vì lịch chưa
+     * chốt thì vẫn có thể thay đổi).
+     *
+     * @param branchId    chi nhánh của nhân viên
+     * @param weekStartDate thứ Hai của tuần (yyyy-MM-dd)
+     * @return true nếu tuần đã có lịch được publish
+     */
+    public boolean isWeekPublished(int branchId, String weekStartDate) {
+        if (branchId <= 0 || weekStartDate == null
+                || weekStartDate.trim().isEmpty()) {
+            return false;
+        }
+
+        String sql = "SELECT COUNT(*) FROM shift_schedules "
+                + "WHERE branch_id = ? AND status = 'PUBLISHED' "
+                + "AND work_date BETWEEN ? AND ?";
+
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement st = conn.prepareStatement(sql)) {
+
+            LocalDate monday = LocalDate.parse(weekStartDate);
+
+            st.setInt(1, branchId);
+            st.setDate(2, Date.valueOf(monday));
+            st.setDate(3, Date.valueOf(monday.plusDays(6)));
+
+            try (ResultSet rs = st.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Không kiểm tra được trạng thái publish của tuần", e);
+        }
     }
 
     /**

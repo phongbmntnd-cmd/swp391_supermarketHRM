@@ -293,6 +293,21 @@
                     </div>
                 </c:if>
 
+                <c:if test="${param.error eq 'invalid_week'}">
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i> Chỉ được đăng ký lịch rảnh cho <strong>tuần hiện tại</strong>. Tuần trước / tuần sau chỉ để xem lại.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </c:if>
+
+                <c:if test="${param.error eq 'week_locked'}">
+                    <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+                        <i class="fa-solid fa-lock me-2"></i> <strong>Lịch rảnh tuần này đã được chốt.</strong>
+                        Cửa hàng đã công bố lịch làm việc cho tuần này nên bạn không thể thay đổi lịch rảnh nữa.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </c:if>
+
                 <c:if test="${param.success eq 'true'}">
                     <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
                         <i class="fa-solid fa-circle-check me-2"></i> Lưu lịch rảnh thành công!
@@ -310,15 +325,29 @@
                 <div class="card card-custom">
                     <div class="card-header-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
                         <div>
-                            <h2><i class="fa-regular fa-calendar-days me-2"></i> 
+                            <h2><i class="fa-regular fa-calendar-days me-2"></i>
                                 <c:choose>
                                     <c:when test="${employeeType eq 'FULL_TIME'}">Lịch Làm Việc Chính Thức (Full-time)</c:when>
-                                    <c:otherwise>Đăng Ký Lịch Rảnh Tuần Tới (Part-time - Hình thức: ${shiftType})</c:otherwise>
+                                    <c:otherwise>Đăng Ký Lịch Rảnh (Part-time - Hình thức: ${shiftType})</c:otherwise>
                                 </c:choose>
                             </h2>
-                            <p class="mb-0"><i class="fa-solid fa-clock-rotate-left me-1"></i> Áp dụng cho tuần: <strong>${startDate}</strong> đến <strong>${endDate}</strong></p>
+                            <p class="mb-0"><i class="fa-solid fa-clock-rotate-left me-1"></i> Áp dụng cho tuần: <strong>${startDate}</strong> đến <strong>${endDate}</strong>
+                                <c:choose>
+                                    <c:when test="${isCurrentWeek}">
+                                        <span class="badge bg-light text-dark ms-2">Tuần hiện tại</span>
+                                    </c:when>
+                                    <c:otherwise>
+                                        <span class="badge bg-warning text-dark ms-2">Chỉ xem lại - không thể đăng ký</span>
+                                    </c:otherwise>
+                                </c:choose>
+                            </p>
                         </div>
-                        <div>
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <div class="btn-group" role="group">
+                                <a href="${pageContext.request.contextPath}/employee/availability?startDate=${prevWeekDate}" class="btn btn-outline-light btn-sm px-3"><i class="fa-solid fa-chevron-left me-1"></i> Tuần trước</a>
+                                <a href="${pageContext.request.contextPath}/employee/availability" class="btn btn-light btn-sm px-3">Tuần hiện tại</a>
+                                <a href="${pageContext.request.contextPath}/employee/availability?startDate=${nextWeekDate}" class="btn btn-outline-light btn-sm px-3">Tuần sau <i class="fa-solid fa-chevron-right ms-1"></i></a>
+                            </div>
                             <span class="badge bg-light text-primary badge-status">
                                 <i class="fa-solid fa-user-shield me-1"></i> ${employeeType eq 'FULL_TIME' ? 'Nhân viên Toàn thời gian' : 'Nhân viên Bán thời gian'}
                             </span>
@@ -327,10 +356,19 @@
 
                     <div class="table-container">
                         <!-- Thông báo trạng thái thời gian mở/đóng cổng đăng ký -->
-                        <div class="alert ${isRegistrationOpen ? 'alert-warning' : 'alert-secondary'} py-2 mb-4 d-flex align-items-center shadow-sm" role="alert">
-                            <i class="fa-solid fa-clock fa-lg me-3"></i>
+                        <div class="alert ${isWeekLocked ? 'alert-danger' : (isRegistrationOpen and isCurrentWeek ? 'alert-warning' : 'alert-secondary')} py-2 mb-4 d-flex align-items-center shadow-sm" role="alert">
+                            <i class="fa-solid ${isWeekLocked ? 'fa-lock' : 'fa-clock'} fa-lg me-3"></i>
                             <div>
                                 <c:choose>
+                                    <c:when test="${isWeekLocked}">
+                                        <strong>Lịch rảnh tuần này đã được chốt.</strong>
+                                        Cửa hàng đã công bố lịch làm việc cho tuần này, nên bạn
+                                        <strong>không thể thay đổi lịch rảnh nữa</strong>.
+                                        Bạn vẫn có thể xem lại các tuần khác.
+                                    </c:when>
+                                    <c:when test="${not isCurrentWeek}">
+                                        <strong>Trạng thái đăng ký:</strong> Bạn đang xem lại một tuần khác. Tuần trước / tuần sau chỉ để <strong>xem lại</strong> - chỉ <strong>tuần hiện tại</strong> mới đăng ký / sửa được.
+                                    </c:when>
                                     <c:when test="${isRegistrationOpen}">
                                         <strong>Trạng thái đăng ký:</strong> Cổng mở từ <strong>Thứ Hai</strong> đến hết <strong>23:59 Thứ Tư</strong> hàng tuần. Bạn có thể thao tác chỉnh sửa lịch rảnh.
                                     </c:when>
@@ -439,7 +477,7 @@
                                                                 <input class="form-check-input" type="checkbox" name="availabilities" value="${day}_${shift.id}"
                                                                        <c:if test="${isDisabled}">disabled style="pointer-events: none; background-color: #e9ecef;"</c:if>
                                                                        <c:if test="${registeredKeySet.contains(day.concat('_').concat(shift.id))}">checked</c:if>
-                                                                       <c:if test="${!isRegistrationOpen}">disabled</c:if>
+                                                                       <c:if test="${!isRegistrationOpen or !isCurrentWeek or isWeekLocked}">disabled</c:if>
                                                                            >
                                                                 </td>
                                                         </c:forEach>
@@ -450,8 +488,10 @@
                                     </div>
 
                                     <div class="d-flex justify-content-between align-items-center mt-3">
-                                        <span class="text-muted small"><i class="fa-solid fa-circle-info me-1"></i> Lưu ý: Bạn cần đăng ký tối thiểu <strong>5 ca/tuần</strong>.</span>
-                                        <c:if test="${isRegistrationOpen}">
+                                        <span class="text-muted small">
+                                            <i class="fa-solid fa-circle-info me-1"></i> Lưu ý: Bạn cần đăng ký tối thiểu <strong>5 ca/tuần</strong>.
+                                        </span>
+                                        <c:if test="${isRegistrationOpen and isCurrentWeek and not isWeekLocked}">
                                             <button type="submit" class="btn btn-save btn-primary text-white">
                                                 <i class="fa-solid fa-floppy-disk me-2"></i> Lưu Đăng Ký Lịch Rảnh
                                             </button>

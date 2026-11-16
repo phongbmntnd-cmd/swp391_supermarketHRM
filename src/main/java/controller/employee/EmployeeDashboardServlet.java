@@ -55,6 +55,14 @@ public class EmployeeDashboardServlet extends BaseServlet {
             request.setAttribute("todayShifts", todayShifts);
             request.setAttribute("attendanceStatus", getAttendanceStatus(todayShifts, todayAttendance));
 
+            // Tuần đang xem (dùng chung util.WeekUtil) -> link tới
+            // trang "Yêu cầu đổi ca" mở đúng tuần mà NV đang xem ở
+            // màn "Lịch của tôi" / "Khai báo lịch rảnh".
+            request.setAttribute(
+                    "weekStartDate",
+                    util.WeekUtil.currentMonday().toString()
+            );
+
             // 4b. Đếm số đơn (nghỉ phép + đổi ca) đang chờ duyệt
             request.setAttribute(
                     "pendingRequestCount",

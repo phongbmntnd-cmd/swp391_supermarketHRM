@@ -226,6 +226,16 @@ public class StoreManagerLeaveServlet extends HttpServlet {
                 return;
             }
 
+            // Chỉ chấp nhận 2 hành động rõ ràng.
+            // Trước đây mọi action lạ (kể cả null/typo) đều bị
+            // coi như "từ chối" -> từ chối nhầm đơn của NV.
+            if (!"approve".equals(action) && !"reject".equals(action)) {
+                resp.sendError(400,
+                        "Hành động không hợp lệ. Chỉ hỗ trợ: "
+                        + "approve, reject, revoke.");
+                return;
+            }
+
             boolean approve = "approve".equals(action);
 
             // Cảnh báo thiếu người trước khi duyệt (để SM biết và

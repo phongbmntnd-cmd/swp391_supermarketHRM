@@ -7,9 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import java.io.IOException;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.temporal.TemporalAdjusters;
 
 @WebServlet(
         name = "EmployeeShiftRequestController",
@@ -25,23 +23,47 @@ public class EmployeeShiftRequestController extends HttpServlet {
 
     /**
      * Xác định tuần đang xem từ tham số {@code startDate}.
-     * Luôn chuẩn hoá về thứ Hai của tuần đó.
+     *
+     * <p>Dùng chung {@link util.WeekUtil} với màn "Lịch của tôi" và
+     * "Khai báo lịch rảnh" để cả 3 màn luôn hiển thị CÙNG một tuần.
+     * Trước đây màn này mặc định là TUẦN HIỆN TẠI còn 2 màn kia là
+     * TUẦN TỚI -> vào thứ Hai, NV xem lịch thấy tuần sau nhưng bấm
+     * "Đổi ca" lại ra tuần này (rỗng, "0 options").
      */
     private LocalDate resolveWeekStart(HttpServletRequest req) {
-        String param = req.getParameter("startDate");
+        return util.WeekUtil.resolveWeekStart(
+                req.getParameter("startDate"));
+    }
 
-        if (param != null && !param.trim().isEmpty()) {
-            try {
-                return LocalDate.parse(param.trim())
-                        .with(TemporalAdjusters
-                                .previousOrSame(DayOfWeek.MONDAY));
-            } catch (Exception e) {
-                // Bỏ qua -> dùng tuần mặc định bên dưới.
-            }
+    /**
+     * Thông báo lý do gửi đơn thất bại, theo từng loại đơn.
+     *
+     * <p>Trước đây cả 3 loại đơn (SWAP / OPEN / EXTRA) khi thất bại
+     * đều trả về "invalid=1" trống -> nhân viên không biết vì sao:
+     * ca không thuộc nhóm ca cố định của mình, ca đã có người đăng
+     * ký, ca chồng giờ, hay ca trống đã hết hạn.
+     */
+    private String buildFailureMessage(
+            boolean extraType, boolean openType) {
+
+        if (extraType) {
+            return "Không thể đăng ký nhận thêm ca. Ca có thể đã "
+                    + "có người đăng ký, đã qua ngày, chồng giờ với "
+                    + "lịch của bạn, hoặc không thuộc nhóm ca cố định "
+                    + "của bạn (ví dụ bạn chỉ làm ca Sáng).";
         }
 
-        return LocalDate.now()
-                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        if (openType) {
+            return "Không thể đề nghị chuyển sang ca trống. Ca trống "
+                    + "có thể đã có người đăng ký, đã qua ngày, chồng "
+                    + "giờ với lịch của bạn, hoặc không thuộc nhóm ca "
+                    + "cố định của bạn.";
+        }
+
+        return "Không thể tạo đơn đổi ca. Đồng nghiệp có thể không "
+                + "cùng chức vụ / cùng nhóm ca cố định, hai ca có thể "
+                + "chồng lấn giờ, hoặc một trong hai ca đã không còn "
+                + "hiệu lực.";
     }
 
     private void showPage(
@@ -326,7 +348,13 @@ public class EmployeeShiftRequestController extends HttpServlet {
             resp.sendRedirect(
                     req.getContextPath()
                     + "/employee/request-shift?"
-                    + (success ? "success=1" : "invalid=1")
+                    + (success
+                        ? "success=1"
+                        : "invalid=1&reason_detail="
+                            + java.net.URLEncoder.encode(
+                                    buildFailureMessage(
+                                            extraType, openType),
+                                    "UTF-8"))
             );
 
         } catch (NumberFormatException e) {

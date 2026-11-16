@@ -276,6 +276,12 @@
                 <c:if test="${param.invalid eq '1'}">
                     <div class="alert alert-warning">
                         Không thể thực hiện. Vui lòng kiểm tra dữ liệu và trạng thái hiện tại.
+                        <c:if test="${not empty param.reason_detail}">
+                            <div class="small mt-1">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <c:out value="${param.reason_detail}"/>
+                            </div>
+                        </c:if>
                         <c:if test="${param.reason eq 'missing'}">
                             <div class="small">Vui lòng chọn đầy đủ ca, vị trí và ngày làm việc.</div>
                         </c:if>
@@ -393,7 +399,24 @@
                                             </td>
                                             <td><c:out value="${r.targetDate}"/> - <c:out value="${r.targetShift}"/></td>
                                             <td><c:out value="${r.colleagueName}"/></td>
-                                            <td><c:out value="${r.reason}"/></td>
+                                            <td><c:out value="${r.reason}"/>
+                                                <%-- CẢNH BÁO ĐỔI CA CHÉO NHÓM: một trong hai nhân viên
+                                                     sẽ làm ca ngoài nhóm ca cố định trong hợp đồng.
+                                                     SM là người quyết định có duyệt hay không. --%>
+                                                <c:if test="${r.crossGroup eq '1'}">
+                                                    <div class="small mt-1">
+                                                        <span class="badge bg-warning text-dark">
+                                                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                                                            Đổi chéo nhóm ca
+                                                        </span>
+                                                        <c:if test="${not empty r.crossGroupDetail}">
+                                                            <span class="text-warning-emphasis">
+                                                                (<c:out value="${r.crossGroupDetail}"/>)
+                                                            </span>
+                                                        </c:if>
+                                                    </div>
+                                                </c:if>
+                                            </td>
                                             <td>
                                                 <c:choose>
                                                     <c:when test="${r.status eq 'WAITING_COLLEAGUE'}"><span class="badge bg-warning text-dark">Chờ đồng nghiệp</span></c:when>

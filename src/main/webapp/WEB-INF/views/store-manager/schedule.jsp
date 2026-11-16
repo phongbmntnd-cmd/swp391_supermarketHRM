@@ -941,17 +941,24 @@
                                                                                                      location.reload();
                                                                                                      return;
                                                                                                  }
-                                                                                                 const icon = element.querySelector('.check-icon');
-                                                                                                 if (result.trim() === 'on_leave') {
-                                                                                                     alert('Nhân viên đang nghỉ phép (đơn đã duyệt) trong ngày này. Không thể xếp hoặc bỏ xếp ca.');
-                                                                                                     location.reload();
-                                                                                                     return;
-                                                                                                 }
-                                                                                                 if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
-                                                                                                     alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
-                                                                                                     location.reload();
-                                                                                                     return;
-                                                                                                 }
+                                                                                                     const icon = element.querySelector('.check-icon');
+                                                                                                     if (result.trim() === 'on_leave') {
+                                                                                                         alert('Nhân viên đang nghỉ phép (đơn đã duyệt) trong ngày này. Không thể xếp hoặc bỏ xếp ca.');
+                                                                                                         location.reload();
+                                                                                                         return;
+                                                                                                     }
+                                                                                                     // Xếp ca ngoài nhóm ca cố định của NV
+                                                                                                     if (result.trim().startsWith('fixed_shift_mismatch')) {
+                                                                                                         const restriction = result.trim().substring('fixed_shift_mismatch:'.length);
+                                                                                                         alert('Không thể xếp ca này: ' + (restriction || 'nhân viên có nhóm ca cố định khác với ca đang chọn') + '.');
+                                                                                                         location.reload();
+                                                                                                         return;
+                                                                                                     }
+                                                                                                     if (result.trim() === 'transfer_locked' || result.trim() === 'assignment_invalid') {
+                                                                                                         alert('Nhân viên đang điều chuyển hoặc ca làm không hợp lệ.');
+                                                                                                         location.reload();
+                                                                                                         return;
+                                                                                                     }
                                                                                                  if (result.trim() === 'added') {
                                                                                                      element.classList.add('assigned');
                                                                                                      icon.className = 'fa-solid fa-check-circle text-success check-icon';

@@ -475,8 +475,20 @@ public class LeaveBalanceDAO {
     public double getUsedHours(int userId, int leaveTypeId, int year,
             int excludeRequestId) {
 
+        // QUAN TRỌNG: phải dùng CÙNG công thức fallback với
+        // LeaveRequestDAO.hasEnoughBalance (dùng lúc duyệt) và
+        // LeaveBalanceDAO.getMyBalances (dùng lúc hiển thị):
+        //   COALESCE(used_hours, used_days * standard_hours_per_day)
+        //
+        // Nếu không fallback, dòng balance cũ có used_hours = NULL sẽ bị
+        // coi là 0 giờ đã dùng -> lúc TẠO đơn kiểm tra lỏng hơn lúc
+        // DUYỆT -> NV gửi được đơn rồi SM báo "không đủ quota" (mâu
+        // thuẫn giữa 2 mốc kiểm tra).
         String sql = "SELECT "
-                + "COALESCE((SELECT lb.used_hours FROM leave_balances lb "
+                + "COALESCE((SELECT COALESCE(lb.used_hours, "
+                + "  lb.used_days * ep.standard_hours_per_day) "
+                + "  FROM leave_balances lb "
+                + "  JOIN employee_profiles ep ON ep.user_id = lb.user_id "
                 + "  WHERE lb.user_id = ? AND lb.leave_type_id = ? "
                 + "  AND lb.year = ?), 0) "
                 + "+ COALESCE((SELECT SUM(lr.total_hours) FROM leave_requests lr "

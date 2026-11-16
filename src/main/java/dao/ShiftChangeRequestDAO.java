@@ -3,9 +3,93 @@ package dao;
 import context.DBContext;
 import java.sql.*;
 import java.util.*;
+import java.util.Locale;
 import java.time.LocalDate;
 
 public class ShiftChangeRequestDAO {
+
+    /**
+     * Lý do duyệt đơn đổi ca thất bại (để hiển thị cho Store Manager).
+     *
+     * <p>Trước đây {@link #review} chỉ trả về boolean, UI hiển thị
+     * "invalid=1" trống -> SM không biết vì sao không duyệt được, đơn
+     * kẹt ở PENDING mà không có đường gỡ.
+     */
+    private String lastReviewError;
+
+    /**
+     * Lấy lý do duyệt thất bại gần nhất (null nếu không có lỗi).
+     */
+    public String getLastReviewError() {
+        return lastReviewError;
+    }
+
+    /**
+     * Điều kiện SQL lọc ca theo NHÓM CA CỐ ĐỊNH của nhân viên.
+     *
+     * <h3>Vì sao cần?</h3>
+     * Nhân viên được gán {@code employee_profiles.shift_type}
+     * cố định (PT_FIXED_MORNING / PT_FIXED_AFTERNOON / PT_FIXED_EVENING)
+     * -> hợp đồng chỉ làm ca đó.
+     *
+     * <p>Điều kiện phải được áp dụng NGAY TỪ LÚC HIỂN THỊ danh sách
+     * và lúc TẠO đơn, để nhân viên không bao giờ gửi được đơn chắc
+     * chắn bị từ chối.
+     *
+     * <h3>LỖI ĐÃ SỬA</h3>
+     * Trước đây điều kiện này CHỈ cho qua khi {@code shift_type} rỗng
+     * hoặc đúng một trong 3 giá trị {@code PT_FIXED_*}. Mọi giá trị
+     * khác bị coi như ràng buộc và bị CHẶN TOÀN BỘ ca, bao gồm:
+     * <ul>
+     *   <li>{@code PT_FLEXIBLE} - lựa chọn MẶC ĐỊNH trong form tuyển
+     *       dụng của Store (Ca xoay linh hoạt).</li>
+     *   <li>{@code PT_SEASONAL_WEEKEND}, {@code FT_ROTATING}.</li>
+     *   <li>Các giá trị dạng tự do như {@code Sang/Toi}.</li>
+     * </ul>
+     * Hệ quả: nhân viên part-time linh hoạt KHÔNG BAO GIỜ đổi ca được,
+     * không nhận được ca trống, không đăng ký được ca bù - trong khi
+     * bước duyệt của Store lại cho qua (logic Java khác logic SQL).
+     *
+     * <p>Quy tắc chuẩn (xem {@link util.ShiftTypeUtil}): CHỈ 6 giá trị
+     * {@code *_FIXED_*} là ràng buộc thật sự; mọi giá trị khác =
+     * không ràng buộc -> được làm mọi ca.
+     *
+     * @param profileAlias bí danh bảng {@code employee_profiles} trong
+     *                    câu SQL (ví dụ {@code ep}, {@code current_ep})
+     * @param shiftAlias   bí danh bảng {@code shifts} trong câu SQL
+     * @return điều kiện SQL (luôn đúng nếu nhân viên không có ràng buộc)
+     */
+    private static String fixedShiftOk(
+            String profileAlias, String shiftAlias) {
+
+        return "(" + profileAlias + ".shift_type IS NULL "
+                + "OR TRIM(" + profileAlias + ".shift_type) = '' "
+                // ---- NHÓM CỐ ĐỊNH THẬT SỰ (6 giá trị) ----
+                + "OR (UPPER(TRIM(" + profileAlias + ".shift_type)) "
+                + "    = 'PT_FIXED_MORNING' "
+                + "    AND LOWER(" + shiftAlias + ".name) LIKE '%sáng%') "
+                + "OR (UPPER(TRIM(" + profileAlias + ".shift_type)) "
+                + "    = 'PT_FIXED_AFTERNOON' "
+                + "    AND LOWER(" + shiftAlias + ".name) LIKE '%chiều%') "
+                + "OR (UPPER(TRIM(" + profileAlias + ".shift_type)) "
+                + "    = 'PT_FIXED_EVENING' "
+                + "    AND LOWER(" + shiftAlias + ".name) LIKE '%tối%') "
+                + "OR (UPPER(TRIM(" + profileAlias + ".shift_type)) "
+                + "    = 'FT_FIXED_MORNING' "
+                + "    AND LOWER(" + shiftAlias + ".name) LIKE '%sáng%') "
+                + "OR (UPPER(TRIM(" + profileAlias + ".shift_type)) "
+                + "    = 'FT_FIXED_AFTERNOON' "
+                + "    AND LOWER(" + shiftAlias + ".name) LIKE '%chiều%') "
+                + "OR (UPPER(TRIM(" + profileAlias + ".shift_type)) "
+                + "    = 'FT_FIXED_EVENING' "
+                + "    AND LOWER(" + shiftAlias + ".name) LIKE '%tối%') "
+                // ---- KHÔNG RÀNG BUỘC (PT_FLEXIBLE, PT_SEASONAL_WEEKEND,
+                //      FT_ROTATING, Sang/Toi, ...) -> cho phép mọi ca ----
+                + "OR UPPER(TRIM(" + profileAlias + ".shift_type)) "
+                + "    NOT IN ('PT_FIXED_MORNING', 'PT_FIXED_AFTERNOON', "
+                + "        'PT_FIXED_EVENING', 'FT_FIXED_MORNING', "
+                + "        'FT_FIXED_AFTERNOON', 'FT_FIXED_EVENING'))";
+    }
 
     private Connection connect() throws Exception {
         return DBContext.getConnection();
@@ -123,6 +207,26 @@ public class ShiftChangeRequestDAO {
     // (their_ep.position_id), KHÔNG so sánh theo position_id của
     // dòng lịch (ss.position_id) - vì dòng lịch có thể đã bị Store
     // xếp sai chức vụ (dữ liệu thực tế có 9 dòng lệch).
+    //
+    // <h3>ĐỔI CA CHÉO NHÓM CA (LỖI ĐÃ SỬA)</h3>
+    // Trước đây câu truy vấn lọc chéo 2 chiều:
+    // <pre>
+    //   AND fixedShiftOk(ep, s)          // ca đồng nghiệp thuộc
+    //   AND fixedShiftOk(current_ep, s)  // nhóm ca cố định của tôi
+    // </pre>
+    // Hệ quả: hai nhân viên part-time có nhóm ca cố định KHÁC NHAU
+    // (một chỉ làm ca Sáng, một chỉ làm ca Tối) không bao giờ thấy
+    // nhau -> bảng phân công toàn ô "Không có nhân viên", nhân viên
+    // tưởng hệ thống lỗi.
+    //
+    // Nay ĐÃ BỎ điều kiện {@code fixedShiftOk(current_ep, s)}: cho
+    // phép đổi ca CHÉO NHÓM (sáng ↔ tối). Việc có được duyệt hay
+    // không do Store Manager quyết định ở bước duyệt, có ghi rõ
+    // cảnh báo trong lý do duyệt.
+    //
+    // Vẫn giữ {@code fixedShiftOk(ep, s)}: ca của đồng nghiệp phải
+    // thuộc nhóm ca cố định CỦA CHÍNH HỌ - nếu không thì lịch của
+    // họ đã bị xếp sai từ trước, không liên quan đến việc đổi ca.
     public List<Map<String, Object>> getColleagueSchedules(
             int userId, LocalDate weekStart) {
 
@@ -133,6 +237,8 @@ public class ShiftChangeRequestDAO {
                 + "ss.position_id AS positionId, "
                 + "ep.full_name AS colleagueName, "
                 + "ep.employee_type AS colleagueType, "
+                + "ep.shift_type AS colleagueShiftType, "
+                + "current_ep.shift_type AS myShiftType, "
                 + "ss.work_date AS workDate, "
                 + "s.name AS shiftName, "
                 + "s.start_time AS startTime, "
@@ -148,6 +254,10 @@ public class ShiftChangeRequestDAO {
                 + "AND ep.position_id = current_ep.position_id "
                 + "AND COALESCE(ep.employee_type, 'FULL_TIME') = "
                 + "COALESCE(current_ep.employee_type, 'FULL_TIME') "
+                // Ca của đồng nghiệp phải thuộc nhóm ca cố định CỦA
+                // CHÍNH ĐỒNG NGHIỆP (lịch họ đã bị xếp sai thì không
+                // liên quan tới việc đổi ca của tôi).
+                + "AND " + fixedShiftOk("ep", "s")
                 + "AND ss.user_id <> current_ep.user_id "
                 + "AND u.role_id = 5 "
                 + "AND u.status = 'ACTIVE' "
@@ -156,7 +266,30 @@ public class ShiftChangeRequestDAO {
                 + "AND ss.work_date >= CURRENT_DATE() "
                 + "ORDER BY ss.work_date, s.start_time, ep.full_name";
 
-        return query(sql, userId, weekStart, weekStart.plusDays(6));
+        List<Map<String, Object>> rows =
+                query(sql, userId, weekStart, weekStart.plusDays(6));
+
+        // Gắn cờ "đổi chéo nhóm ca" để UI hiển thị cảnh báo cho
+        // nhân viên và cho Store Manager khi duyệt.
+        for (Map<String, Object> row : rows) {
+            Object myType = row.get("myShiftType");
+            Object colleagueType = row.get("colleagueShiftType");
+            String shiftName = String.valueOf(row.get("shiftName"));
+
+            boolean crossGroup =
+                    !util.ShiftTypeUtil.isAllowedFixedShift(
+                            myType == null ? null : myType.toString(),
+                            shiftName);
+
+            row.put("crossGroup", crossGroup ? "1" : "0");
+
+            String myLabel =
+                    util.ShiftTypeUtil.groupLabel(
+                            myType == null ? null : myType.toString());
+            row.put("myFixedGroup", myLabel == null ? "" : myLabel);
+        }
+
+        return rows;
     }
 
     private List<Map<String, Object>> queryTwo(
@@ -264,6 +397,9 @@ public class ShiftChangeRequestDAO {
                 + "AND os.branch_id = ep.home_branch_id "
                 + "AND (ep.position_id IS NULL "
                 + "OR os.position_id = ep.position_id) "
+                // Ca trống phải thuộc nhóm ca cố định của nhân viên,
+                // nếu không SM sẽ từ chối khi duyệt (đơn kẹt PENDING).
+                + "AND " + fixedShiftOk("ep", "s")
                 // Ca trống gắn đơn nghỉ phép đã hủy/thu hồi thì không
                 // còn ai làm việc ở ca đó -> không cho nhận.
                 + "AND NOT EXISTS (SELECT 1 FROM leave_requests lr "
@@ -327,6 +463,13 @@ public class ShiftChangeRequestDAO {
                 + "AND os.branch_id = myep.home_branch_id "
                 + "AND (myep.position_id IS NULL "
                 + "OR os.position_id = myep.position_id) "
+                // Chỉ PART_TIME / CASUAL được đăng ký nhận thêm ca.
+                // FULL_TIME có lịch cố định, không đi qua luồng này.
+                + "AND COALESCE(myep.employee_type, 'FULL_TIME') "
+                + "IN ('PART_TIME', 'CASUAL') "
+                // Ca trống phải thuộc NHÓM CA CỐ ĐỊNH của nhân viên,
+                // nếu không SM sẽ từ chối khi duyệt (đơn kẹt PENDING).
+                + "AND " + fixedShiftOk("myep", "s")
                 // Ca trống gắn đơn nghỉ phép đã bị hủy/thu hồi thì
                 // không còn ai làm việc ở ca đó -> không cho nhận.
                 + "AND (lr.id IS NULL OR lr.status = 'APPROVED') "
@@ -365,6 +508,9 @@ public class ShiftChangeRequestDAO {
                 + "FROM shift_schedules mine "
                 + "JOIN shift_schedules theirs "
                 + "ON mine.branch_id = theirs.branch_id "
+                + "JOIN shifts mine_shift ON mine_shift.id = mine.shift_id "
+                + "JOIN shifts their_shift "
+                + "ON their_shift.id = theirs.shift_id "
                 + "JOIN employee_profiles mine_ep "
                 + "ON mine_ep.user_id = mine.user_id "
                 + "JOIN employee_profiles their_ep "
@@ -380,6 +526,18 @@ public class ShiftChangeRequestDAO {
                 + "AND mine_ep.position_id = their_ep.position_id "
                 + "AND COALESCE(mine_ep.employee_type, 'FULL_TIME') = "
                 + "COALESCE(their_ep.employee_type, 'FULL_TIME') "
+                // Ca sau khi đổi phải thuộc nhóm ca cố định của cả hai.
+                // Thiếu điều kiện này -> đơn tạo được nhưng SM duyệt
+                // bị từ chối im lặng, đơn kẹt PENDING vĩnh viễn.
+                //
+                // LỖI ĐÃ SỬA: đổi ca CHÉO NHÓM được phép (SM duyệt
+                // là được), nên KHÔNG chặn theo nhóm ca ở bước tạo
+                // đơn. Chỉ kiểm tra "tự nhất quán": ca của mỗi
+                // người phải thuộc nhóm ca cố định CỦA CHÍNH HỌ
+                // (lịch bị Store xếp sai thì không liên quan tới
+                // việc đổi ca).
+                + "AND " + fixedShiftOk("mine_ep", "mine_shift")
+                + "AND " + fixedShiftOk("their_ep", "their_shift")
                 + "AND requester.role_id = 5 "
                 + "AND colleague.role_id = 5 "
                 + "AND requester.status = 'ACTIVE' "
@@ -447,9 +605,12 @@ public class ShiftChangeRequestDAO {
 
         String sql
                 = "SELECT mine.work_date AS myDate, mine.shift_id AS myShift, "
-                + "theirs.work_date AS theirDate, theirs.shift_id AS theirShift "
+                + "theirs.work_date AS theirDate, theirs.shift_id AS theirShift, "
+                + "theirs.user_id AS theirUserId "
                 + "FROM shift_schedules mine "
                 + "JOIN shift_schedules theirs ON theirs.id = ? "
+                + "JOIN shifts mine_shift ON mine_shift.id = mine.shift_id "
+                + "JOIN shifts their_shift ON their_shift.id = theirs.shift_id "
                 + "JOIN employee_profiles current_ep "
                 + "  ON current_ep.user_id = ? "
                 + "JOIN employee_profiles their_ep "
@@ -461,6 +622,12 @@ public class ShiftChangeRequestDAO {
                 + "AND current_ep.position_id = their_ep.position_id "
                 + "AND COALESCE(current_ep.employee_type, 'FULL_TIME') = "
                 + "COALESCE(their_ep.employee_type, 'FULL_TIME') "
+                // Ca sau khi đổi phải thuộc nhóm ca cố định của CẢ HAI
+                // người. Nếu không kiểm tra ở đây thì đơn tạo được,
+                // đồng nghiệp đồng ý, nhưng tới lúc SM duyệt thì bị
+                // từ chối im lặng -> đơn kẹt vĩnh viễn ở PENDING.
+                + "AND " + fixedShiftOk("current_ep", "mine_shift")
+                + "AND " + fixedShiftOk("their_ep", "their_shift")
                 + "AND theirs.user_id <> current_ep.user_id "
                 + "AND colleague.role_id = 5 "
                 + "AND colleague.status = 'ACTIVE' "
@@ -494,10 +661,44 @@ public class ShiftChangeRequestDAO {
                 int myShift = rs.getInt("myShift");
                 java.sql.Date theirDate = rs.getDate("theirDate");
                 int theirShift = rs.getInt("theirShift");
+                int theirUserId = rs.getInt("theirUserId");
 
                 // Không cho đổi 2 ca chồng lấn giờ trong cùng ngày.
-                return !overlapsSameDay(c,
-                        myDate, myShift, theirDate, theirShift);
+                if (overlapsSameDay(c,
+                        myDate, myShift, theirDate, theirShift)) {
+                    return false;
+                }
+
+                // LỖI ĐÃ SỬA (đồng bộ với approveSwap):
+                // Ca MỚI của mỗi người không được chồng lấn với các ca
+                // KHÁC mà họ đang có trong cùng ngày.
+                //
+                // Trước đây canSwapShifts chỉ so 2 ca với nhau, còn
+                // approveSwap thì kiểm tra đầy đủ -> nhân viên tạo được
+                // đơn, đồng nghiệp đồng ý, nhưng tới lúc SM duyệt thì bị
+                // từ chối với lý do "Ca mới sẽ chồng lấn giờ" -> đơn kẹt
+                // PENDING không có đường gỡ.
+                if (hasConflict(c, userId, theirDate, theirShift,
+                        myScheduleId)) {
+                    return false;
+                }
+
+                if (hasConflict(c, theirUserId, myDate, myShift,
+                        targetScheduleId)) {
+                    return false;
+                }
+
+                // LỖI ĐÃ SỬA (đồng bộ với approveSwap):
+                // Không ai được nhận ca trong ngày mà họ đang nghỉ phép
+                // (đơn đã duyệt). Trước đây chỉ kiểm tra lúc duyệt ->
+                // nhân viên tạo được đơn rồi bị từ chối với lý do
+                // "đang nghỉ phép trong ca sẽ làm việc mới".
+                if (isOnApprovedLeave(userId, theirDate, theirShift)
+                        || isOnApprovedLeave(theirUserId, myDate, myShift)) {
+                    return false;
+                }
+
+                return true;
             }
         }
     }
@@ -519,6 +720,8 @@ public class ShiftChangeRequestDAO {
                 + "FROM shift_schedules mine "
                 + "JOIN open_shifts os "
                 + "ON os.branch_id = mine.branch_id "
+                + "JOIN shifts s ON s.id = os.shift_id "
+                + "JOIN employee_profiles ep ON ep.user_id = mine.user_id "
                 + "JOIN users requester "
                 + "ON requester.id = mine.user_id "
                 + "WHERE mine.id = ? AND os.id = ? "
@@ -527,6 +730,8 @@ public class ShiftChangeRequestDAO {
                 + "AND requester.status = 'ACTIVE' "
                 + "AND mine.status = 'PUBLISHED' "
                 + "AND os.status = 'OPEN' "
+                // Ca trống phải thuộc nhóm ca cố định của nhân viên.
+                + "AND " + fixedShiftOk("ep", "s")
                 + "AND mine.work_date BETWEEN ? AND ? "
                 + "AND os.work_date BETWEEN ? AND ? "
                 + "AND mine.work_date >= "
@@ -611,6 +816,7 @@ public class ShiftChangeRequestDAO {
                 + "request_type, open_shift_id, reason, status) "
                 + "SELECT ?, NULL, 'EXTRA', os.id, ?, 'PENDING' "
                 + "FROM open_shifts os "
+                + "JOIN shifts s ON s.id = os.shift_id "
                 + "JOIN employee_profiles ep ON ep.user_id = ? "
                 + "JOIN users requester ON requester.id = ep.user_id "
                 + "WHERE os.id = ? "
@@ -620,6 +826,12 @@ public class ShiftChangeRequestDAO {
                 + "AND os.branch_id = ep.home_branch_id "
                 + "AND (ep.position_id IS NULL "
                 + "OR os.position_id = ep.position_id) "
+                // Chỉ PART_TIME / CASUAL được đăng ký nhận thêm ca.
+                // FULL_TIME có lịch cố định và giới hạn giờ làm riêng.
+                + "AND COALESCE(ep.employee_type, 'FULL_TIME') "
+                + "IN ('PART_TIME', 'CASUAL') "
+                // Ca trống phải thuộc nhóm ca cố định của nhân viên.
+                + "AND " + fixedShiftOk("ep", "s")
                 + "AND os.work_date BETWEEN ? AND ? "
                 + "AND os.work_date >= "
                 + "CURRENT_DATE() "
@@ -661,6 +873,7 @@ public class ShiftChangeRequestDAO {
         String sql
                 = "SELECT os.work_date AS openDate, os.shift_id AS openShift "
                 + "FROM open_shifts os "
+                + "JOIN shifts s ON s.id = os.shift_id "
                 + "JOIN employee_profiles ep ON ep.user_id = ? "
                 + "JOIN users requester ON requester.id = ep.user_id "
                 + "WHERE os.id = ? "
@@ -670,6 +883,11 @@ public class ShiftChangeRequestDAO {
                 + "AND os.branch_id = ep.home_branch_id "
                 + "AND (ep.position_id IS NULL "
                 + "OR os.position_id = ep.position_id) "
+                // Chỉ PART_TIME / CASUAL được nhận thêm ca.
+                + "AND COALESCE(ep.employee_type, 'FULL_TIME') "
+                + "IN ('PART_TIME', 'CASUAL') "
+                // Ca trống phải thuộc nhóm ca cố định của nhân viên.
+                + "AND " + fixedShiftOk("ep", "s")
                 + "AND os.work_date BETWEEN ? AND ? "
                 + "AND os.work_date >= "
                 + "CURRENT_DATE() "
@@ -764,20 +982,53 @@ public class ShiftChangeRequestDAO {
             java.sql.Date workDate,
             int shiftId) throws SQLException {
 
-        // 1. Đơn nghỉ trọn ngày (không có chi tiết ca) -> chặn cả ngày.
+        // Lấy nhóm làm việc của nhân viên.
+        // FULL_TIME nghỉ TRỌN NGÀY (nghỉ cả ngày có/không có ca)
+        // -> chặn toàn bộ ngày, không cần xem chi tiết ca.
+        // PART_TIME/CASUAL nghỉ THEO CA -> chỉ chặn ca đã nghỉ.
+        String type = "FULL_TIME";
+        String typeSql = "SELECT employee_type FROM employee_profiles "
+                + "WHERE user_id = ?";
+
+        try (Connection c = connect();
+             PreparedStatement ps = c.prepareStatement(typeSql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String t = rs.getString(1);
+                    if (t != null && !t.trim().isEmpty()) {
+                        type = t.trim().toUpperCase();
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SQLException(
+                    "Không kiểm tra được nhóm làm việc", e);
+        }
+
+        boolean fullTime = "FULL_TIME".equals(type);
+
+        // 1. Đơn nghỉ trọn ngày -> chặn cả ngày.
+        //    (áp dụng cho FULL_TIME, hoặc đơn không có chi tiết ca)
         String wholeDay
                 = "SELECT COUNT(*) FROM leave_requests lr "
                 + "WHERE lr.user_id = ? AND lr.status = 'APPROVED' "
                 + "AND lr.start_date <= ? AND lr.end_date >= ? "
-                + "AND NOT EXISTS ("
-                + "SELECT 1 FROM leave_request_shifts lrs "
-                + "WHERE lrs.leave_request_id = lr.id)";
+                + "AND ("
+                + "  ? = 1 "
+                + "  OR NOT EXISTS ("
+                + "    SELECT 1 FROM leave_request_shifts lrs "
+                + "    WHERE lrs.leave_request_id = lr.id)"
+                + ")";
 
         try (Connection c = connect();
              PreparedStatement ps = c.prepareStatement(wholeDay)) {
             ps.setInt(1, userId);
             ps.setDate(2, workDate);
             ps.setDate(3, workDate);
+            ps.setInt(4, fullTime ? 1 : 0);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next() && rs.getInt(1) > 0) {
@@ -930,6 +1181,10 @@ public class ShiftChangeRequestDAO {
     }
 
     // 7. Store Manager xem các đơn trong chi nhánh
+    //
+    // Thêm cờ "crossGroup" cho đơn SWAP đổi CHÉO NHÓM CA (sáng ↔ tối)
+    // để Store Manager thấy cảnh báo khi duyệt - vì đơn đó làm một
+    // nhân viên làm ca ngoài nhóm ca cố định trong hợp đồng.
     public List<Map<String, Object>> getBranchRequests(int branchId) {
         String sql
                 = "SELECT r.id, r.request_type AS requestType, "
@@ -939,6 +1194,8 @@ public class ShiftChangeRequestDAO {
                 + "COALESCE(target.work_date, os.work_date) AS targetDate, "
                 + "COALESCE(ts.name, os2.name) AS targetShift, "
                 + "tgt_ep.full_name AS colleagueName, "
+                + "req_ep.shift_type AS requesterShiftType, "
+                + "tgt_ep.shift_type AS colleagueShiftType, "
                 + "r.open_shift_id AS openShiftId, "
                 + "r.reason, r.status, r.response "
                 + "FROM shift_change_requests r "
@@ -958,7 +1215,51 @@ public class ShiftChangeRequestDAO {
                 + "WHERE COALESCE(mine.branch_id, os.branch_id) = ? "
                 + "ORDER BY r.id DESC";
 
-        return query(sql, branchId);
+        List<Map<String, Object>> rows = query(sql, branchId);
+
+        // Gắn cờ đổi chéo nhóm ca cho từng đơn.
+        for (Map<String, Object> row : rows) {
+
+            Object myType = row.get("requesterShiftType");
+            Object targetType = row.get("colleagueShiftType");
+            String myShift = str(row.get("myShift"));
+            String targetShift = str(row.get("targetShift"));
+
+            boolean crossGroup = false;
+            String detail = "";
+
+            // Người gửi sẽ nhận ca của đồng nghiệp.
+            if (!util.ShiftTypeUtil.isAllowedFixedShift(
+                    myType == null ? null : myType.toString(),
+                    targetShift)) {
+                crossGroup = true;
+                String label = util.ShiftTypeUtil.groupLabel(
+                        myType == null ? null : myType.toString());
+                detail = (label == null ? "" : label);
+            }
+
+            // Đồng nghiệp sẽ nhận ca của người gửi.
+            if (!util.ShiftTypeUtil.isAllowedFixedShift(
+                    targetType == null ? null : targetType.toString(),
+                    myShift)) {
+                crossGroup = true;
+                String label = util.ShiftTypeUtil.groupLabel(
+                        targetType == null ? null : targetType.toString());
+                detail = detail.isEmpty()
+                        ? (label == null ? "" : label)
+                        : detail + " / " + (label == null ? "" : label);
+            }
+
+            row.put("crossGroup", crossGroup ? "1" : "0");
+            row.put("crossGroupDetail", detail);
+        }
+
+        return rows;
+    }
+
+    /** Chuyển giá trị null thành chuỗi rỗng (tiện cho JSP/JS). */
+    private static String str(Object value) {
+        return value == null ? "" : value.toString();
     }
 
     // 7b. Store Manager: Đếm số đơn đổi ca đang chờ duyệt của chi nhánh
@@ -1177,6 +1478,8 @@ public class ShiftChangeRequestDAO {
             boolean approve,
             String responseText) throws Exception {
 
+        lastReviewError = null;
+
         try (Connection c = connect()) {
             c.setAutoCommit(false);
 
@@ -1232,22 +1535,30 @@ public class ShiftChangeRequestDAO {
                                 c, branchId, myId, targetId,
                                 requester, targetUser)) {
                             c.rollback();
+                            lastReviewError = swapErrorReason(
+                                    c, branchId, myId, targetId,
+                                    requester, targetUser);
                             return false;
                         }
                     } else if ("OPEN".equals(type)) {
                         if (!approveOpen(
                                 c, branchId, myId, openId, requester)) {
                             c.rollback();
+                            lastReviewError = openErrorReason(
+                                    c, openId, requester);
                             return false;
                         }
                     } else if ("EXTRA".equals(type)) {
                         if (!approveExtra(
                                 c, branchId, openId, requester)) {
                             c.rollback();
+                            lastReviewError = extraErrorReason(
+                                    c, openId, requester);
                             return false;
                         }
                     } else {
                         c.rollback();
+                        lastReviewError = "Loại yêu cầu không hợp lệ.";
                         return false;
                     }
                 }
@@ -1278,6 +1589,228 @@ public class ShiftChangeRequestDAO {
                 c.setAutoCommit(true);
             }
         }
+    }
+
+    // ============================================================
+    // Xác định LÝ DO duyệt thất bại (hiển thị cho Store Manager)
+    // ============================================================
+
+    /**
+     * Đếm số bản ghi thỏa điều kiện (dùng để xác định lý do từ chối).
+     */
+    private int countScalar(Connection c, String sql, Object... params)
+            throws SQLException {
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+
+            for (int i = 0; i < params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Lý do không duyệt được đơn SWAP.
+     */
+    private String swapErrorReason(
+            Connection c, int branch, int myId, int targetId,
+            int requester, int targetUser) {
+
+        try {
+            // 1. Ca còn hiệu lực?
+            int invalidCount = countScalar(c,
+                    "SELECT COUNT(*) FROM shift_schedules "
+                    + "WHERE id IN (?, ?) AND (branch_id <> ? "
+                    + "  OR status <> 'PUBLISHED' "
+                    + "  OR work_date < CURDATE())",
+                    myId, targetId, branch);
+
+            if (invalidCount > 0) {
+                return "Một trong hai ca đã không còn hiệu lực "
+                        + "(đã qua ngày hoặc lịch đã thay đổi).";
+            }
+
+            // 2. Nhóm ca cố định: KHÔNG còn chặn đơn đổi ca.
+            // Đổi ca chéo nhóm (sáng ↔ tối) được phép nếu Store
+            // Manager duyệt - quyết định nằm ở bước duyệt, không
+            // phải ở bước kiểm tra tự động. (Trước đây điều này
+            // chặn cứng và làm cho màn đổi ca của nhân viên luôn trống
+            // khi hai bên có nhóm ca cố định khác nhau.)
+            // -> BỎ, chuyển sang kiểm tra chức vụ / nhóm làm việc.
+
+            // 3. Chức vụ / nhóm làm việc có khớp không?
+            int requesterPosition = positionOf(c, requester);
+            int targetPosition = positionOf(c, targetUser);
+
+            if (requesterPosition <= 0 || targetPosition <= 0) {
+                return "Không xác định được vị trí công tác của nhân viên.";
+            }
+
+            if (requesterPosition != targetPosition) {
+                return "Hai nhân viên không cùng chức vụ công tác.";
+            }
+
+            if (!employeeTypeOf(c, requester)
+                    .equals(employeeTypeOf(c, targetUser))) {
+                return "Hai nhân viên không cùng nhóm làm việc "
+                        + "(full-time chỉ đổi với full-time, "
+                        + "part-time chỉ đổi với part-time).";
+            }
+
+            // 4. Ca chồng lấn giờ?
+            if (hasConflict(c, requester,
+                    workDateOf(c, targetId), shiftIdOf(c, targetId), myId)
+                    || hasConflict(c, targetUser,
+                    workDateOf(c, myId), shiftIdOf(c, myId), targetId)) {
+                return "Ca mới sẽ chồng lấn giờ với ca đang có "
+                        + "của một trong hai nhân viên.";
+            }
+
+            // 5. Đang nghỉ phép?
+            if (isOnApprovedLeave(targetUser,
+                    workDateOf(c, myId), shiftIdOf(c, myId))
+                    || isOnApprovedLeave(requester,
+                    workDateOf(c, targetId), shiftIdOf(c, targetId))) {
+                return "Một trong hai nhân viên đang nghỉ phép "
+                        + "trong ca sẽ làm việc mới.";
+            }
+
+            return "Không thể đổi ca do trạng thái lịch đã thay đổi.";
+        } catch (Exception e) {
+            return "Không xác định được lý do từ chối.";
+        }
+    }
+
+    /**
+     * Lý do không duyệt được đơn OPEN (chuyển sang ca trống).
+     */
+    private String openErrorReason(
+            Connection c, int openId, int requester) {
+
+        try {
+            int openCount = countScalar(c,
+                    "SELECT COUNT(*) FROM open_shifts "
+                    + "WHERE id = ? AND status = 'OPEN' "
+                    + "AND work_date >= CURDATE()",
+                    openId);
+
+            if (openCount <= 0) {
+                return "Ca trống không còn hiệu lực "
+                        + "(đã được đóng hoặc đã qua ngày).";
+            }
+
+            if (!isAllowedFixedShift(c, requester, shiftIdOfOpen(c, openId))) {
+                return "Ca trống không thuộc nhóm ca cố định "
+                        + "của nhân viên.";
+            }
+
+            return "Ca mới chồng lấn giờ với ca đang có "
+                    + "của nhân viên, hoặc nhân viên đang nghỉ phép.";
+        } catch (Exception e) {
+            return "Không xác định được lý do từ chối.";
+        }
+    }
+
+    /**
+     * Lý do không duyệt được đơn EXTRA (nhận thêm ca).
+     */
+    private String extraErrorReason(
+            Connection c, int openId, int requester) {
+
+        try {
+            int openCount = countScalar(c,
+                    "SELECT COUNT(*) FROM open_shifts "
+                    + "WHERE id = ? AND status = 'OPEN' "
+                    + "AND work_date >= CURDATE()",
+                    openId);
+
+            if (openCount <= 0) {
+                return "Ca trống không còn hiệu lực "
+                        + "(đã được đóng hoặc đã qua ngày).";
+            }
+
+            String type = employeeTypeOf(c, requester);
+
+            if (!"PART_TIME".equals(type) && !"CASUAL".equals(type)) {
+                return "Chỉ nhân viên part-time / casual "
+                        + "mới được đăng ký nhận thêm ca.";
+            }
+
+            if (!isAllowedFixedShift(c, requester, shiftIdOfOpen(c, openId))) {
+                return "Ca trống không thuộc nhóm ca cố định "
+                        + "của nhân viên.";
+            }
+
+            return "Ca mới chồng lấn giờ với ca đang có "
+                    + "của nhân viên, hoặc nhân viên đang nghỉ phép.";
+        } catch (Exception e) {
+            return "Không xác định được lý do từ chối.";
+        }
+    }
+
+    /** Lấy shift_id của một bản ghi lịch (theo id). */
+    private int shiftIdOf(Connection c, int scheduleId) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT shift_id FROM shift_schedules WHERE id = ?")) {
+
+            ps.setInt(1, scheduleId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            return -1;
+        }
+
+        return -1;
+    }
+
+    /** Lấy work_date của một bản ghi lịch (theo id). */
+    private java.sql.Date workDateOf(Connection c, int scheduleId) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT work_date FROM shift_schedules WHERE id = ?")) {
+
+            ps.setInt(1, scheduleId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getDate(1);
+                }
+            }
+        } catch (SQLException e) {
+            return null;
+        }
+
+        return null;
+    }
+
+    /** Lấy shift_id của một ca trống (theo id). */
+    private int shiftIdOfOpen(Connection c, int openId) {
+        try (PreparedStatement ps = c.prepareStatement(
+                "SELECT shift_id FROM open_shifts WHERE id = ?")) {
+
+            ps.setInt(1, openId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            return -1;
+        }
+
+        return -1;
     }
 
     private boolean approveSwap(
@@ -1364,6 +1897,20 @@ public class ShiftChangeRequestDAO {
                 shiftIds.get(targetId))) {
             return false;
         }
+
+        // NHÓM CA CỐ ĐỊNH (đổi ca chéo nhóm):
+        // Trước đây điều kiện này chặn cứng -> đơn đổi ca giữa NV
+        // "chỉ làm ca Sáng" và NV "chỉ làm ca Tối" không bao giờ được
+        // tạo, đồng thời màn hiển thị cũng chặn (xem
+        // getColleagueSchedules) -> nhân viên thấy màn trống.
+        //
+        // Nay CHUYỂN sang chế độ "đổi ca chéo nhóm được phép nếu
+        // Store Manager duyệt": ở bước duyệt, đơn KHÔNG bị từ chối
+        // vì lý do này. Store Manager là người quyết định có chấp
+        // nhận ca ngoài nhóm ca cố định của nhân viên hay không.
+        //
+        // Các điều kiện còn lại (chồng giờ, nghỉ phép, chức vụ,
+        // nhóm làm việc, cùng tuần) vẫn được kiểm tra nghiêm ngặt.
 
         // Ca sau khi đổi phải giữ vị trí công tác của chính người
         // làm ca đó, nếu không lịch sẽ bị lệch vị trí.
@@ -1520,6 +2067,12 @@ public class ShiftChangeRequestDAO {
             return false;
         }
 
+        // Ca trống phải thuộc nhóm ca cố định của nhân viên
+        // (part-time hợp đồng chỉ làm 1 nhóm ca).
+        if (!isAllowedFixedShift(c, requester, newShift)) {
+            return false;
+        }
+
         // Ca mới phải giữ vị trí công tác của nhân viên.
         int requesterPosition = positionOf(c, requester);
 
@@ -1554,7 +2107,47 @@ public class ShiftChangeRequestDAO {
             }
         }
 
-        // Mở lại ca cũ
+        // Mở lại ca cũ.
+        //
+        // PHẢI kiểm tra ca trống đã tồn tại chưa: nếu không, mỗi lần
+        // duyệt đơn OPEN lại tạo thêm 1 bản ghi trùng (branch, ca,
+        // vị trí, ngày) -> danh sách "ca trống" bị nhân bản, 1 ca được
+        // cover xong vẫn còn bản khác treo -> lịch ca trống sai.
+        //
+        // open_shifts.position_id là NOT NULL -> nếu ca cũ không
+        // có position_id thì lấy vị trí mặc định của nhân viên.
+        int reopenPosition = oldPosition > 0
+                ? oldPosition
+                : findDefaultPositionId(c, requester);
+
+        if (reopenPosition <= 0) {
+            // Không xác định được vị trí -> không mở lại ca cũ,
+            // nhưng vẫn giữ nguyên kết quả đã đổi ca.
+            return true;
+        }
+
+        // Đã có ca trống cùng ca/ngày/vị trí đang OPEN? -> giữ nguyên
+        // bản ghi cũ, KHÔNG tạo bản trùng.
+        String findExisting = "SELECT id FROM open_shifts "
+                + "WHERE branch_id = ? AND shift_id = ? AND work_date = ? "
+                + "AND position_id = ? "
+                + "AND status = 'OPEN' "
+                + "ORDER BY id LIMIT 1";
+
+        try (PreparedStatement ps = c.prepareStatement(findExisting)) {
+            ps.setInt(1, branch);
+            ps.setInt(2, oldShift);
+            ps.setDate(3, oldDate);
+            ps.setInt(4, reopenPosition);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    // Đã tồn tại -> không tạo bản trùng.
+                    return true;
+                }
+            }
+        }
+
         try (PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO open_shifts "
                 + "(branch_id, shift_id, position_id, work_date, status) "
@@ -1562,19 +2155,6 @@ public class ShiftChangeRequestDAO {
 
             ps.setInt(1, branch);
             ps.setInt(2, oldShift);
-
-            // open_shifts.position_id là NOT NULL -> nếu ca cũ không
-            // có position_id thì lấy vị trí mặc định của nhân viên.
-            int reopenPosition = oldPosition > 0
-                    ? oldPosition
-                    : findDefaultPositionId(c, requester);
-
-            if (reopenPosition <= 0) {
-                // Không xác định được vị trí -> không mở lại ca cũ,
-                // nhưng vẫn giữ nguyên kết quả đã đổi ca.
-                return true;
-            }
-
             ps.setInt(3, reopenPosition);
             ps.setDate(4, oldDate);
             return ps.executeUpdate() == 1;
@@ -1634,6 +2214,12 @@ public class ShiftChangeRequestDAO {
             return false;
         }
 
+        // Ca trống phải thuộc nhóm ca cố định của nhân viên
+        // (part-time hợp đồng chỉ làm 1 nhóm ca).
+        if (!isAllowedFixedShift(c, requester, newShift)) {
+            return false;
+        }
+
         // Ca mới phải giữ vị trí công tác của nhân viên.
         int requesterPosition = positionOf(c, requester);
 
@@ -1678,6 +2264,59 @@ public class ShiftChangeRequestDAO {
         }
 
         return true;
+    }
+
+    /**
+     * Kiểm tra ca của nhân viên có thuộc nhóm ca cố định của họ không.
+     *
+     * <h3>Vì sao cần?</h3>
+     * Nhân viên part-time được gán {@code shift_type} cố định
+     * (PT_FIXED_MORNING / PT_FIXED_AFTERNOON / PT_FIXED_EVENING) ->
+     * hợp đồng chỉ làm ca đó. Nếu không chặn, nhân viên có thể đổi ca
+     * (SWAP) hoặc nhận ca thêm (EXTRA) vào ca KHÔNG thuộc nhóm của
+     * mình -> lịch không còn đúng hợp đồng, lương/ca tính sai.
+     *
+     * <p>Đây cũng là đường lách bỏ kiểm tra đã có ở luồng đăng ký
+     * ca bổ sung ({@code SupplementaryShiftDAO.apply}).
+     *
+     * <h3>LỖI ĐÃ SỬA</h3>
+     * Trước đây hàm này trả {@code true} cho MỌI {@code shift_type}
+     * không khớp 3 giá trị {@code PT_FIXED_*} (kể cả {@code PT_FLEXIBLE}
+     * -> đúng là không ràng buộc, nhưng cũng {@code FT_FIXED_MORNING}
+     * -> SAI, vì full-time cố định sáng cũng phải bị ràng buộc).
+     * Nay dùng chung {@link util.ShiftTypeUtil} để logic Java và SQL
+     * khớp nhau 100%.
+     *
+     * @param c       connection
+     * @param userId  nhân viên
+     * @param shiftId ca sắp được giao
+     * @return true nếu được phép làm ca này
+     */
+    private boolean isAllowedFixedShift(
+            Connection c, int userId, int shiftId)
+            throws SQLException {
+
+        String sql = "SELECT ep.shift_type, s.name "
+                + "FROM employee_profiles ep "
+                + "CROSS JOIN shifts s "
+                + "WHERE ep.user_id = ? AND s.id = ?";
+
+        String shiftType = null;
+        String shiftName = null;
+
+        try (PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            ps.setInt(2, shiftId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    shiftType = rs.getString(1);
+                    shiftName = rs.getString(2);
+                }
+            }
+        }
+
+        return util.ShiftTypeUtil.isAllowedFixedShift(
+                shiftType, shiftName);
     }
 
     /**
@@ -1757,6 +2396,7 @@ public class ShiftChangeRequestDAO {
                 + "os.branch_id AS openBranch, "
                 + "mine.work_date AS myDate, mine.shift_id AS myShift "
                 + "FROM open_shifts os "
+                + "JOIN shifts s ON s.id = os.shift_id "
                 + "JOIN shift_schedules mine ON mine.id = ? "
                 + "JOIN employee_profiles ep ON ep.user_id = ? "
                 + "JOIN users requester ON requester.id = mine.user_id "
@@ -1765,6 +2405,9 @@ public class ShiftChangeRequestDAO {
                 + "AND os.branch_id = ep.home_branch_id "
                 + "AND (ep.position_id IS NULL "
                 + "OR os.position_id = ep.position_id) "
+                // Ca trống phải thuộc nhóm ca cố định của nhân viên,
+                // nếu không SM sẽ từ chối khi duyệt (đơn kẹt PENDING).
+                + "AND " + fixedShiftOk("ep", "s")
                 + "AND mine.user_id = ? "
                 + "AND mine.status = 'PUBLISHED' "
                 + "AND requester.role_id = 5 "

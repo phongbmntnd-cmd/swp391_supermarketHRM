@@ -105,7 +105,16 @@ public class EmployeeAvailabilityDAO {
         return list;
     }
 
-    // Xóa lịch rảnh cũ và lưu lịch rảnh mới của nhân viên (Dùng Transaction)
+    /**
+     * Lưu lịch rảnh của nhân viên trong tuần.
+     *
+     * <p>Toàn bộ lịch rảnh của một tuần được lưu lại theo cơ chế
+     * "xoá tuần cũ rồi insert lại". Việc này chỉ được phép thực hiện
+     * khi tuần đó CHƯA được Store Manager publish - xem
+     * {@link #isWeekPublished(int, String, String)} trong
+     * {@code ShiftScheduleDAO}. Sau khi publish, lịch rảnh của tuần đó
+     * bị khoá lại, nhân viên không sửa được nữa.
+     */
     public void saveAvailabilities(int userId, String weekStartDate, List<EmployeeAvailability> availabilities) {
         String deleteSql = "DELETE FROM employee_availabilities WHERE user_id = ? AND week_start_date = ?";
         String insertSql = "INSERT INTO employee_availabilities (user_id, week_start_date, day_of_week, shift_id) VALUES (?, ?, ?, ?)";

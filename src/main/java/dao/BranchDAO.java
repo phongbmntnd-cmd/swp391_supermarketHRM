@@ -366,6 +366,46 @@ public class BranchDAO {
             }
 
         } catch (Exception e) {
+            // Bảng branch_manager_assignments có thể chưa tồn tại trong một số
+            // database cũ -> fallback về chi nhánh được gán trực tiếp
+            // (branches.store_manager_id) để Store Manager vẫn vào được dashboard.
+            System.err.println("[BranchDAO.getManagedBranches] Khong lay duoc chi nhanh kiem nhiem, dung fallback: "
+                    + e.getMessage());
+            branches = getDirectlyManagedBranches(managerId);
+        }
+
+        return branches;
+    }
+
+    /**
+     * Lấy các chi nhánh được gán trực tiếp cho Store Manager (branches.store_manager_id).
+     * Dùng làm fallback khi bảng branch_manager_assignments không khả dụng.
+     *
+     * @param managerId Store Manager user ID
+     * @return Danh sách chi nhánh (có thể rỗng)
+     */
+    private List<Branch> getDirectlyManagedBranches(int managerId) {
+        List<Branch> branches = new ArrayList<>();
+
+        String sql = "SELECT id, code, name, address, status, store_manager_id, created_at "
+                + "FROM branches WHERE store_manager_id = ? AND status = 'ACTIVE' ORDER BY id";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, managerId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Branch b = new Branch();
+                    b.setId(rs.getInt("id"));
+                    b.setCode(rs.getString("code"));
+                    b.setName(rs.getString("name"));
+                    b.setAddress(rs.getString("address"));
+                    b.setStatus(rs.getString("status"));
+                    b.setStoreManagerId(rs.getInt("store_manager_id"));
+                    b.setCreatedAt(rs.getTimestamp("created_at"));
+                    branches.add(b);
+                }
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
 

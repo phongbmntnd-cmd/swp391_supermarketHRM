@@ -493,7 +493,7 @@
                             </div>
                             <p>Đề nghị đổi ca với đồng nghiệp hoặc đăng ký nhận ca trống, theo dõi yêu cầu chờ quản lý phê duyệt.</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/employee/request-shift" class="card-link">Tạo yêu cầu đổi ca <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/employee/request-shift?startDate=${weekStartDate}" class="card-link">Tạo yêu cầu đổi ca <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
                     <!-- Tính năng 7: Vi phạm và kết quả xử lý -->
