@@ -1,4 +1,4 @@
-package controller;
+package controller.hr;
 
 import dao.EmployeeDAO;
 import model.Employee;
@@ -16,7 +16,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * đang được liên kết từ dashboard.jsp của HR.
  * Hỗ trợ tìm kiếm theo từ khoá và lọc theo vị trí / phòng ban / loại nhân viên.
  */
-@WebServlet("/hr/employee-management")
+@WebServlet("/hr/employee-list")
 public class EmployeeManagementServlet extends HttpServlet {
 
     @Override

@@ -14,6 +14,37 @@ import java.io.IOException;
 )
 public class StoreManagerRequestController extends HttpServlet {
 
+    private int resolveManagedBranchId(HttpServletRequest req, User user) {
+        if (user == null || user.getRoleId() != 4) {
+            return -1;
+        }
+
+        HttpSession session = req.getSession(false);
+        if (session == null) {
+            return -1;
+        }
+
+        int selectedBranchId = user.getHomeBranchId();
+        Object value = session.getAttribute("currentBranchId");
+
+        if (value instanceof Number) {
+            selectedBranchId = ((Number) value).intValue();
+        }
+
+        dao.BranchDAO branchDAO = new dao.BranchDAO();
+
+        for (model.Branch branch
+                : branchDAO.getManagedBranches(user.getId())) {
+
+            if (branch.getId() == selectedBranchId
+                    && "ACTIVE".equals(branch.getStatus())) {
+                return selectedBranchId;
+            }
+        }
+
+        return -1;
+    }
+
     private User currentUser(HttpServletRequest req) {
         HttpSession session = req.getSession(false);
         return session == null ? null
@@ -23,10 +54,11 @@ public class StoreManagerRequestController extends HttpServlet {
     /**
      * Parse số nguyên an toàn.
      *
-     * <p>Trước đây dùng {@code Integer.parseInt(param)} trực tiếp: khi
-     * Store chọn giá trị mặc định {@code -- Chọn ca --} (value="") thì
-     * ném {@link NumberFormatException} và người dùng thấy trang lỗi 400
-     * trắng, không biết mình sai ở đâu.
+     * <p>
+     * Trước đây dùng {@code Integer.parseInt(param)} trực tiếp: khi Store chọn
+     * giá trị mặc định {@code -- Chọn ca --} (value="") thì ném
+     * {@link NumberFormatException} và người dùng thấy trang lỗi 400 trắng,
+     * không biết mình sai ở đâu.
      *
      * @return giá trị số, hoặc 0 nếu rỗng / không phải số
      */
@@ -54,23 +86,44 @@ public class StoreManagerRequestController extends HttpServlet {
             return;
         }
 
-        if (user.getRoleId() != 4 || user.getHomeBranchId() <= 0) {
-            resp.sendError(403);
+        int branchId = resolveManagedBranchId(req, user);
+
+        if (branchId <= 0) {
+            resp.sendError(403,
+                    "Bạn không có quyền xem ca thiếu tại chi nhánh này.");
             return;
         }
+
+        // Lấy thông tin chi nhánh đang được SM quản lý
+        dao.BranchDAO branchDAO = new dao.BranchDAO();
+        model.Branch currentBranch
+                = branchDAO.getBranchById(branchId);
+
+        if (currentBranch == null) {
+            throw new ServletException(
+                    "Không tìm thấy chi nhánh có ID: " + branchId);
+        }
+
+        String displayBranchInfo
+                = currentBranch.getName()
+                + " (" + currentBranch.getCode() + ") - "
+                + currentBranch.getAddress();
+
+        req.setAttribute("currentBranch", currentBranch);
+        req.setAttribute("displayBranchInfo", displayBranchInfo);
 
         try {
             ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
 
             req.setAttribute(
                     "requestList",
-                    dao.getBranchRequests(user.getHomeBranchId())
+                    dao.getBranchRequests(branchId)
             );
 
             // Danh sách ca trống của chi nhánh + dữ liệu để tạo mới
             req.setAttribute(
                     "openShiftList",
-                    dao.getBranchOpenShifts(user.getHomeBranchId())
+                    dao.getBranchOpenShifts(branchId)
             );
 
             req.setAttribute(
@@ -109,8 +162,11 @@ public class StoreManagerRequestController extends HttpServlet {
             return;
         }
 
-        if (user.getRoleId() != 4 || user.getHomeBranchId() <= 0) {
-            resp.sendError(403);
+        int branchId = resolveManagedBranchId(req, user);
+
+        if (branchId <= 0) {
+            resp.sendError(403,
+                    "Bạn không có quyền thao tác tại chi nhánh này.");
             return;
         }
 
@@ -155,7 +211,7 @@ public class StoreManagerRequestController extends HttpServlet {
                 ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
 
                 boolean success = dao.createOpenShift(
-                        user.getHomeBranchId(),
+                        branchId,
                         shiftId,
                         positionId,
                         workDate
@@ -184,7 +240,7 @@ public class StoreManagerRequestController extends HttpServlet {
                 ShiftChangeRequestDAO dao = new ShiftChangeRequestDAO();
 
                 boolean success = dao.closeOpenShift(
-                        user.getHomeBranchId(),
+                        branchId,
                         openShiftId
                 );
 
@@ -217,7 +273,7 @@ public class StoreManagerRequestController extends HttpServlet {
 
             boolean success = dao.review(
                     requestId,
-                    user.getHomeBranchId(),
+                    branchId,
                     "approve".equals(action),
                     responseText == null ? null : responseText.trim()
             );

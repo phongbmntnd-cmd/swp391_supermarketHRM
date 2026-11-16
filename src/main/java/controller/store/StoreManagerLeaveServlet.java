@@ -3,6 +3,8 @@ package controller.store;
 import dao.LeaveCoverageDAO;
 import dao.LeaveRequestDAO;
 import dao.LeaveShiftDetailDAO;
+import dao.BranchDAO;
+import model.Branch;
 import model.LeaveRequestShift;
 import model.User;
 
@@ -18,15 +20,46 @@ import java.util.Map;
 /**
  * Màn hình Store Manager duyệt đơn nghỉ phép - mô hình "C trên nền B".
  *
- * Ngoài danh sách đơn, màn hình này hiển thị:
- *   - Chi tiết ca bị nghỉ của từng đơn (phần "C").
- *   - Cảnh báo ca sẽ thiếu người sau khi duyệt, để SM điều người cover.
+ * Ngoài danh sách đơn, màn hình này hiển thị: - Chi tiết ca bị nghỉ của từng
+ * đơn (phần "C"). - Cảnh báo ca sẽ thiếu người sau khi duyệt, để SM điều người
+ * cover.
  */
 @WebServlet(
-    name = "StoreManagerLeaveServlet",
-    urlPatterns = {"/store-manager/leave-requests"}
+        name = "StoreManagerLeaveServlet",
+        urlPatterns = {"/store-manager/leave-requests"}
 )
 public class StoreManagerLeaveServlet extends HttpServlet {
+
+    private int resolveManagedBranchId(HttpServletRequest req, User user) {
+        if (user == null || user.getRoleId() != 4) {
+            return -1;
+        }
+
+        HttpSession session = req.getSession(false);
+        if (session == null) {
+            return -1;
+        }
+
+        Object value = session.getAttribute("currentBranchId");
+        int selectedBranchId = user.getHomeBranchId();
+
+        if (value instanceof Number) {
+            selectedBranchId = ((Number) value).intValue();
+        }
+
+        dao.BranchDAO branchDAO = new dao.BranchDAO();
+
+        for (model.Branch branch
+                : branchDAO.getManagedBranches(user.getId())) {
+
+            if (branch.getId() == selectedBranchId
+                    && "ACTIVE".equals(branch.getStatus())) {
+                return selectedBranchId;
+            }
+        }
+
+        return -1;
+    }
 
     private User currentUser(HttpServletRequest req) {
         HttpSession session = req.getSession(false);
@@ -47,17 +80,35 @@ public class StoreManagerLeaveServlet extends HttpServlet {
             return;
         }
 
-        if (user.getRoleId() != 4 || user.getHomeBranchId() <= 0) {
-            resp.sendError(403);
+        int branchId = resolveManagedBranchId(req, user);
+
+        if (branchId <= 0) {
+            resp.sendError(403,
+                    "Bạn không có quyền xem đơn nghỉ phép tại chi nhánh này.");
             return;
         }
 
+        Branch currentBranch
+                = new BranchDAO().getBranchById(branchId);
+
+        if (currentBranch == null) {
+            throw new ServletException(
+                    "Không tìm thấy chi nhánh có ID: " + branchId);
+        }
+
+        String displayBranchInfo
+                = currentBranch.getName()
+                + " (" + currentBranch.getCode() + ") - "
+                + currentBranch.getAddress();
+
+        req.setAttribute("displayBranchInfo", displayBranchInfo);
+        req.setAttribute("currentBranch", currentBranch);
+
         try {
             LeaveRequestDAO dao = new LeaveRequestDAO();
-            int branchId = user.getHomeBranchId();
 
-            List<Map<String, Object>> requestList =
-                    dao.getBranchRequests(branchId);
+            List<Map<String, Object>> requestList
+                    = dao.getBranchRequests(branchId);
 
             // Nạp chi tiết ca cho tất cả đơn (tránh N+1 query)
             List<Integer> ids = new ArrayList<>();
@@ -65,14 +116,14 @@ public class StoreManagerLeaveServlet extends HttpServlet {
                 ids.add(toInt(r.get("id")));
             }
 
-            Map<Integer, List<LeaveRequestShift>> detailsByRequest =
-                    new LeaveShiftDetailDAO().getByRequestIds(ids);
+            Map<Integer, List<LeaveRequestShift>> detailsByRequest
+                    = new LeaveShiftDetailDAO().getByRequestIds(ids);
 
             // Gắn chi tiết ca vào từng dòng để JSP hiển thị
             for (Map<String, Object> r : requestList) {
                 int id = toInt(r.get("id"));
-                List<LeaveRequestShift> details =
-                        detailsByRequest.get(id);
+                List<LeaveRequestShift> details
+                        = detailsByRequest.get(id);
                 r.put("shiftDetails",
                         details == null ? new ArrayList<>() : details);
                 r.put("shiftCount", details == null ? 0 : details.size());
@@ -83,8 +134,8 @@ public class StoreManagerLeaveServlet extends HttpServlet {
             LeaveCoverageDAO coverageDao = new LeaveCoverageDAO();
             for (Map<String, Object> r : requestList) {
                 int id = toInt(r.get("id"));
-                List<Map<String, Object>> cov =
-                        coverageDao.getCoverageStatus(branchId, id);
+                List<Map<String, Object>> cov
+                        = coverageDao.getCoverageStatus(branchId, id);
 
                 int missing = 0;
                 for (Map<String, Object> row : cov) {
@@ -101,29 +152,29 @@ public class StoreManagerLeaveServlet extends HttpServlet {
             req.setAttribute("requestList", requestList);
 
             // Tổng hợp thời gian nghỉ theo từng loại của chi nhánh.
-            List<Map<String, Object>> leaveSummary =
-                    new dao.LeaveBalanceDAO()
-                        .getBranchLeaveSummary(
-                            branchId,
-                            java.time.LocalDate.now().getYear()
-                        );
+            List<Map<String, Object>> leaveSummary
+                    = new dao.LeaveBalanceDAO()
+                            .getBranchLeaveSummary(
+                                    branchId,
+                                    java.time.LocalDate.now().getYear()
+                            );
 
             req.setAttribute("leaveSummary", leaveSummary);
 
             // Tổng thời gian nghỉ của TẤT CẢ nhân viên trong chi nhánh.
             req.setAttribute(
-                "branchTotalHours",
-                sumTotalHours(leaveSummary)
+                    "branchTotalHours",
+                    sumTotalHours(leaveSummary)
             );
 
             // Định nghĩa ca để SM hiểu giờ nghỉ tương ứng với ca nào.
             req.setAttribute(
-                "shiftDefinitions",
-                new dao.LeaveShiftOptionDAO().getShiftDefinitions()
+                    "shiftDefinitions",
+                    new dao.LeaveShiftOptionDAO().getShiftDefinitions()
             );
 
             req.getRequestDispatcher(
-                "/WEB-INF/views/store-manager/leave-requests.jsp"
+                    "/WEB-INF/views/store-manager/leave-requests.jsp"
             ).forward(req, resp);
 
         } catch (IllegalStateException e) {
@@ -146,8 +197,11 @@ public class StoreManagerLeaveServlet extends HttpServlet {
             return;
         }
 
-        if (user.getRoleId() != 4 || user.getHomeBranchId() <= 0) {
-            resp.sendError(403);
+        int branchId = resolveManagedBranchId(req, user);
+
+        if (branchId <= 0) {
+            resp.sendError(403,
+                    "Bạn không có quyền xử lý đơn nghỉ phép tại chi nhánh này.");
             return;
         }
 
@@ -155,7 +209,7 @@ public class StoreManagerLeaveServlet extends HttpServlet {
             String action = req.getParameter("action");
 
             int requestId = Integer.parseInt(
-                req.getParameter("requestId")
+                    req.getParameter("requestId")
             );
 
             String responseText = req.getParameter("response");
@@ -168,7 +222,7 @@ public class StoreManagerLeaveServlet extends HttpServlet {
             // ---- Thu hồi đơn đã duyệt ----
             // Hoàn lại quota, gỡ ca ON_LEAVE, đóng ca trống phát sinh.
             if ("revoke".equals(action)) {
-                handleRevoke(req, resp, user, requestId, responseText);
+                handleRevoke(req, resp, user, branchId, requestId, responseText);
                 return;
             }
 
@@ -179,38 +233,38 @@ public class StoreManagerLeaveServlet extends HttpServlet {
             String warning = "";
             if (approve) {
                 warning = new LeaveCoverageDAO().getCoverageWarning(
-                        user.getHomeBranchId(), requestId);
+                        branchId, requestId);
             }
 
             LeaveRequestDAO dao = new LeaveRequestDAO();
             boolean success = dao.review(
-                requestId,
-                user.getHomeBranchId(),
-                approve,
-                responseText,
-                user.getId()
+                    requestId,
+                    branchId,
+                    approve,
+                    responseText,
+                    user.getId()
             );
 
             if (success) {
                 resp.sendRedirect(
-                    req.getContextPath()
-                    + "/store-manager/leave-requests?success=1"
-                    + (warning.isEmpty() ? "" : "&warn=" + java.net.URLEncoder.encode(warning, "UTF-8"))
+                        req.getContextPath()
+                        + "/store-manager/leave-requests?success=1"
+                        + (warning.isEmpty() ? "" : "&warn=" + java.net.URLEncoder.encode(warning, "UTF-8"))
                 );
                 return;
             }
 
             // Thất bại: phân biệt nguyên nhân để SM hiểu vì sao không duyệt được
             String reason = dao.getReviewFailureReason(
-                requestId,
-                user.getHomeBranchId(),
-                approve
+                    requestId,
+                    branchId,
+                    approve
             );
 
             resp.sendRedirect(
-                req.getContextPath()
-                + "/store-manager/leave-requests?error="
-                + java.net.URLEncoder.encode(reason, "UTF-8")
+                    req.getContextPath()
+                    + "/store-manager/leave-requests?error="
+                    + java.net.URLEncoder.encode(reason, "UTF-8")
             );
 
         } catch (NumberFormatException e) {
@@ -218,7 +272,7 @@ public class StoreManagerLeaveServlet extends HttpServlet {
 
         } catch (Exception e) {
             throw new ServletException(
-                "Cannot process leave request", e
+                    "Cannot process leave request", e
             );
         }
     }
@@ -226,13 +280,15 @@ public class StoreManagerLeaveServlet extends HttpServlet {
     /**
      * Xử lý thu hồi đơn nghỉ phép đã duyệt.
      *
-     * <p>Khác với duyệt/từ chối, thao tác này thay đổi trạng thái
-     * đã có hiệu lực nên cần thông báo rõ cho SM kết quả.
+     * <p>
+     * Khác với duyệt/từ chối, thao tác này thay đổi trạng thái đã có hiệu lực
+     * nên cần thông báo rõ cho SM kết quả.
      */
     private void handleRevoke(
             HttpServletRequest req,
             HttpServletResponse resp,
             User user,
+            int branchId,
             int requestId,
             String reason) throws IOException, ServletException {
 
@@ -242,7 +298,7 @@ public class StoreManagerLeaveServlet extends HttpServlet {
         try {
             success = dao.revokeApprovedRequest(
                     requestId,
-                    user.getHomeBranchId(),
+                    branchId,
                     user.getId(),
                     reason);
         } catch (Exception e) {
@@ -256,16 +312,16 @@ public class StoreManagerLeaveServlet extends HttpServlet {
                     + "/store-manager/leave-requests?success=1"
                     + "&msg="
                     + java.net.URLEncoder.encode(
-                        "Đã thu hồi đơn #" + requestId
-                        + ". Quota đã được hoàn lại và các ca "
-                        + "liên quan đã được mở lại.",
-                        "UTF-8"));
+                            "Đã thu hồi đơn #" + requestId
+                            + ". Quota đã được hoàn lại và các ca "
+                            + "liên quan đã được mở lại.",
+                            "UTF-8"));
             return;
         }
 
         // Thất bại -> chỉ ra nguyên nhân cụ thể
         String msg = dao.getReviewFailureReason(
-                requestId, user.getHomeBranchId(), false);
+                requestId, branchId, false);
 
         if (msg == null || msg.isEmpty()) {
             msg = "Không thể thu hồi đơn này. "

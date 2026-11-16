@@ -2,6 +2,7 @@ package controller.director;
 
 import controller.base.BaseServlet;
 import dao.BranchDAO;
+import dao.BranchRequestDAO;
 import model.Branch;
 import model.User;
 import jakarta.servlet.ServletException;
@@ -40,14 +41,37 @@ public class DirectorController extends BaseServlet {
             request.setAttribute("branchList", branches);
             request.getRequestDispatcher("/WEB-INF/views/director/branch-management.jsp").forward(request, response);
 
-        } else if (action.equals("viewEmployees")) {
-            // Xem danh sách nhân viên của cơ sở
+        } else if ("viewEmployees".equals(action)) {
             int branchId = getIntParameter(request, "id", -1);
-            List<User> employees = branchDAO.getEmployeesByBranch(branchId);
-            request.setAttribute("employeeList", employees);
-            request.setAttribute("branchId", branchId);
-            request.getRequestDispatcher("/WEB-INF/views/director/branch-employees.jsp").forward(request, response);
 
+            if (branchId <= 0) {
+                response.sendError(
+                        HttpServletResponse.SC_BAD_REQUEST,
+                        "Mã chi nhánh không hợp lệ."
+                );
+                return;
+            }
+
+            Branch selectedBranch = branchDAO.getBranchById(branchId);
+
+            if (selectedBranch == null) {
+                response.sendError(
+                        HttpServletResponse.SC_NOT_FOUND,
+                        "Không tìm thấy chi nhánh."
+                );
+                return;
+            }
+
+            List<User> employees
+                    = branchDAO.getEmployeesByBranch(branchId);
+
+            request.setAttribute("branchDetail", selectedBranch);
+            request.setAttribute("branchId", branchId);
+            request.setAttribute("employeeList", employees);
+
+            request.getRequestDispatcher(
+                    "/WEB-INF/views/director/branch-employees.jsp"
+            ).forward(request, response);
         } else if ("edit".equals(action)) {
             int branchId = getIntParameter(request, "id", -1);
             List<Branch> branches = branchDAO.getAllBranches();
@@ -84,23 +108,65 @@ public class DirectorController extends BaseServlet {
         String action = getStringParameter(request, "action");
         BranchDAO branchDAO = new BranchDAO();
 
-        if ("add".equals(action)) {
-            // Thêm mới cơ sở
-            String code = getStringParameter(request, "code");
-            String name = getStringParameter(request, "name");
-            String address = getStringParameter(request, "address");
+        if ("createRequest".equals(action)) {
 
-            branchDAO.insertBranch(code, name, address);
-            response.sendRedirect(request.getContextPath() + "/director/branch-management?action=list");
+            String name = request.getParameter("name");
+            String address = request.getParameter("address");
+            String openingDate = request.getParameter("openingDate");
+            String reason = request.getParameter("reason");
 
-        } else if ("assign".equals(action)) {
-            // Gán quản lý cho cơ sở
-            int branchId = getIntParameter(request, "branchId", -1);
-            int managerId = getIntParameter(request, "managerId", -1);
+            try {
+                // Kiểm tra thông tin bắt buộc
+                if (name == null || name.trim().isEmpty()
+                        || address == null || address.trim().isEmpty()
+                        || reason == null || reason.trim().isEmpty()
+                        || openingDate == null || openingDate.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Vui lòng nhập đầy đủ thông tin.");
+                }
 
-            branchDAO.assignStoreManager(branchId, managerId);
-            response.sendRedirect(request.getContextPath() + "/director/branch-management?action=list");
+                java.time.LocalDate date = java.time.LocalDate.parse(openingDate);
 
+                if (!date.isAfter(java.time.LocalDate.now())) {
+                    throw new IllegalArgumentException(
+                            "Ngày khai trương phải lớn hơn ngày hiện tại."
+                    );
+                }
+
+                BranchRequestDAO requestDAO = new BranchRequestDAO();
+
+                if (requestDAO.isDuplicate(name, address)) {
+                    throw new IllegalArgumentException(
+                            "Tên hoặc địa chỉ chi nhánh đã tồn tại."
+                    );
+                }
+
+                boolean success = requestDAO.createRequest(
+                        name.trim(),
+                        address.trim(),
+                        date,
+                        reason.trim(),
+                        currentUser.getId()
+                );
+
+                if (!success) {
+                    throw new Exception("Không thể lưu yêu cầu.");
+                }
+
+                response.sendRedirect(
+                        request.getContextPath()
+                        + "/director/branch-management?success=1"
+                );
+                return;
+
+            } catch (Exception e) {
+                request.setAttribute("error", e.getMessage());
+                request.setAttribute("branchList", branchDAO.getAllBranches());
+
+                request.getRequestDispatcher(
+                        "/WEB-INF/views/director/branch-management.jsp"
+                ).forward(request, response);
+                return;
+            }
         } else if ("toggleStatus".equals(action)) {
             int branchId = getIntParameter(request, "branchId", -1);
             String currentStatus = getStringParameter(request, "currentStatus");
@@ -123,8 +189,66 @@ public class DirectorController extends BaseServlet {
             String name = getStringParameter(request, "name");
             String address = getStringParameter(request, "address");
 
-            branchDAO.updateBranch(id, code, name, address);
-            response.sendRedirect(request.getContextPath() + "/director/branch-management");
+            String error = null;
+
+            // 1. Kiểm tra thông tin bắt buộc
+            if (id <= 0 || code == null || name == null || address == null) {
+                error = "Vui lòng nhập đầy đủ thông tin chi nhánh.";
+            }
+
+            // 2. Kiểm tra chi nhánh cần sửa có tồn tại
+            Branch existingBranch = branchDAO.getBranchById(id);
+
+            if (error == null && existingBranch == null) {
+                error = "Không tìm thấy chi nhánh cần cập nhật.";
+            }
+
+            // 3. Kiểm tra mã chi nhánh có bị trùng không
+            if (error == null) {
+                for (Branch b : branchDAO.getAllBranches()) {
+                    if (b.getId() != id
+                            && b.getCode() != null
+                            && b.getCode().equalsIgnoreCase(code)) {
+                        error = "Mã chi nhánh " + code
+                                + " đã tồn tại. Vui lòng chọn mã khác.";
+                        break;
+                    }
+                }
+            }
+
+            // 4. Cập nhật khi thông tin hợp lệ
+            if (error == null) {
+                boolean updated = branchDAO.updateBranch(
+                        id, code, name, address
+                );
+
+                if (updated) {
+                    response.sendRedirect(
+                            request.getContextPath()
+                            + "/director/branch-management?updated=1"
+                    );
+                    return;
+                }
+
+                error = "Không thể cập nhật chi nhánh. Vui lòng kiểm tra lại.";
+            }
+
+            // 5. Có lỗi: giữ form sửa và hiển thị thông báo
+            Branch editingBranch = new Branch();
+            editingBranch.setId(id);
+            editingBranch.setCode(code);
+            editingBranch.setName(name);
+            editingBranch.setAddress(address);
+
+            request.setAttribute("editingBranch", editingBranch);
+            request.setAttribute("branchList", branchDAO.getAllBranches());
+            request.setAttribute("editError", error);
+
+            request.getRequestDispatcher(
+                    "/WEB-INF/views/director/branch-management.jsp"
+            ).forward(request, response);
+            return;
         }
+
     }
 }

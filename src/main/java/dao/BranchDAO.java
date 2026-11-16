@@ -22,36 +22,83 @@ public class BranchDAO {
     // 1. Hiển thị danh sách Cơ sở
     public List<Branch> getAllBranches() {
         List<Branch> list = new ArrayList<>();
-        String sql = "SELECT * FROM branches ORDER BY id DESC";
+
+        String sql
+                = "SELECT b.*, "
+                + "COALESCE( "
+                + "    NULLIF(ep_temp.full_name, ''), "
+                + "    u_temp.username, "
+                + "    NULLIF(ep_main.full_name, ''), "
+                + "    u_main.username "
+                + ") AS manager_name, "
+                + "CASE WHEN ba.id IS NOT NULL THEN 1 ELSE 0 END "
+                + "AS is_temporary "
+                + "FROM branches b "
+                // Lấy phân công kiêm nhiệm đang còn hiệu lực
+                + "LEFT JOIN branch_manager_assignments ba "
+                + "ON ba.id = ( "
+                + "    SELECT ba2.id "
+                + "    FROM branch_manager_assignments ba2 "
+                + "    WHERE ba2.branch_id = b.id "
+                + "      AND CURDATE() BETWEEN ba2.start_date "
+                + "      AND ba2.end_date "
+                + "    ORDER BY ba2.start_date DESC, ba2.id DESC "
+                + "    LIMIT 1 "
+                + ") "
+                // Thông tin quản lý kiêm nhiệm
+                + "LEFT JOIN users u_temp "
+                + "ON u_temp.id = ba.manager_id "
+                + "LEFT JOIN employee_profiles ep_temp "
+                + "ON ep_temp.user_id = u_temp.id "
+                // Thông tin quản lý chính
+                + "LEFT JOIN users u_main "
+                + "ON u_main.id = b.store_manager_id "
+                + "LEFT JOIN employee_profiles ep_main "
+                + "ON ep_main.user_id = u_main.id "
+                + "ORDER BY b.id DESC";
+
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
             while (rs.next()) {
                 Branch b = new Branch();
+
                 b.setId(rs.getInt("id"));
                 b.setCode(rs.getString("code"));
                 b.setName(rs.getString("name"));
                 b.setAddress(rs.getString("address"));
                 b.setStatus(rs.getString("status"));
-                b.setStoreManagerId(rs.getInt("store_manager_id"));
+                b.setStoreManagerId(
+                        rs.getInt("store_manager_id"));
+
+                b.setManagerName(
+                        rs.getString("manager_name"));
+
+                b.setTemporaryManager(
+                        rs.getBoolean("is_temporary"));
+
                 list.add(b);
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         return list;
     }
-    
+
     // 1.1
     /**
-     * Lấy danh sách tất cả các cơ sở ngoại trừ cơ sở hiện tại (dùng cho việc mượn nhân sự)
+     * Lấy danh sách tất cả các cơ sở ngoại trừ cơ sở hiện tại (dùng cho việc
+     * mượn nhân sự)
+     *
      * @param currentBranchId ID của cơ sở hiện tại cần loại bỏ
      * @return Danh sách các Branch khác
      */
     public List<Branch> getOtherBranches(int currentBranchId) {
         List<Branch> list = new ArrayList<>();
         String sql = "SELECT id, code, name, address, status, store_manager_id, created_at "
-                   + "FROM branches WHERE id != ? AND status = 'ACTIVE' ORDER BY name ASC";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                + "FROM branches WHERE id != ? AND status = 'ACTIVE' ORDER BY name ASC";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, currentBranchId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -132,7 +179,10 @@ public class BranchDAO {
     public List<User> getAvailableManagers() {
         List<User> list = new ArrayList<>();
         // Lọc các user có role phù hợp làm quản lý (giả sử role_id = 3 là Store Manager hoặc tùy theo DB của bạn)
-        String sql = "SELECT u.id, ep.full_name FROM users u JOIN employee_profiles ep ON u.id = ep.user_id WHERE u.role_id = 3";
+        String sql = "SELECT u.id, ep.full_name "
+                + "FROM users u "
+                + "JOIN employee_profiles ep ON u.id = ep.user_id "
+                + "WHERE u.role_id = 4";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 User u = new User();
@@ -148,7 +198,9 @@ public class BranchDAO {
 
     // Xóa (hoặc chuyển trạng thái cơ sở thành INACTIVE)
     public boolean deleteBranch(int branchId) {
-        String sql = "UPDATE branches SET status = 'INACTIVE' WHERE id = ?";
+        String sql = "UPDATE branches "
+                + "SET status = 'INACTIVE' "
+                + "WHERE id = ? AND status = 'ACTIVE'";
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, branchId);
             return ps.executeUpdate() > 0;
@@ -160,15 +212,32 @@ public class BranchDAO {
 
     // Đổi trạng thái cơ sở (ACTIVE <-> INACTIVE)
     public boolean toggleBranchStatus(int branchId, String currentStatus) {
-        String newStatus = "ACTIVE".equals(currentStatus) ? "INACTIVE" : "ACTIVE";
-        String sql = "UPDATE branches SET status = ? WHERE id = ?";
+
+        if (!"ACTIVE".equals(currentStatus)
+                && !"INACTIVE".equals(currentStatus)) {
+            return false;
+        }
+
+        String newStatus = "ACTIVE".equals(currentStatus)
+                ? "INACTIVE"
+                : "ACTIVE";
+
+        String sql
+                = "UPDATE branches SET status = ? "
+                + "WHERE id = ? AND status = ?";
+
         try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
             ps.setString(1, newStatus);
             ps.setInt(2, branchId);
+            ps.setString(3, currentStatus);
+
             return ps.executeUpdate() > 0;
+
         } catch (Exception e) {
             e.printStackTrace();
         }
+
         return false;
     }
 
@@ -190,17 +259,16 @@ public class BranchDAO {
     // =====================================================
     // CÁC METHOD MỚI CHO ĐẠT 2 - STORE MANAGER
     // =====================================================
-
     /**
      * Lấy Branch theo ID
+     *
      * @param branchId Branch ID
      * @return Branch object hoặc null nếu không tìm thấy
      */
     public Branch getBranchById(int branchId) {
         String sql = "SELECT id, code, name, address, status, store_manager_id, created_at "
-                   + "FROM branches WHERE id = ?";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                + "FROM branches WHERE id = ?";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, branchId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -224,14 +292,14 @@ public class BranchDAO {
 
     /**
      * Lấy Branch mà Store Manager đang quản lý dựa trên user ID
+     *
      * @param storeManagerId Store Manager user ID
      * @return Branch object hoặc null nếu không tìm thấy
      */
     public Branch getBranchOfStoreManager(int storeManagerId) {
         String sql = "SELECT id, code, name, address, status, store_manager_id, created_at "
-                   + "FROM branches WHERE store_manager_id = ? AND status = 'ACTIVE'";
-        try (Connection conn = new DBContext().getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                + "FROM branches WHERE store_manager_id = ? AND status = 'ACTIVE'";
+        try (Connection conn = new DBContext().getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, storeManagerId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -252,4 +320,56 @@ public class BranchDAO {
         }
         return null;
     }
+
+    /**
+     * Hàm này sẽ lấy các chi nhánh đang hoạt động mà SM quản lý trực tiếp, cùng
+     * các chi nhánh được kiêm nhiệm trong thời gian có hiệu lực.
+     *
+     * @param managerId
+     * @return
+     */
+    public List<Branch> getManagedBranches(int managerId) {
+
+        List<Branch> branches = new ArrayList<>();
+
+        String sql
+                = "SELECT DISTINCT b.* FROM branches b "
+                + "LEFT JOIN branch_manager_assignments a "
+                + "ON a.branch_id = b.id "
+                + "AND a.manager_id = ? "
+                + "AND CURDATE() BETWEEN a.start_date AND a.end_date "
+                + "WHERE (b.store_manager_id = ? AND b.status = 'ACTIVE') "
+                + "OR (a.id IS NOT NULL "
+                + "AND b.status IN ('ACTIVE', 'PREPARING')) "
+                + "ORDER BY b.id";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, managerId);
+            ps.setInt(2, managerId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                while (rs.next()) {
+                    Branch b = new Branch();
+
+                    b.setId(rs.getInt("id"));
+                    b.setCode(rs.getString("code"));
+                    b.setName(rs.getString("name"));
+                    b.setAddress(rs.getString("address"));
+                    b.setStatus(rs.getString("status"));
+                    b.setStoreManagerId(
+                            rs.getInt("store_manager_id"));
+
+                    branches.add(b);
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return branches;
+    }
+
 }

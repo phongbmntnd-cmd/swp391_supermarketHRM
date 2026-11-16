@@ -1,300 +1,367 @@
+
 package dao;
 
 import context.DBContext;
-import model.Attendance;
-
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
+import model.Attendance;
 
-/**
- * DAO cho bảng {@code attendances} - chấm công nhân viên.
- *
- * <h3>Ghi chú về schema</h3>
- * Bảng thật tên là {@code attendances} (số nhiều), KHÔNG phải
- * {@code attendance}. Cột thời gian là {@code check_in} /
- * {@code check_out} kiểu {@code datetime}, không tách riêng
- * {@code date} + {@code check_in}/{@code check_out}. Tên nhân viên
- * nằm ở bảng {@code employee_profiles.full_name}, không phải
- * {@code users.full_name} (bảng {@code users} không có cột này).
- *
- * <p>DAO cũ trước đây dùng sai tên bảng/cột nên mọi truy vấn đều
- * ném lỗi SQL. Phiên bản này viết lại theo đúng schema.
- */
 public class AttendanceDAO {
 
-    private Connection connect() throws Exception {
-        return DBContext.getConnection();
-    }
+    public List<Attendance> getEmployeeShifts(int userId, Date workDate) throws SQLException {
+        String sql = "SELECT ss.id AS shift_schedule_id, ss.user_id AS user_id, ss.work_date, s.name AS shift_name, "
+                + "s.start_time, s.end_time, a.id, a.check_in, a.check_out, a.status "
+                + "FROM shift_schedules ss "
+                + "JOIN shifts s ON s.id = ss.shift_id "
+                + "LEFT JOIN attendances a ON a.shift_schedule_id = ss.id AND a.user_id = ss.user_id "
+                + "WHERE ss.user_id = ? AND ss.work_date = ? AND ss.status = 'PUBLISHED' "
+                + "ORDER BY s.start_time";
 
-    /**
-     * Lấy danh sách chấm công của nhân viên thuộc một chi nhánh.
-     *
-     * @param branchId chi nhánh; truyền -1 để xem TẤT CẢ chi nhánh
-     *                (dành cho Admin)
-     * @param from     ngày bắt đầu (bao gồm), null = không giới hạn
-     * @param to       ngày kết thúc (bao gồm), null = không giới hạn
-     * @return danh sách bản ghi chấm công, mới nhất trước
-     */
-    public List<Attendance> getAttendanceByBranch(
-            int branchId, LocalDate from, LocalDate to) {
-
-        List<Attendance> list = new ArrayList<>();
-
-        String sql = "SELECT a.id, a.user_id, "
-                + "ep.full_name, u.username, "
-                + "ep.home_branch_id AS branch_id, "
-                + "a.shift_schedule_id, a.check_in, a.check_out, "
-                + "a.method, a.status, "
-                + "ss.work_date AS work_date "
-                + "FROM attendances a "
-                + "JOIN employee_profiles ep ON ep.user_id = a.user_id "
-                + "JOIN users u ON u.id = a.user_id "
-                + "LEFT JOIN shift_schedules ss "
-                + "  ON ss.id = a.shift_schedule_id "
-                + "WHERE (? < 0 OR ep.home_branch_id = ?) "
-                + "AND (? IS NULL OR COALESCE(ss.work_date, DATE(a.check_in)) >= ?) "
-                + "AND (? IS NULL OR COALESCE(ss.work_date, DATE(a.check_in)) <= ?) "
-                + "ORDER BY COALESCE(ss.work_date, DATE(a.check_in)) DESC, "
-                + "a.check_in DESC";
-
-        try (Connection conn = connect();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, branchId);
-            ps.setInt(2, branchId);
-            setNullableDate(ps, 3, from);
-            setNullableDate(ps, 4, from);
-            setNullableDate(ps, 5, to);
-            setNullableDate(ps, 6, to);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(mapRow(rs));
+        List<Attendance> shifts = new ArrayList<>();
+        try (Connection connection = DBContext.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, userId);
+            statement.setDate(2, workDate);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    shifts.add(mapAttendance(result));
                 }
             }
-
         } catch (Exception e) {
-            throw new IllegalStateException(
-                    "Cannot load attendance records", e);
+            throw new SQLException("Không thể tải ca làm và chấm công của nhân viên.", e);
+        }
+        return shifts;
+    }
+
+    public List<Attendance> getRecentEmployeeAttendance(int userId, Date beforeDate) throws SQLException {
+        String sql = "SELECT a.id, a.user_id, a.shift_schedule_id, ss.work_date, "
+                + "s.name AS shift_name, s.start_time, s.end_time, a.check_in, a.check_out, a.status "
+                + "FROM attendances a "
+                + "JOIN shift_schedules ss ON ss.id = a.shift_schedule_id "
+                + "JOIN shifts s ON s.id = ss.shift_id "
+                + "WHERE a.user_id = ? AND ss.work_date < ? "
+                + "ORDER BY ss.work_date DESC, s.start_time DESC LIMIT 20";
+
+        List<Attendance> attendances = new ArrayList<>();
+        try (Connection connection = DBContext.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, userId);
+            statement.setDate(2, beforeDate);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    attendances.add(mapAttendance(result));
+                }
+            }
+        } catch (Exception e) {
+            throw new SQLException("Không thể tải lịch sử chấm công.", e);
+        }
+        return attendances;
+    }
+
+    public List<Attendance> getBranchAttendance(int branchId, Date workDate) throws SQLException {
+        String sql = "SELECT a.id, a.user_id, a.shift_schedule_id, ss.work_date, "
+                + "s.name AS shift_name, s.start_time, s.end_time, a.check_in, a.check_out, a.status, "
+                + "ep.full_name, u.username, b.name AS branch_name, latest.adjustment_note, "
+                + "reviewer.username AS adjusted_by_username, latest.created_at AS adjusted_at "
+                + "FROM attendances a "
+                + "JOIN shift_schedules ss ON ss.id = a.shift_schedule_id "
+                + "JOIN shifts s ON s.id = ss.shift_id "
+                + "JOIN users u ON u.id = a.user_id "
+                + "JOIN employee_profiles ep ON ep.user_id = a.user_id "
+                + "JOIN branches b ON b.id = ss.branch_id "
+                + "LEFT JOIN attendance_adjustment_history latest ON latest.id = ("
+                + "SELECT MAX(history.id) FROM attendance_adjustment_history history "
+                + "WHERE history.attendance_id = a.id) "
+                + "LEFT JOIN users reviewer ON reviewer.id = latest.adjusted_by "
+                + "WHERE ss.work_date = ? AND (? = 0 OR ss.branch_id = ?) "
+                + "ORDER BY s.start_time, ep.full_name";
+
+        List<Attendance> attendances = new ArrayList<>();
+        try (Connection connection = DBContext.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setDate(1, workDate);
+            statement.setInt(2, branchId);
+            statement.setInt(3, branchId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    Attendance attendance = mapAttendance(result);
+                    attendance.setFullName(result.getString("full_name"));
+                    attendance.setUsername(result.getString("username"));
+                    attendance.setBranchName(result.getString("branch_name"));
+                    attendance.setAdjustmentNote(result.getString("adjustment_note"));
+                    attendance.setAdjustedBy(result.getString("adjusted_by_username"));
+                    attendance.setAdjustedAt(result.getTimestamp("adjusted_at"));
+                    attendances.add(attendance);
+                }
+            }
+        } catch (Exception e) {
+            throw new SQLException("Không thể tải bảng chấm công của chi nhánh.", e);
+        }
+        return attendances;
+    }
+
+    public Attendance getAttendanceForStoreManagerById(int attendanceId, int branchId) throws SQLException {
+        String sql = "SELECT a.id, a.user_id, a.shift_schedule_id, ss.work_date, "
+                + "s.name AS shift_name, s.start_time, s.end_time, a.check_in, a.check_out, a.status, "
+                + "ep.full_name, u.username, b.name AS branch_name, latest.adjustment_note, "
+                + "reviewer.username AS adjusted_by_username, latest.created_at AS adjusted_at "
+                + "FROM attendances a "
+                + "JOIN shift_schedules ss ON ss.id = a.shift_schedule_id "
+                + "JOIN shifts s ON s.id = ss.shift_id "
+                + "JOIN users u ON u.id = a.user_id "
+                + "JOIN employee_profiles ep ON ep.user_id = a.user_id "
+                + "JOIN branches b ON b.id = ss.branch_id "
+                + "LEFT JOIN attendance_adjustment_history latest ON latest.id = ("
+                + "SELECT MAX(history.id) FROM attendance_adjustment_history history "
+                + "WHERE history.attendance_id = a.id) "
+                + "LEFT JOIN users reviewer ON reviewer.id = latest.adjusted_by "
+                + "WHERE a.id = ? AND (? = 0 OR ss.branch_id = ?)";
+        try (Connection connection = DBContext.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, attendanceId);
+            statement.setInt(2, branchId);
+            statement.setInt(3, branchId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return null;
+                }
+                Attendance attendance = mapAttendance(result);
+                attendance.setFullName(result.getString("full_name"));
+                attendance.setUsername(result.getString("username"));
+                attendance.setBranchName(result.getString("branch_name"));
+                attendance.setAdjustmentNote(result.getString("adjustment_note"));
+                attendance.setAdjustedBy(result.getString("adjusted_by_username"));
+                attendance.setAdjustedAt(result.getTimestamp("adjusted_at"));
+                return attendance;
+            }
+        } catch (Exception e) {
+            throw new SQLException("Không thể tải bản ghi chấm công cần điều chỉnh.", e);
+        }
+    }
+
+    public boolean adjustAttendance(int attendanceId, int branchId, int managerId, LocalTime newCheckIn,
+            LocalTime newCheckOut, String note) throws SQLException {
+        if (newCheckIn == null && newCheckOut == null) {
+            throw new IllegalArgumentException("Cần nhập ít nhất một giờ chấm công sau điều chỉnh.");
         }
 
-        return list;
-    }
-
-    /**
-     * Phiên bản cũ (không lọc ngày) - giữ để code đang gọi không lỗi.
-     */
-    public List<Attendance> getAttendanceByBranch(int branchId) {
-        return getAttendanceByBranch(branchId, null, null);
-    }
-
-    /**
-     * Tổng hợp chấm công theo ngày cho 1 chi nhánh (dùng cho thẻ
-     * tổng quan / báo cáo nhanh).
-     *
-     * @return map: workDate -> map(countTotal, countPresent,
-     *         countLate, countAbsent, presentRatio)
-     */
-    public Map<LocalDate, Map<String, Object>> getDailySummary(
-            int branchId, LocalDate from, LocalDate to) {
-
-        Map<LocalDate, Map<String, Object>> result =
-                new LinkedHashMap<>();
-
-        String sql = "SELECT ss.work_date, "
-                + "COUNT(*) AS total, "
-                + "SUM(CASE WHEN a.check_in IS NOT NULL THEN 1 "
-                + "         ELSE 0 END) AS present, "
-                + "SUM(CASE WHEN a.check_in IS NOT NULL "
-                + "          AND TIMESTAMPDIFF(MINUTE, s.start_time, "
-                + "              TIME(a.check_in)) > 10 "
-                + "         THEN 1 ELSE 0 END) AS late "
-                + "FROM attendances a "
-                + "JOIN employee_profiles ep ON ep.user_id = a.user_id "
-                + "LEFT JOIN shift_schedules ss "
-                + "  ON ss.id = a.shift_schedule_id "
-                + "LEFT JOIN shifts s "
-                + "  ON s.id = ss.shift_id "
-                + "WHERE (? < 0 OR ep.home_branch_id = ?) "
-                + "AND (? IS NULL OR COALESCE(ss.work_date, DATE(a.check_in)) >= ?) "
-                + "AND (? IS NULL OR COALESCE(ss.work_date, DATE(a.check_in)) <= ?) "
-                + "GROUP BY ss.work_date "
-                + "ORDER BY work_date DESC";
-
-        try (Connection conn = connect();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, branchId);
-            ps.setInt(2, branchId);
-            setNullableDate(ps, 3, from);
-            setNullableDate(ps, 4, from);
-            setNullableDate(ps, 5, to);
-            setNullableDate(ps, 6, to);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    java.sql.Date d = rs.getDate("work_date");
-                    if (d == null) {
-                        continue;
+        try (Connection connection = DBContext.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                Date workDate;
+                Timestamp previousCheckIn;
+                Timestamp previousCheckOut;
+                String selectSql = "SELECT ss.work_date, a.check_in, a.check_out "
+                        + "FROM attendances a JOIN shift_schedules ss ON ss.id = a.shift_schedule_id "
+                        + "WHERE a.id = ? AND (? = 0 OR ss.branch_id = ?) FOR UPDATE";
+                try (PreparedStatement statement = connection.prepareStatement(selectSql)) {
+                    statement.setInt(1, attendanceId);
+                    statement.setInt(2, branchId);
+                    statement.setInt(3, branchId);
+                    try (ResultSet result = statement.executeQuery()) {
+                        if (!result.next()) {
+                            connection.rollback();
+                            return false;
+                        }
+                        workDate = result.getDate("work_date");
+                        previousCheckIn = result.getTimestamp("check_in");
+                        previousCheckOut = result.getTimestamp("check_out");
                     }
-                    LocalDate day = d.toLocalDate();
-                    int total = rs.getInt("total");
-                    int present = rs.getInt("present");
-                    int late = rs.getInt("late");
-
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("workDate", day);
-                    row.put("workDateText", formatDate(day));
-                    row.put("total", total);
-                    row.put("present", present);
-                    row.put("late", late);
-                    row.put("absent", Math.max(0, total - present));
-                    row.put("presentRatio",
-                            round2(total == 0 ? 0d
-                                    : (present * 100.0) / total));
-                    result.put(day, row);
                 }
-            }
 
-        } catch (Exception e) {
-            throw new IllegalStateException(
-                    "Cannot load attendance summary", e);
-        }
-
-        return result;
-    }
-
-    /**
-     * Lấy bản ghi chấm công của một nhân viên trong khoảng ngày.
-     */
-    public List<Attendance> getAttendanceByUser(
-            int userId, LocalDate from, LocalDate to) {
-
-        List<Attendance> list = new ArrayList<>();
-
-        String sql = "SELECT a.id, a.user_id, "
-                + "ep.full_name, u.username, "
-                + "a.shift_schedule_id, a.check_in, a.check_out, "
-                + "a.method, a.status, "
-                + "DATE(a.check_in) AS work_date "
-                + "FROM attendances a "
-                + "JOIN employee_profiles ep ON ep.user_id = a.user_id "
-                + "JOIN users u ON u.id = a.user_id "
-                + "LEFT JOIN shift_schedules ss "
-                + "  ON ss.id = a.shift_schedule_id "
-                + "WHERE a.user_id = ? "
-                + "AND (? IS NULL OR COALESCE(ss.work_date, DATE(a.check_in)) >= ?) "
-                + "AND (? IS NULL OR COALESCE(ss.work_date, DATE(a.check_in)) <= ?) "
-                + "ORDER BY COALESCE(ss.work_date, DATE(a.check_in)) DESC";
-
-        try (Connection conn = connect();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, userId);
-            setNullableDate(ps, 2, from);
-            setNullableDate(ps, 3, from);
-            setNullableDate(ps, 4, to);
-            setNullableDate(ps, 5, to);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    list.add(mapRow(rs));
+                Timestamp adjustedCheckIn = toTimestamp(workDate, newCheckIn);
+                Timestamp adjustedCheckOut = toTimestamp(workDate, newCheckOut);
+                if (adjustedCheckIn != null && adjustedCheckOut != null
+                        && !adjustedCheckOut.after(adjustedCheckIn)) {
+                    throw new IllegalArgumentException("Giờ ra sau điều chỉnh phải sau giờ vào.");
                 }
+
+                String updateSql = "UPDATE attendances a "
+                        + "JOIN shift_schedules ss ON ss.id = a.shift_schedule_id "
+                        + "SET a.check_in = ?, a.check_out = ?, a.status = 'ADJUSTED' "
+                        + "WHERE a.id = ? AND (? = 0 OR ss.branch_id = ?)";
+                try (PreparedStatement statement = connection.prepareStatement(updateSql)) {
+                    setNullableTimestamp(statement, 1, adjustedCheckIn);
+                    setNullableTimestamp(statement, 2, adjustedCheckOut);
+                    statement.setInt(3, attendanceId);
+                    statement.setInt(4, branchId);
+                    statement.setInt(5, branchId);
+                    if (statement.executeUpdate() != 1) {
+                        connection.rollback();
+                        return false;
+                    }
+                }
+
+                String historySql = "INSERT INTO attendance_adjustment_history "
+                        + "(attendance_id, adjusted_by, previous_check_in, previous_check_out, "
+                        + "adjusted_check_in, adjusted_check_out, adjustment_note) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement statement = connection.prepareStatement(historySql)) {
+                    statement.setInt(1, attendanceId);
+                    statement.setInt(2, managerId);
+                    setNullableTimestamp(statement, 3, previousCheckIn);
+                    setNullableTimestamp(statement, 4, previousCheckOut);
+                    setNullableTimestamp(statement, 5, adjustedCheckIn);
+                    setNullableTimestamp(statement, 6, adjustedCheckOut);
+                    statement.setString(7, note);
+                    statement.executeUpdate();
+                }
+                connection.commit();
+                return true;
+            } catch (Exception e) {
+                try {
+                    connection.rollback();
+                } catch (SQLException rollbackError) {
+                    e.addSuppressed(rollbackError);
+                }
+                throw e;
             }
-
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new IllegalStateException(
-                    "Cannot load attendance records", e);
+            throw new SQLException("Không thể điều chỉnh dữ liệu chấm công của chi nhánh.", e);
         }
-
-        return list;
     }
 
-    // -----------------------------------------------------------------
-    // Tiện ích
-    // -----------------------------------------------------------------
-
-    /**
-     * Định dạng ngày dạng "dd/MM/yyyy".
-     */
-    private String formatDate(LocalDate d) {
-        if (d == null) {
-            return "";
-        }
-        String dd = d.getDayOfMonth() < 10
-                ? "0" + d.getDayOfMonth()
-                : String.valueOf(d.getDayOfMonth());
-        String mm = d.getMonthValue() < 10
-                ? "0" + d.getMonthValue()
-                : String.valueOf(d.getMonthValue());
-        return dd + "/" + mm + "/" + d.getYear();
+    private Timestamp toTimestamp(Date workDate, LocalTime time) {
+        return time == null ? null : Timestamp.valueOf(workDate.toLocalDate().atTime(time));
     }
 
-    /**
-     * Làm tròn 2 chữ số thập phân (để hiển thị).
-     */
-    private double round2(double v) {
-        return Math.round(v * 100.0) / 100.0;
-    }
-
-    /**
-     * Gán tham số kiểu DATE, cho phép null (nghĩa là không lọc).
-     */
-    private void setNullableDate(
-            PreparedStatement ps, int index, LocalDate value)
-            throws java.sql.SQLException {
-
+    private void setNullableTimestamp(PreparedStatement statement, int parameter, Timestamp value)
+            throws SQLException {
         if (value == null) {
-            ps.setNull(index, java.sql.Types.DATE);
+            statement.setNull(parameter, java.sql.Types.TIMESTAMP);
         } else {
-            ps.setDate(index, java.sql.Date.valueOf(value));
+            statement.setTimestamp(parameter, value);
         }
     }
 
-    /**
-     * Ánh xạ 1 dòng kết quả sang đối tượng Attendance.
-     */
-    private Attendance mapRow(ResultSet rs) throws Exception {
-        Attendance att = new Attendance();
+    public void recordCheckIn(int userId, int shiftScheduleId, Date workDate) throws SQLException {
+        String scheduleSql = "SELECT ss.id, s.end_time, a.id AS attendance_id, a.check_in "
+                + "FROM shift_schedules ss "
+                + "JOIN shifts s ON s.id = ss.shift_id "
+                + "LEFT JOIN attendances a ON a.shift_schedule_id = ss.id AND a.user_id = ss.user_id "
+                + "WHERE ss.id = ? AND ss.user_id = ? AND ss.work_date = ? "
+                + "AND ss.status = 'PUBLISHED' FOR UPDATE";
 
-        att.setId(rs.getInt("id"));
-        att.setUserId(rs.getInt("user_id"));
-        att.setFullName(rs.getString("full_name"));
-        att.setUsername(rs.getString("username"));
-        att.setShiftScheduleId(rs.getInt("shift_schedule_id"));
-        att.setCheckIn(toLocalDateTime(rs.getTimestamp("check_in")));
-        att.setCheckOut(toLocalDateTime(rs.getTimestamp("check_out")));
-        att.setMethod(rs.getString("method"));
-        att.setStatus(rs.getString("status"));
+        try (Connection connection = DBContext.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                try (PreparedStatement statement = connection.prepareStatement(scheduleSql)) {
+                    statement.setInt(1, shiftScheduleId);
+                    statement.setInt(2, userId);
+                    statement.setDate(3, workDate);
+                    try (ResultSet result = statement.executeQuery()) {
+                        if (!result.next()) {
+                            throw new IllegalStateException("Không tìm thấy ca làm đã công bố trong ngày hôm nay.");
+                        }
+                        int attendanceId = result.getInt("attendance_id");
+                        boolean attendanceMissing = result.wasNull();
+                        Timestamp checkIn = result.getTimestamp("check_in");
+                        if (checkIn != null) {
+                            throw new IllegalStateException("Ca làm này đã được chấm công vào.");
+                        }
+                        if (result.getTime("end_time").toLocalTime().isBefore(
+                                java.time.LocalTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")))) {
+                            throw new IllegalStateException("Ca làm đã kết thúc, không thể chấm công vào.");
+                        }
 
-        java.sql.Date d = rs.getDate("work_date");
-        if (d != null) {
-            att.setDate(d);
-        } else {
-            // Ngay lam viec suy ra tu check_in (truong hop ban ghi
-            // khong lien ket duoc voi shift_schedules).
-            if (att.getCheckIn() != null) {
-                att.setDate(java.sql.Date.valueOf(
-                        att.getCheckIn().toLocalDate()));
+                        if (attendanceMissing) {
+                            String insertSql = "INSERT INTO attendances "
+                                    + "(user_id, shift_schedule_id, check_in, method, status) "
+                                    + "VALUES (?, ?, CURRENT_TIMESTAMP, 'WEB', 'PENDING')";
+                            try (PreparedStatement insert = connection.prepareStatement(insertSql)) {
+                                insert.setInt(1, userId);
+                                insert.setInt(2, shiftScheduleId);
+                                insert.executeUpdate();
+                            }
+                        } else {
+                            String updateSql = "UPDATE attendances SET check_in = CURRENT_TIMESTAMP "
+                                    + "WHERE id = ? AND check_in IS NULL";
+                            try (PreparedStatement update = connection.prepareStatement(updateSql)) {
+                                update.setInt(1, attendanceId);
+                                if (update.executeUpdate() != 1) {
+                                    throw new IllegalStateException("Không thể cập nhật giờ chấm công vào.");
+                                }
+                            }
+                        }
+                    }
+                }
+                connection.commit();
+            } catch (Exception e) {
+                try {
+                    connection.rollback();
+                } catch (SQLException rollbackError) {
+                    e.addSuppressed(rollbackError);
+                }
+                throw e;
             }
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SQLException("Không thể ghi nhận giờ chấm công vào.", e);
         }
-
-        return att;
     }
 
-    /**
-     * Chuyển Timestamp của JDBC sang LocalDateTime.
-     * Trả về null nếu timestamp null (NV chưa check-in / chưa check-out).
-     */
-    private LocalDateTime toLocalDateTime(Timestamp ts) {
-        return ts == null ? null : ts.toLocalDateTime();
+    public void recordCheckOut(int userId, int shiftScheduleId, Date workDate) throws SQLException {
+        String sql = "UPDATE attendances a "
+                + "JOIN shift_schedules ss ON ss.id = a.shift_schedule_id "
+                + "SET a.check_out = CURRENT_TIMESTAMP "
+                + "WHERE a.user_id = ? AND a.shift_schedule_id = ? AND ss.work_date = ? "
+                + "AND ss.status = 'PUBLISHED' AND a.check_in IS NOT NULL AND a.check_out IS NULL "
+                + "AND a.check_in <= CURRENT_TIMESTAMP";
+
+        try (Connection connection = DBContext.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, userId);
+            statement.setInt(2, shiftScheduleId);
+            statement.setDate(3, workDate);
+            if (statement.executeUpdate() != 1) {
+                throw new IllegalStateException("Chưa chấm công vào hoặc ca làm đã được chấm công ra.");
+            }
+        } catch (IllegalStateException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SQLException("Không thể ghi nhận giờ chấm công ra.", e);
+        }
+    }
+
+    public boolean reviewAttendance(int attendanceId, int branchId, String status) throws SQLException {
+        String sql = "UPDATE attendances a "
+                + "JOIN shift_schedules ss ON ss.id = a.shift_schedule_id "
+                + "SET a.status = ? WHERE a.id = ? AND (? = 0 OR ss.branch_id = ?)";
+        try (Connection connection = DBContext.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, status);
+            statement.setInt(2, attendanceId);
+            statement.setInt(3, branchId);
+            statement.setInt(4, branchId);
+            return statement.executeUpdate() == 1;
+        } catch (Exception e) {
+            throw new SQLException("Không thể cập nhật kết quả duyệt chấm công.", e);
+        }
+    }
+
+    private Attendance mapAttendance(ResultSet result) throws SQLException {
+        Attendance attendance = new Attendance();
+        attendance.setId(result.getInt("id"));
+        attendance.setUserId(result.getInt("user_id"));
+        attendance.setShiftScheduleId(result.getInt("shift_schedule_id"));
+        attendance.setWorkDate(result.getDate("work_date"));
+        attendance.setShiftName(result.getString("shift_name"));
+        attendance.setShiftStart(result.getTime("start_time"));
+        attendance.setShiftEnd(result.getTime("end_time"));
+        attendance.setCheckIn(result.getTimestamp("check_in"));
+        attendance.setCheckOut(result.getTimestamp("check_out"));
+        attendance.setStatus(result.getString("status"));
+        return attendance;
     }
 }
+

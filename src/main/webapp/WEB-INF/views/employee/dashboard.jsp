@@ -107,21 +107,29 @@
                 padding: 30px;
             }
 
-            /* --- THANH HIỂN THỊ CƠ SỞ & VỊ TRÍ --- */
+            /* --- THANH HIỂN THỊ CƠ SỞ & VỊ TRÍ (ĐÃ TINH CHỈNH) --- */
             .branch-info-bar {
-                background-color: #e2f8eb;
-                border: 1px solid #bbf7d0;
-                color: #166534;
-                padding: 12px 20px;
-                border-radius: 6px;
+                background-color: #ffffff;
+                border: 1px solid #e2e8f0;
+                border-left: 4px solid #16a34a;
+                color: #334155;
+                padding: 15px 20px;
+                border-radius: 8px;
                 font-size: 14px;
                 margin-bottom: 25px;
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                font-weight: 500;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 15px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.02);
             }
-            .branch-info-bar i {
+            .branch-info-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .branch-info-item i {
                 color: #16a34a;
                 font-size: 16px;
             }
@@ -282,8 +290,24 @@
     </head>
     <body>
 
-        <!-- Sidebar Điều Hướng Trái (Nhân viên - dùng chung qua fragment: Trang chủ, Lịch làm việc, Khai báo lịch rảnh, Đơn từ & Khiếu nại, Vi phạm) -->
-        <jsp:include page="/WEB-INF/views/fragments/employee-sidebar.jsp"/>
+        <!-- Sidebar Điều Hướng Trái (Nhân viên) -->
+        <div class="sidebar">
+            <div class="sidebar-brand">
+                <i class="fa-solid fa-id-badge"></i>
+                <span>Employee Portal</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="active"><a href="${pageContext.request.contextPath}/employee/dashboard"><i class="fa-solid fa-house"></i> Trang chủ</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/availability"><i class="fa-solid fa-calendar-plus"></i> Khai báo lịch rảnh</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/my-schedule"><i class="fa-solid fa-calendar-check"></i> Lịch làm việc</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/attendance"><i class="fa-solid fa-fingerprint"></i> Chấm công trực tuyến</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/payroll"><i class="fa-solid fa-money-bill-wave"></i> Phiếu lương</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/leave-request"><i class="fa-solid fa-plane-departure"></i> Xin nghỉ phép</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/forms"><i class="fa-solid fa-rotate"></i> Đổi ca làm</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/violations"><i class="fa-solid fa-triangle-exclamation"></i> Vi phạm & kết quả</a></li>
+                <li><a href="${pageContext.request.contextPath}/employee/profile"><i class="fa-solid fa-address-card"></i>Hồ sơ cá nhân</a></li>
+            </ul>
+        </div>
 
         <!-- Main Content Wrapper -->
         <div class="main-wrapper">
@@ -307,10 +331,16 @@
 
             <div class="container">
 
-                <!-- Thanh hiển thị Cơ sở làm việc và Vị trí của nhân viên -->
+                <!-- Thanh hiển thị Cơ sở làm việc và Vị trí của nhân viên được làm mới đẹp hơn -->
                 <div class="branch-info-bar">
-                    <i class="fa-solid fa-location-dot"></i>
-                    <span>Cơ sở làm việc: <b>${emp != null && emp.branchName != null ? emp.branchName : 'Chưa phân công'}</b> | Vị trí: <b>${emp != null && emp.positionTitle != null ? emp.positionTitle : 'Nhân viên vận hành'}</b></span>
+                    <div class="branch-info-item">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <span>Cơ sở làm việc: <b>${emp != null && emp.branchName != null ? emp.branchName : 'Chưa phân công'}</b></span>
+                    </div>
+                    <div class="branch-info-item">
+                        <i class="fa-solid fa-briefcase"></i>
+                        <span>Vị trí: <b>${emp != null && emp.positionTitle != null ? emp.positionTitle : 'Nhân viên vận hành'}</b></span>
+                    </div>
                 </div>
 
                 <!-- Banner chào mừng -->
@@ -347,7 +377,7 @@
                         </div>
                         <div class="stat-info">
                             <h4>Trạng Thái Chấm Công</h4>
-                            <span>Chưa Check-in</span>
+                            <span><c:out value="${attendanceStatus}"/></span>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -421,28 +451,84 @@
                             </div>
                             <p>Thực hiện thao tác điểm danh check-in và check-out vào ca làm việc hằng ngày tại cơ sở của bạn.</p>
                         </div>
-                        <a href="#" class="card-link">Truy cập chấm công <i class="fa-solid fa-arrow-right"></i></a>
+                        <a href="${pageContext.request.contextPath}/employee/attendance" class="card-link">Truy cập chấm công <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                    
+                    <!-- Tính năng 4: Phiếu lương -->
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #0d9488;">
+                                    <i class="fa-solid fa-money-bill-wave"></i>
+                                </div>
+                                <h3>Phiếu Lương</h3>
+                            </div>
+                            <p>Tra cứu phiếu lương theo kỳ, xem giờ công, phụ cấp, các khoản khấu trừ và số tiền thực nhận.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/employee/payroll" class="card-link">Xem phiếu lương <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
 
-                    <!-- Tính năng 4: Gửi đơn xin nghỉ / đổi ca -->
+                    <!-- Tính năng 5: Xin nghỉ phép -->
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #10b981;">
+                                    <i class="fa-solid fa-plane-departure"></i>
+                                </div>
+                                <h3>Xin Nghỉ Phép</h3>
+                            </div>
+                            <p>Gửi đơn xin nghỉ phép, nghỉ không phép hoặc các loại nghỉ khác để Store Manager xem xét và phê duyệt.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/employee/leave-request" class="card-link">Tạo đơn nghỉ phép <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
+                    <!-- Tính năng 6: Đổi ca làm -->
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #2563eb;">
+                                    <i class="fa-solid fa-rotate"></i>
+                                </div>
+                                <h3>Đổi Ca Làm</h3>
+                            </div>
+                            <p>Đề nghị đổi ca với đồng nghiệp hoặc đăng ký nhận ca trống, theo dõi yêu cầu chờ quản lý phê duyệt.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/employee/request-shift" class="card-link">Tạo yêu cầu đổi ca <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+
+                    <!-- Tính năng 7: Vi phạm và kết quả xử lý -->
                     <div class="card">
                         <div>
                             <div class="card-icon-title">
                                 <div class="card-icon" style="background-color: #ef4444;">
-                                    <i class="fa-solid fa-file-lines"></i>
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
                                 </div>
-                                <h3>Đơn Từ & Khiếu Nại Ca</h3>
+                                <h3>Vi Phạm & Kết Quả</h3>
                             </div>
-                            <p>Gửi các yêu cầu xin nghỉ phép, đổi ca làm việc hoặc phản hồi về lịch trực lên cấp trên xét duyệt.</p>
+                            <p>Theo dõi các báo cáo vi phạm, trạng thái xác minh và kết quả xử lý từ bộ phận HR.</p>
                         </div>
-                        <a href="${pageContext.request.contextPath}/employee/forms" class="card-link">Quản lý đơn từ →</a>
+                        <a href="${pageContext.request.contextPath}/employee/violations" class="card-link">Xem kết quả xử lý <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                    
+                    <!-- Tính năng 8: Hồ sơ cá nhân -->
+                    <div class="card">
+                        <div>
+                            <div class="card-icon-title">
+                                <div class="card-icon" style="background-color: #8b5cf6;">
+                                    <i class="fa-solid fa-address-card"></i>
+                                </div>
+                                <h3>Hồ Sơ Cá Nhân</h3>
+                            </div>
+                            <p>Xem thông tin công việc và cập nhập thông tin liên hệ cá nhân.</p>
+                        </div>
+                        <a href="${pageContext.request.contextPath}/employee/profile" class="card-link">Xem kết quả xử lý <i class="fa-solid fa-arrow-right"></i></a>
                     </div>
                 </div>
 
             </div>
         </div>
 
-    <script src="${pageContext.request.contextPath}/js/sidebar.js"></script>
+        <script src="${pageContext.request.contextPath}/js/sidebar.js"></script>
 
     </body>
 </html>

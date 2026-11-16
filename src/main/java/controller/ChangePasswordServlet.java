@@ -16,7 +16,7 @@ public class ChangePasswordServlet extends BaseServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         // 1. Kiểm tra đăng nhập bằng BaseServlet
         User user = getCurrentUser(request);
         if (user == null) {
@@ -30,7 +30,7 @@ public class ChangePasswordServlet extends BaseServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        
+
         // 1. Kiểm tra đăng nhập
         User user = getCurrentUser(request);
         if (user == null) {
@@ -42,6 +42,29 @@ public class ChangePasswordServlet extends BaseServlet {
         String oldPassword = getStringParameter(request, "oldPassword");
         String newPassword = getStringParameter(request, "newPassword");
         String confirmPassword = getStringParameter(request, "confirmPassword");
+
+        if (newPassword == null || newPassword.isBlank()
+                || confirmPassword == null || confirmPassword.isBlank()) {
+            request.setAttribute("error", "Vui lòng nhập đầy đủ mật khẩu mới!");
+            request.getRequestDispatcher(
+                    "/WEB-INF/views/change-password.jsp"
+            ).forward(request, response);
+            return;
+        }
+
+// Chỉ kiểm tra mật khẩu hiện tại khi KHÔNG phải lần đầu.
+        if (!user.isFirstLogin()) {
+            if (oldPassword == null || oldPassword.isBlank()
+                    || new UserDAO().checkLogin(
+                            user.getUsername(), oldPassword) == null) {
+
+                request.setAttribute("error", "Mật khẩu hiện tại không chính xác!");
+                request.getRequestDispatcher(
+                        "/WEB-INF/views/change-password.jsp"
+                ).forward(request, response);
+                return;
+            }
+        }
 
         // Validate cơ bản
         if (!newPassword.equals(confirmPassword)) {
@@ -78,23 +101,23 @@ public class ChangePasswordServlet extends BaseServlet {
     private void redirectByRole(int roleId, HttpServletRequest request, HttpServletResponse response) throws IOException {
         // Tận dụng các hằng số ROLE_* định nghĩa sẵn trong BaseServlet
         switch (roleId) {
-            case ROLE_ADMIN: 
-                response.sendRedirect(request.getContextPath() + "/admin/dashboard"); 
+            case ROLE_ADMIN:
+                response.sendRedirect(request.getContextPath() + "/admin/dashboard");
                 break;
-            case ROLE_DIRECTOR: 
-                response.sendRedirect(request.getContextPath() + "/director/dashboard"); 
+            case ROLE_DIRECTOR:
+                response.sendRedirect(request.getContextPath() + "/director/dashboard");
                 break;
-            case ROLE_HR_MANAGER: 
-                response.sendRedirect(request.getContextPath() + "/hr/dashboard"); 
+            case ROLE_HR_MANAGER:
+                response.sendRedirect(request.getContextPath() + "/hr/dashboard");
                 break;
-            case ROLE_STORE_MANAGER: 
-                response.sendRedirect(request.getContextPath() + "/store-manager/dashboard"); 
+            case ROLE_STORE_MANAGER:
+                response.sendRedirect(request.getContextPath() + "/store-manager/dashboard");
                 break;
-            case ROLE_EMPLOYEE: 
-                response.sendRedirect(request.getContextPath() + "/employee/dashboard"); 
+            case ROLE_EMPLOYEE:
+                response.sendRedirect(request.getContextPath() + "/employee/dashboard");
                 break;
-            default: 
-                response.sendRedirect(request.getContextPath() + "/login.jsp"); 
+            default:
+                response.sendRedirect(request.getContextPath() + "/login.jsp");
                 break;
         }
     }

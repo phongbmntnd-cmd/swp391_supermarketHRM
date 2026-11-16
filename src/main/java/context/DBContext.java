@@ -20,7 +20,7 @@ public class DBContext {
     private static final String PORT_NUMBER = "3306";
     private static final String DB_NAME = "swp391_supermarket";
     private static final String USER_NAME = "root";
-    private static final String PASSWORD = "123456";
+    private static final String PASSWORD = "Phong22042004@";
 
 
 
@@ -30,9 +30,13 @@ public class DBContext {
 
         // 2. Tạo chuỗi Connection URL
         // Ví dụ chuỗi URL kết nối chuẩn:
-        String url = "jdbc:mysql://localhost:3306/swp391_supermarket?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh&allowPublicKeyRetrieval=true";
+        // characterEncoding=utf8: đảm bảo tiếng Việt (mô tả audit log) lưu/đọc đúng dấu
+        String url = "jdbc:mysql://localhost:3306/swp391_supermarket?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh"
+                   + "&allowPublicKeyRetrieval=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci";
 
         // 3. Mở kết nối tới MySQL Database
+        // characterEncoding=utf8 trong URL đảm bảo tiếng Việt (mô tả audit log)
+        // lưu/đọc đúng dấu.
         return DriverManager.getConnection(url, USER_NAME, PASSWORD);
     }
 

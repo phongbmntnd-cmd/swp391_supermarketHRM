@@ -1,46 +1,28 @@
+
 package model;
 
 import java.sql.Date;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.sql.Time;
+import java.sql.Timestamp;
 
-/**
- * Model cho bảng {@code attendances} - bản ghi chấm công.
- *
- * <h3>Ánh xạ schema</h3>
- * <pre>
- *   attendances.id              -> id
- *   attendances.user_id         -> userId
- *   employee_profiles.full_name -> fullName
- *   users.username             -> username
- *   attendances.shift_schedule_id -> shiftScheduleId
- *   attendances.check_in        -> checkIn   (datetime)
- *   attendances.check_out       -> checkOut  (datetime)
- *   attendances.method          -> method    (WIFI | DYNAMIC_QR)
- *   attendances.status          -> status    (VALID | INVALID | ADJUSTED)
- * </pre>
- *
- * <p>Thời gian check-in/out dùng {@link LocalDateTime} vì cột trong DB
- * là {@code datetime}. Trường {@code date} giữ lại ngày làm việc
- * (phục vụ việc lọc/nhóm theo ngày) và được suy ra từ {@code check_in}.
- */
 public class Attendance {
 
     private int id;
     private int userId;
+    private int shiftScheduleId;
     private String fullName;
     private String username;
-    private int shiftScheduleId;
-    private LocalDateTime checkIn;
-    private LocalDateTime checkOut;
-    private String method;
+    private String branchName;
+    private String shiftName;
+    private Date workDate;
+    private Time shiftStart;
+    private Time shiftEnd;
+    private Timestamp checkIn;
+    private Timestamp checkOut;
     private String status;
-
-    /** Ngày làm việc (suy ra từ check_in). */
-    private Date date;
-
-    public Attendance() {
-    }
+    private String adjustmentNote;
+    private String adjustedBy;
+    private Timestamp adjustedAt;
 
     public int getId() {
         return id;
@@ -56,6 +38,14 @@ public class Attendance {
 
     public void setUserId(int userId) {
         this.userId = userId;
+    }
+
+    public int getShiftScheduleId() {
+        return shiftScheduleId;
+    }
+
+    public void setShiftScheduleId(int shiftScheduleId) {
+        this.shiftScheduleId = shiftScheduleId;
     }
 
     public String getFullName() {
@@ -74,40 +64,61 @@ public class Attendance {
         this.username = username;
     }
 
-    public int getShiftScheduleId() {
-        return shiftScheduleId;
+
+    public String getBranchName() {
+        return branchName;
     }
 
-    public void setShiftScheduleId(int shiftScheduleId) {
-        this.shiftScheduleId = shiftScheduleId;
+    public void setBranchName(String branchName) {
+        this.branchName = branchName;
     }
 
-    public LocalDateTime getCheckIn() {
+    public String getShiftName() {
+        return shiftName;
+    }
+
+    public void setShiftName(String shiftName) {
+        this.shiftName = shiftName;
+    }
+
+    public Date getWorkDate() {
+        return workDate;
+    }
+
+    public void setWorkDate(Date workDate) {
+        this.workDate = workDate;
+    }
+
+    public Time getShiftStart() {
+        return shiftStart;
+    }
+
+    public void setShiftStart(Time shiftStart) {
+        this.shiftStart = shiftStart;
+    }
+
+    public Time getShiftEnd() {
+        return shiftEnd;
+    }
+
+    public void setShiftEnd(Time shiftEnd) {
+        this.shiftEnd = shiftEnd;
+    }
+
+    public Timestamp getCheckIn() {
         return checkIn;
     }
 
-    public void setCheckIn(LocalDateTime checkIn) {
+    public void setCheckIn(Timestamp checkIn) {
         this.checkIn = checkIn;
-        // Đồng bộ ngày làm việc theo check-in để tiện khi hiển thị.
-        if (checkIn != null) {
-            this.date = Date.valueOf(checkIn.toLocalDate());
-        }
     }
 
-    public LocalDateTime getCheckOut() {
+    public Timestamp getCheckOut() {
         return checkOut;
     }
 
-    public void setCheckOut(LocalDateTime checkOut) {
+    public void setCheckOut(Timestamp checkOut) {
         this.checkOut = checkOut;
-    }
-
-    public String getMethod() {
-        return method;
-    }
-
-    public void setMethod(String method) {
-        this.method = method;
     }
 
     public String getStatus() {
@@ -118,95 +129,33 @@ public class Attendance {
         this.status = status;
     }
 
-    public Date getDate() {
-        return date;
+    public String getAdjustmentNote() {
+        return adjustmentNote;
     }
 
-    public void setDate(Date date) {
-        this.date = date;
+    public void setAdjustmentNote(String adjustmentNote) {
+        this.adjustmentNote = adjustmentNote;
     }
 
-    /**
-     * Số giờ làm việc thực tế (check-out - check-in).
-     *
-     * @return số giờ, 0 nếu thiếu mốc check-in hoặc check-out
-     */
-    public double getWorkedHours() {
-        if (checkIn == null || checkOut == null) {
-            return 0d;
-        }
-        long minutes = java.time.Duration
-                .between(checkIn, checkOut).toMinutes();
-        return minutes / 60.0;
+    public String getAdjustedBy() {
+        return adjustedBy;
     }
 
-    /**
-     * Số giờ làm việc đã làm tròn 2 chữ số thập phân (để hiển thị).
-     *
-     * <p>Ví dụ 4.916666666666667 -&gt; "4.92", 10.0 -&gt; "10".
-     */
-    public String getWorkedHoursText() {
-        if (checkIn == null || checkOut == null) {
-            return "";
-        }
-        double h = getWorkedHours();
-        if (h == Math.floor(h)) {
-            return String.valueOf((long) h);
-        }
-        return String.valueOf(Math.round(h * 100.0) / 100.0);
+    public void setAdjustedBy(String adjustedBy) {
+        this.adjustedBy = adjustedBy;
     }
 
-    /**
-     * Giờ check-in dạng "HH:mm" (rỗng nếu chưa check-in).
-     */
-    public String getCheckInText() {
-        return formatTime(checkIn);
+    public Timestamp getAdjustedAt() {
+        return adjustedAt;
     }
 
-    /**
-     * Giờ check-out dạng "HH:mm" (rỗng nếu chưa check-out).
-     */
-    public String getCheckOutText() {
-        return formatTime(checkOut);
+    public void setAdjustedAt(Timestamp adjustedAt) {
+        this.adjustedAt = adjustedAt;
     }
 
-    /**
-     * Định dạng LocalDateTime thành "HH:mm".
-     */
-    private String formatTime(LocalDateTime dt) {
-        if (dt == null) {
-            return "";
-        }
-        String hh = dt.getHour() < 10
-                ? "0" + dt.getHour()
-                : String.valueOf(dt.getHour());
-        String mm = dt.getMinute() < 10
-                ? "0" + dt.getMinute()
-                : String.valueOf(dt.getMinute());
-        return hh + ":" + mm;
-    }
-
-    /**
-     * Ngày làm việc dạng "dd/MM/yyyy" (rỗng nếu không có).
-     */
-    public String getDateText() {
-        if (date == null) {
-            return "";
-        }
-        LocalDate d = date.toLocalDate();
-        String dd = d.getDayOfMonth() < 10
-                ? "0" + d.getDayOfMonth()
-                : String.valueOf(d.getDayOfMonth());
-        String mm = d.getMonthValue() < 10
-                ? "0" + d.getMonthValue()
-                : String.valueOf(d.getMonthValue());
-        return dd + "/" + mm + "/" + d.getYear();
-    }
-
-    /**
-     * Ca có đủ cả check-in và check-out không (tức là bản ghi hợp lệ).
-     */
-    public boolean isComplete() {
-        return checkIn != null && checkOut != null;
+    public boolean isLate() {
+        return checkIn != null && shiftStart != null
+                && checkIn.toLocalDateTime().toLocalTime().isAfter(shiftStart.toLocalTime());
     }
 }
+

@@ -160,17 +160,7 @@ public class EmployeeAvailabilityDAO {
         }
     }
 
-    /**
-     * Lấy danh sách lịch rảnh kèm tên và vị trí theo cơ sở của Store Manager.
-     *
-     * <p><b>Quan trọng:</b> phải lọc theo {@code week_start_date} đúng tuần đang xem.
-     * Nếu thiếu điều kiện này, lưới xếp lịch sẽ trộn lịch rảnh của các tuần khác
-     * vào tuần hiện tại (nhân viên đăng ký thêm tuần sau sẽ xuất hiện ở tuần này),
-     * khiến Store thấy "đã có người đăng ký" ở những ca thực tế chưa ai đăng ký.
-     *
-     * @param branchId      cơ sở đang quản lý
-     * @param weekStartDate mốc tuần (yyyy-MM-dd) của lịch rảnh cần lấy
-     */
+    // Lấy danh sách lịch rảnh kèm tên và vị trí theo cơ sở của Store Manager
     public List<java.util.Map<String, Object>> getRegistrationsByBranchId(int branchId, String weekStartDate) {
         List<java.util.Map<String, Object>> list = new ArrayList<>();
         String sql = "SELECT ea.user_id, ep.full_name, pos.title AS position_title, "
@@ -182,7 +172,7 @@ public class EmployeeAvailabilityDAO {
                 + "WHERE ep.home_branch_id = ? AND ea.week_start_date = ?";
         try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
             st.setInt(1, branchId);
-            st.setString(2, weekStartDate);
+            st.setString(2, weekStartDate); // Thêm điều kiện lọc theo tuần
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     java.util.Map<String, Object> row = new java.util.HashMap<>();

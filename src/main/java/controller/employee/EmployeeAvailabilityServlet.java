@@ -104,7 +104,7 @@ public class EmployeeAvailabilityServlet extends BaseServlet {
             return;
         }
 
-        if (!hasRole(request, ROLE_EMPLOYEE) && user.getRoleId() != ROLE_ADMIN) {
+        if (!hasRole(request, ROLE_EMPLOYEE)) {
             sendForbidden(request, response, "Bạn không có quyền thực hiện thao tác này!");
             return;
         }

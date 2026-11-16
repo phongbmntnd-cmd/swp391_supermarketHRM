@@ -6,6 +6,7 @@ package model;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.math.BigDecimal;
 
 public class Violation {
 
@@ -26,6 +27,7 @@ public class Violation {
     private String reviewNote;
     private String disciplinaryAction;
     private Timestamp reviewedAt;
+    private BigDecimal deductionAmount;
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -76,5 +78,6 @@ public class Violation {
     public void setDisciplinaryAction(String disciplinaryAction) { this.disciplinaryAction = disciplinaryAction; }
     public Timestamp getReviewedAt() { return reviewedAt; }
     public void setReviewedAt(Timestamp reviewedAt) { this.reviewedAt = reviewedAt; }
+    public BigDecimal getDeductionAmount() { return deductionAmount; }
+    public void setDeductionAmount(BigDecimal deductionAmount) { this.deductionAmount = deductionAmount; }
 }
-

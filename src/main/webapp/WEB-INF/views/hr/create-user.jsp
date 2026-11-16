@@ -145,20 +145,43 @@
                         </div>
                     </div>
 
-                    <!-- 4. LOẠI NHÂN SỰ -->
-                    <div class="row g-3 mb-4">
+                    <!-- 4. HÌNH THỨC LÀM VIỆC VÀ HỢP ĐỒNG: hai thuộc tính độc lập -->
+                    <div class="section-title">4. Hình thức làm việc & Hợp đồng</div>
+                    <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Loại nhân sự <span class="text-danger">*</span></label>
+                            <label class="form-label">Hình thức làm việc <span class="text-danger">*</span></label>
                             <select id="employeeTypeSelect" class="form-select" ${not empty proposal ? 'disabled' : 'name="employeeType"'}>
-                                <option value="FULL_TIME" ${not empty proposal && proposal.employmentType == 'FULL_TIME' ? 'selected' : ''}>FULL_TIME (Chính thức)</option>
+                                <option value="FULL_TIME" ${not empty proposal && proposal.employmentType == 'FULL_TIME' ? 'selected' : ''}>FULL_TIME (Toàn thời gian)</option>
                                 <option value="PART_TIME" ${not empty proposal && proposal.employmentType == 'PART_TIME' ? 'selected' : ''}>PART_TIME (Bán thời gian)</option>
-                                <option value="CASUAL" ${not empty proposal && proposal.employmentType == 'CASUAL' ? 'selected' : ''}>CASUAL (Thời vụ)</option>
                             </select>
                         </div>
-
-                        <div class="col-md-6" id="expirationDateContainer" style="display: ${not empty proposal && proposal.employmentType == 'CASUAL' ? 'block' : 'none'};">
+                        <div class="col-md-6">
+                            <label class="form-label">Loại hợp đồng <span class="text-danger">*</span></label>
+                            <select id="contractTypeSelect" name="contractType" class="form-select" ${not empty proposal ? 'disabled' : ''}>
+                                <option value="CHINH_THUC" ${empty proposal || proposal.contractType == 'CHINH_THUC' ? 'selected' : ''}>Hợp đồng chính thức</option>
+                                <option value="THOI_VU" ${not empty proposal && proposal.contractType == 'THOI_VU' ? 'selected' : ''}>Hợp đồng thời vụ</option>
+                            </select>
+                            <c:if test="${not empty proposal}">
+                                <input type="hidden" name="contractType" value="${proposal.contractType}">
+                            </c:if>
+                        </div>
+                    </div>
+                    <c:if test="${not empty proposal}">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Ngày mong muốn có nhân sự</label>
+                                <input type="date" class="form-control" value="${proposal.targetDate}" readonly>
+                                <div class="form-text">Ngày do Store Manager đề xuất, không tự động là ngày bắt đầu hợp đồng.</div>
+                            </div>
+                        </div>
+                    </c:if>
+                    <div class="row g-3 mb-4" id="expirationDateContainer"
+                         style="display: ${not empty proposal && proposal.contractType == 'THOI_VU' ? 'flex' : (empty proposal ? 'none' : 'none')};">
+                        <div class="col-md-6">
                             <label class="form-label">Ngày kết thúc hợp đồng <span class="text-danger">*</span></label>
-                            <input type="date" id="expirationDateInput" name="expirationDate" value="${not empty proposal ? proposal.expirationDate : ''}" class="form-control" ${not empty proposal ? 'readonly' : ''}>
+                            <input type="date" id="expirationDateInput" name="expirationDate"
+                                   value="${not empty proposal ? proposal.expirationDate : ''}"
+                                   class="form-control" ${not empty proposal ? 'readonly' : ''}>
                         </div>
                     </div>
 
@@ -187,6 +210,21 @@
             }
 
             document.addEventListener("DOMContentLoaded", function () {
+                const contractTypeSelect = document.getElementById('contractTypeSelect');
+                const expirationDateContainer = document.getElementById('expirationDateContainer');
+                const expirationDateInput = document.getElementById('expirationDateInput');
+                if (contractTypeSelect && expirationDateContainer && expirationDateInput) {
+                    const updateContractFields = function () {
+                        const isCasual = contractTypeSelect.value === 'THOI_VU';
+                        expirationDateContainer.style.display = isCasual ? 'flex' : 'none';
+                        expirationDateInput.required = isCasual;
+                        if (!isCasual && !expirationDateInput.readOnly) {
+                            expirationDateInput.value = '';
+                        }
+                    };
+                    contractTypeSelect.addEventListener('change', updateContractFields);
+                    updateContractFields();
+                }
                 const roleSelect = document.getElementById('roleSelect');
                 if (roleSelect) {
                     roleSelect.addEventListener('change', function () {
