@@ -249,11 +249,11 @@
                 <div class="branch-info-bar">
                     <i class="fa-solid fa-location-dot"></i>
                     <span>Cơ sở hiện tại: <b><c:choose>
-                            <c:when test="${not empty currentBranch}">
-                                <c:out value="${currentBranch.name}"/> (<c:out value="${currentBranch.code}"/>) - <c:out value="${currentBranch.address}"/>
-                            </c:when>
-                            <c:otherwise>Không xác định được cơ sở của bạn</c:otherwise>
-                        </c:choose></b></span>
+                                <c:when test="${not empty currentBranch}">
+                                    <c:out value="${currentBranch.name}"/> (<c:out value="${currentBranch.code}"/>) - <c:out value="${currentBranch.address}"/>
+                                </c:when>
+                                <c:otherwise>Không xác định được cơ sở của bạn</c:otherwise>
+                            </c:choose></b></span>
                 </div>
 
                 <div class="page-title d-flex justify-content-between align-items-center">

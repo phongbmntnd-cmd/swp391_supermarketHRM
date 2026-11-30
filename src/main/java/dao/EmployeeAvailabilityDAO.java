@@ -161,16 +161,17 @@ public class EmployeeAvailabilityDAO {
     }
 
     // Lấy danh sách lịch rảnh kèm tên và vị trí theo cơ sở của Store Manager
-    public List<java.util.Map<String, Object>> getRegistrationsByBranchId(int branchId) {
+    public List<java.util.Map<String, Object>> getRegistrationsByBranchId(int branchId, String weekStartDate) {
         List<java.util.Map<String, Object>> list = new ArrayList<>();
         String sql = "SELECT ea.user_id, ep.full_name, pos.title AS position_title, ea.day_of_week, s.name AS shift_name "
                 + "FROM employee_availabilities ea "
                 + "JOIN employee_profiles ep ON ea.user_id = ep.user_id "
                 + "JOIN positions pos ON ep.position_id = pos.id "
                 + "JOIN shifts s ON ea.shift_id = s.id "
-                + "WHERE ep.home_branch_id = ?";
+                + "WHERE ep.home_branch_id = ? AND ea.week_start_date = ?";
         try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
             st.setInt(1, branchId);
+            st.setString(2, weekStartDate); // Thêm điều kiện lọc theo tuần
             try (ResultSet rs = st.executeQuery()) {
                 while (rs.next()) {
                     java.util.Map<String, Object> row = new java.util.HashMap<>();

@@ -88,7 +88,7 @@ public class StoreManagerScheduleServlet extends BaseServlet {
         request.setAttribute("allBranches", otherBranches);
 
         List<Shift> shifts = availabilityDAO.getAllShifts();
-        List<Map<String, Object>> branchRegistrations = availabilityDAO.getRegistrationsByBranchId(managerBranchId);
+        List<Map<String, Object>> branchRegistrations = availabilityDAO.getRegistrationsByBranchId(managerBranchId, nextMonday.toString());
         List<Map<String, Object>> supplementaryApplicants = suppDAO
                 .getApplicants(managerBranchId, nextMonday.toString(), nextSunday.toString());
         for (Map<String, Object> applicant : supplementaryApplicants) {
